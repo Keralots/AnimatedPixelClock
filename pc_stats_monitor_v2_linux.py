@@ -448,6 +448,41 @@ def _discover_nvidia_sensors():
                 "current_value": power_val
             })
 
+            # GPU Temperature (°C)
+            try:
+                temp_val = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+            except Exception:
+                temp_val = 0
+            sensor_database["gpu"].append({
+                "name": f"{prefix}_TMP",
+                "display_name": f"GPU Temp [{gpu_name}]",
+                "source": "nvml_gpu",
+                "type": "temperature",
+                "unit": "C",
+                "gpu_index": i,
+                "metric": "temperature",
+                "custom_label": "",
+                "current_value": temp_val
+            })
+
+            # GPU Memory Used %
+            try:
+                mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                mem_pct = int(mem_info.used * 100 / mem_info.total) if mem_info.total > 0 else 0
+            except Exception:
+                mem_pct = 0
+            sensor_database["gpu"].append({
+                "name": f"{prefix}_MEMP",
+                "display_name": f"GPU Mem % [{gpu_name}]",
+                "source": "nvml_gpu",
+                "type": "percent",
+                "unit": "%",
+                "gpu_index": i,
+                "metric": "memory_percent",
+                "custom_label": "",
+                "current_value": mem_pct
+            })
+
         if device_count > 0:
             print(f"  NVIDIA: {device_count} GPU(s) detected via pynvml")
             return True
@@ -528,7 +563,41 @@ def _discover_amd_sensors():
             })
             found = True
 
+        # GPU Memory Used %
+        vram_total_val = _read_int(os.path.join(device_path, "mem_info_vram_total"))
+        if vram_val is not None and vram_total_val is not None and vram_total_val > 0:
+            sensor_database["gpu"].append({
+                "name": f"{prefix}_MEMP",
+                "display_name": f"GPU Mem % [{gpu_name}]",
+                "source": "amd_sysfs",
+                "type": "percent",
+                "unit": "%",
+                "device_path": device_path,
+                "hwmon_path": hwmon_path,
+                "metric": "mem_percent",
+                "custom_label": "",
+                "current_value": int(vram_val * 100 / vram_total_val)
+            })
+            found = True
+
         if hwmon_path:
+            # GPU Temperature (millidegrees C → °C)
+            temp_val = _read_int(os.path.join(hwmon_path, "temp1_input"))
+            if temp_val is not None:
+                sensor_database["gpu"].append({
+                    "name": f"{prefix}_TMP",
+                    "display_name": f"GPU Temp [{gpu_name}]",
+                    "source": "amd_sysfs",
+                    "type": "temperature",
+                    "unit": "C",
+                    "device_path": device_path,
+                    "hwmon_path": hwmon_path,
+                    "metric": "temp1_input",
+                    "custom_label": "",
+                    "current_value": temp_val // 1000
+                })
+                found = True
+
             # GPU Core Frequency (Hz → MHz)
             freq_val = _read_int(os.path.join(hwmon_path, "freq1_input"))
             if freq_val is not None:
@@ -1719,12 +1788,17 @@ def get_metric_value(metric_config):
                 return pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
             elif metric == "memory_used":
                 return int(pynvml.nvmlDeviceGetMemoryInfo(handle).used / (1024 ** 2))
+            elif metric == "memory_percent":
+                info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                return int(info.used * 100 / info.total) if info.total > 0 else 0
             elif metric == "clock_graphics":
                 return pynvml.nvmlDeviceGetClockInfo(handle, pynvml.NVML_CLOCK_GRAPHICS)
             elif metric == "fan_speed":
                 return pynvml.nvmlDeviceGetFanSpeed(handle)
             elif metric == "power_usage":
                 return int(pynvml.nvmlDeviceGetPowerUsage(handle) / 1000)
+            elif metric == "temperature":
+                return pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
         except Exception:
             pass
 
@@ -1749,6 +1823,13 @@ def get_metric_value(metric_config):
             elif metric in ("power1_average", "power1_input"):
                 with open(os.path.join(hwmon_path, metric)) as f:
                     return int(int(f.read().strip()) / 1_000_000)
+            elif metric == "temp1_input":
+                with open(os.path.join(hwmon_path, metric)) as f:
+                    return int(f.read().strip()) // 1000
+            elif metric == "mem_percent":
+                used  = int(open(os.path.join(device_path, "mem_info_vram_used")).read().strip())
+                total = int(open(os.path.join(device_path, "mem_info_vram_total")).read().strip())
+                return int(used * 100 / total) if total > 0 else 0
         except Exception:
             pass
 
