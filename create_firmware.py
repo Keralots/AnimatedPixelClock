@@ -2,9 +2,16 @@
 """
 Create firmware binaries for both OTA update and full web flasher installation.
 
+The display type is selected at BUILD TIME via a dedicated PlatformIO environment
+(oled-096 / oled-13), so you no longer need to edit DEFAULT_DISPLAY_TYPE in
+src/config/user_config.h before each release. This script builds the matching
+variant for you and packages it.
+
 Usage:
-    python create_firmware.py v1.4.0 0    # Version v1.4.0, OLED 0.96inch
-    python create_firmware.py v1.4.0 1    # Version v1.4.0, OLED 1.3inch
+    python create_firmware.py v1.4.0        # Build BOTH OLED variants (0.96" + 1.3")
+    python create_firmware.py v1.4.0 0      # Version v1.4.0, OLED 0.96inch only
+    python create_firmware.py v1.4.0 1      # Version v1.4.0, OLED 1.3inch only
+    python create_firmware.py v1.4.0 1 --no-build   # Package an already-built variant
 
 Output files (in release/{version}/ folder):
     release/v1.4.0/firmware-v1.4.0-OLED_0.96inch.bin           (full flash)
@@ -13,12 +20,10 @@ Output files (in release/{version}/ folder):
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 
-# Binary file paths
-BOOTLOADER = '.pio/build/esp32-c3-devkitm-1/bootloader.bin'
-PARTITIONS = '.pio/build/esp32-c3-devkitm-1/partitions.bin'
-FIRMWARE = '.pio/build/esp32-c3-devkitm-1/firmware.bin'
 RELEASES_DIR = 'release'
 
 # Flash offsets (standard for ESP32-C3)
@@ -26,11 +31,70 @@ BOOTLOADER_OFFSET = 0x0
 PARTITIONS_OFFSET = 0x8000
 FIRMWARE_OFFSET = 0x10000
 
-# OLED type mapping
+# OLED type -> human-readable name (used in output filenames)
 OLED_TYPES = {
     '0': '0.96inch',
     '1': '1.3inch'
 }
+
+# OLED type -> PlatformIO environment that fixes DISPLAY_TYPE via build flag.
+# Each env has its own build directory under .pio/build/, so the two variants
+# never share object files and don't need a clean between builds.
+OLED_ENVS = {
+    '0': 'oled-096',
+    '1': 'oled-13'
+}
+
+
+def find_platformio():
+    """Locate the platformio executable (PATH first, then the standard penv)."""
+    for name in ('platformio', 'pio'):
+        found = shutil.which(name)
+        if found:
+            return found
+
+    # Fall back to the default install location used by the PlatformIO IDE/CLI
+    candidates = [
+        os.path.expanduser('~/.platformio/penv/Scripts/platformio.exe'),  # Windows
+        os.path.expanduser('~/.platformio/penv/bin/platformio'),          # Linux/macOS
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    return None
+
+
+def build_dir_for(env):
+    """Return the PlatformIO build output directory for an environment."""
+    return os.path.join('.pio', 'build', env)
+
+
+def binary_paths(env):
+    """Return (bootloader, partitions, firmware) paths for an environment."""
+    build_dir = build_dir_for(env)
+    return (
+        os.path.join(build_dir, 'bootloader.bin'),
+        os.path.join(build_dir, 'partitions.bin'),
+        os.path.join(build_dir, 'firmware.bin'),
+    )
+
+
+def build_variant(env):
+    """Compile the firmware for the given PlatformIO environment."""
+    pio = find_platformio()
+    if not pio:
+        print("Error: could not find the 'platformio' (or 'pio') executable.")
+        print("Add it to PATH, or build manually with: platformio run -e " + env)
+        return False
+
+    print(f"\nBuilding firmware (env: {env}) ...")
+    print(f"  Using: {pio}")
+    result = subprocess.run([pio, 'run', '-e', env])
+    if result.returncode != 0:
+        print(f"Error: build failed for env '{env}' (exit code {result.returncode}).")
+        return False
+    return True
 
 
 def get_output_filenames(version, oled_type):
@@ -51,45 +115,45 @@ def get_output_filenames(version, oled_type):
     )
 
 
-def create_ota_binary(output_path):
+def create_ota_binary(firmware_path, output_path):
     """Create OTA-only firmware binary (just firmware.bin copy)."""
 
-    if not os.path.exists(FIRMWARE):
-        print(f"Error: {FIRMWARE} not found!")
-        print("Please build the firmware first: platformio run")
+    if not os.path.exists(firmware_path):
+        print(f"Error: {firmware_path} not found!")
+        print("Please build the firmware first (omit --no-build).")
         return False
 
-    firmware_size = os.path.getsize(FIRMWARE)
+    firmware_size = os.path.getsize(firmware_path)
 
     print(f"\nCreating OTA firmware: {output_path}")
-    print(f"  Source: {FIRMWARE}")
+    print(f"  Source: {firmware_path}")
     print(f"  Size: {firmware_size} bytes ({firmware_size / 1024:.1f} KB)")
 
-    with open(FIRMWARE, 'rb') as infile:
+    with open(firmware_path, 'rb') as infile:
         with open(output_path, 'wb') as outfile:
             outfile.write(infile.read())
 
     return True
 
 
-def create_merged_binary(output_path):
+def create_merged_binary(bootloader_path, partitions_path, firmware_path, output_path):
     """Merge bootloader, partitions, and firmware into single binary."""
 
     # Check if all input files exist
-    for filepath in [BOOTLOADER, PARTITIONS, FIRMWARE]:
+    for filepath in [bootloader_path, partitions_path, firmware_path]:
         if not os.path.exists(filepath):
             print(f"Error: {filepath} not found!")
-            print("Please build the firmware first: platformio run")
+            print("Please build the firmware first (omit --no-build).")
             return False
 
     print(f"\nCreating merged firmware: {output_path}")
-    print(f"  Bootloader: {BOOTLOADER} @ 0x{BOOTLOADER_OFFSET:X}")
-    print(f"  Partitions: {PARTITIONS} @ 0x{PARTITIONS_OFFSET:X}")
-    print(f"  Firmware:   {FIRMWARE} @ 0x{FIRMWARE_OFFSET:X}")
+    print(f"  Bootloader: {bootloader_path} @ 0x{BOOTLOADER_OFFSET:X}")
+    print(f"  Partitions: {partitions_path} @ 0x{PARTITIONS_OFFSET:X}")
+    print(f"  Firmware:   {firmware_path} @ 0x{FIRMWARE_OFFSET:X}")
 
     with open(output_path, 'wb') as outfile:
         # Write bootloader at 0x0
-        with open(BOOTLOADER, 'rb') as f:
+        with open(bootloader_path, 'rb') as f:
             bootloader_data = f.read()
             outfile.write(bootloader_data)
             bootloader_size = len(bootloader_data)
@@ -99,7 +163,7 @@ def create_merged_binary(output_path):
         outfile.write(b'\xFF' * padding_size)
 
         # Write partitions at 0x8000
-        with open(PARTITIONS, 'rb') as f:
+        with open(partitions_path, 'rb') as f:
             partitions_data = f.read()
             outfile.write(partitions_data)
             partitions_size = len(partitions_data)
@@ -110,7 +174,7 @@ def create_merged_binary(output_path):
         outfile.write(b'\xFF' * padding_size)
 
         # Write firmware at 0x10000
-        with open(FIRMWARE, 'rb') as f:
+        with open(firmware_path, 'rb') as f:
             firmware_data = f.read()
             outfile.write(firmware_data)
 
@@ -120,14 +184,43 @@ def create_merged_binary(output_path):
     return True
 
 
+def process_variant(version, oled_type, output_dir, no_build):
+    """Build (unless --no-build) and package a single OLED variant."""
+    env = OLED_ENVS[oled_type]
+    oled_name = OLED_TYPES[oled_type]
+
+    print("\n" + "=" * 60)
+    print(f"OLED {oled_name}  (env: {env})")
+    print("=" * 60)
+
+    if not no_build:
+        if not build_variant(env):
+            return False
+
+    bootloader_path, partitions_path, firmware_path = binary_paths(env)
+    _, merged_path, ota_path = get_output_filenames(version, oled_type)
+
+    success_merged = create_merged_binary(
+        bootloader_path, partitions_path, firmware_path, merged_path)
+    success_ota = create_ota_binary(firmware_path, ota_path)
+
+    if success_merged and success_ota:
+        print(f"\n  Web Flasher (full):  {merged_path}")
+        print(f"  OTA Update:          {ota_path}")
+        return True
+
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Create firmware binaries for OTA and web flasher',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-    python create_firmware.py v1.4.0 0    # 0.96inch OLED
-    python create_firmware.py v1.4.1 1    # 1.3inch OLED
+    python create_firmware.py v1.4.0      # Build BOTH variants (0.96" + 1.3")
+    python create_firmware.py v1.4.0 0    # 0.96inch OLED only
+    python create_firmware.py v1.4.1 1    # 1.3inch OLED only
         '''
     )
     parser.add_argument(
@@ -136,47 +229,52 @@ Examples:
     )
     parser.add_argument(
         'oled_type',
+        nargs='?',
         choices=['0', '1'],
-        help='OLED type: 0 = 0.96inch, 1 = 1.3inch'
+        default=None,
+        help='OLED type: 0 = 0.96inch, 1 = 1.3inch. Omit to build BOTH.'
+    )
+    parser.add_argument(
+        '--no-build',
+        action='store_true',
+        help='Skip compiling; package binaries already built in .pio/build/.'
     )
 
     args = parser.parse_args()
 
-    # Get output filenames and directory
-    output_dir, merged_path, ota_path = get_output_filenames(args.version, args.oled_type)
+    # Determine which variant(s) to process
+    oled_types = [args.oled_type] if args.oled_type else ['0', '1']
 
-    # Create release directory if needed (may already exist for 2nd OLED type)
+    # Create release directory if needed
+    output_dir = os.path.join(RELEASES_DIR, args.version)
     os.makedirs(output_dir, exist_ok=True)
 
-    oled_name = OLED_TYPES[args.oled_type]
     print("=" * 60)
     print(f"Creating firmware binaries")
     print(f"  Version: {args.version}")
-    print(f"  OLED: {oled_name}")
+    print(f"  Variants: {', '.join(OLED_TYPES[t] for t in oled_types)}")
+    print(f"  Build: {'skipped (--no-build)' if args.no_build else 'yes'}")
     print("=" * 60)
 
-    # Create both binaries
-    success_merged = create_merged_binary(merged_path)
-    success_ota = create_ota_binary(ota_path)
+    all_ok = True
+    for oled_type in oled_types:
+        if not process_variant(args.version, oled_type, output_dir, args.no_build):
+            all_ok = False
 
-    if success_merged and success_ota:
-        print("\n" + "=" * 60)
-        print("SUCCESS! Both firmware files created:")
+    print("\n" + "=" * 60)
+    if all_ok:
+        print("SUCCESS! Firmware files created in:", output_dir)
         print("=" * 60)
-        print(f"\n  Web Flasher (full):  {merged_path}")
-        print(f"  OTA Update:          {ota_path}")
-
         print(f"\nWEB FLASHER USAGE:")
         print(f"  - Open: https://espressif.github.io/esptool-js/")
-        print(f"  - Flash {merged_path} at offset 0x0")
-
+        print(f"  - Flash the firmware-*.bin file at offset 0x0")
         print(f"\nOTA UPDATE USAGE:")
         print(f"  - Open device web page")
-        print(f"  - Upload {ota_path} in Firmware Update section")
-
+        print(f"  - Upload the OTA_ONLY_firmware-*.bin in Firmware Update section")
         return 0
     else:
-        print("\nERROR: Failed to create one or more firmware files")
+        print("ERROR: Failed to create one or more firmware files")
+        print("=" * 60)
         return 1
 
 
