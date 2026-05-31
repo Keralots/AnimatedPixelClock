@@ -138,7 +138,7 @@ int getOptimalRefreshRate() {
     if (manualClockMode && settings.boostAnimationRefresh &&
         (settings.clockStyle == 0 || settings.clockStyle == 3 ||
          settings.clockStyle == 4 || settings.clockStyle == 5 ||
-         settings.clockStyle == 6)) {
+         settings.clockStyle == 6 || settings.clockStyle == 7)) {
       return 60; // Instant boost for smooth manual clock mode
     }
 #endif
@@ -151,7 +151,7 @@ int getOptimalRefreshRate() {
 
     if (settings.clockStyle == 0 || settings.clockStyle == 3 ||
         settings.clockStyle == 4 || settings.clockStyle == 5 ||
-        settings.clockStyle == 6) {
+        settings.clockStyle == 6 || settings.clockStyle == 7) {
       // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man)
       return 20; // 20 Hz keeps character movement smooth
     } else {
@@ -162,6 +162,46 @@ int getOptimalRefreshRate() {
     // Metrics mode (online)
     return 10; // 10 Hz for PC stats (updates every 500ms from Python)
   }
+}
+
+// --- Clock screen cycle state ---
+int lastMinuteBlock = -1;
+int currentScreen = 0;
+bool firstTimeSynced = false;
+
+void cycleClockScreens() {
+    struct tm timeinfo;
+
+    // Try to get time with your helper (short timeout)
+    if (!getTimeWithTimeout(&timeinfo)) {
+        return; // no valid time yet
+    }
+
+    // Determine which 5‑minute block we are in
+    int minuteBlock = timeinfo.tm_min / 5;
+
+    // First time we get valid time → initialize block WITHOUT advancing screen
+    if (!firstTimeSynced) {
+        lastMinuteBlock = minuteBlock;
+        firstTimeSynced = true;
+    }
+
+    // After that, normal cycling
+    if (minuteBlock != lastMinuteBlock) {
+        lastMinuteBlock = minuteBlock;
+        currentScreen = (currentScreen + 1) % 6; // Cycle through 6 clock styles (0-5)
+        resetClockAnimationState(); // Reset animation state when changing screens
+    }
+
+    // Draw the correct screen
+    switch (currentScreen) {
+        case 0: displayStandardClock(); break;
+        case 1: displayClockWithMario(); break;
+        case 2: displayClockWithSpaceInvader(); break;
+        case 3: displayLargeClock(); break;
+        case 4: displayClockWithPong(); break;
+        case 5: displayClockWithPacman(); break;
+    }
 }
 
 // ========== setup() ==========
@@ -402,6 +442,9 @@ void loop() {
         break;
       case 6:
         displayClockWithPacman();
+        break;
+      case 7:
+        cycleClockScreens();
         break;
       default:
         displayStandardClock();
