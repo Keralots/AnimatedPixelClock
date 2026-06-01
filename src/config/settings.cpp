@@ -279,6 +279,32 @@ void loadSettings() {
       preferences.getUChar("spaceLaser", 40); // Default: 4.0
   settings.spaceExplosionGravity =
       preferences.getUChar("spaceExpGrv", 5); // Default: 0.5
+  settings.snakeSpeed =
+      preferences.getUChar("snakeSpeed", 12); // Default: 1.2 px/frame
+  settings.snakeLength =
+      preferences.getUChar("snakeLen", 8); // Default: 8 segments
+  settings.snakeWallBorder =
+      preferences.getBool("snakeBorder", false); // Default: no frame
+  settings.snakeShowDate =
+      preferences.getBool("snakeDate", false); // Default: hidden (centred clock)
+  settings.tetrisFallSpeed =
+      preferences.getUChar("tetFallSpd", 12); // Default: 1.2
+  settings.tetrisBlockStyle =
+      preferences.getUChar("tetBlockSty", 0); // Default: LCD grid
+  settings.tetrisIdleTumble =
+      preferences.getBool("tetIdleTmbl", true); // Default: on
+  settings.tetrisAnimStyle =
+      preferences.getUChar("tetAnimSty", 1); // Default: falling dots
+  settings.tetrisShowDate =
+      preferences.getBool("tetShowDate", true); // Default: show date
+  settings.tetrisDatePosition =
+      preferences.getUChar("tetDatePos", 1); // Default: bottom
+  settings.tetrisDotSpeed =
+      preferences.getUChar("tetDotSpd", 12); // Default: 1.2
+  settings.tetrisDotOrder =
+      preferences.getUChar("tetDotOrd", 0); // Default: bottom-up
+  settings.tetrisDigitBounce =
+      preferences.getBool("tetBounce", true); // Default: bounce on
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -480,6 +506,19 @@ void saveSettings() {
   preferences.putUChar("spaceAttack", settings.spaceAttackSpeed);
   preferences.putUChar("spaceLaser", settings.spaceLaserSpeed);
   preferences.putUChar("spaceExpGrv", settings.spaceExplosionGravity);
+  preferences.putUChar("snakeSpeed", settings.snakeSpeed);
+  preferences.putUChar("snakeLen", settings.snakeLength);
+  preferences.putBool("snakeBorder", settings.snakeWallBorder);
+  preferences.putBool("snakeDate", settings.snakeShowDate);
+  preferences.putUChar("tetFallSpd", settings.tetrisFallSpeed);
+  preferences.putUChar("tetBlockSty", settings.tetrisBlockStyle);
+  preferences.putBool("tetIdleTmbl", settings.tetrisIdleTumble);
+  preferences.putUChar("tetAnimSty", settings.tetrisAnimStyle);
+  preferences.putBool("tetShowDate", settings.tetrisShowDate);
+  preferences.putUChar("tetDatePos", settings.tetrisDatePosition);
+  preferences.putUChar("tetDotSpd", settings.tetrisDotSpeed);
+  preferences.putUChar("tetDotOrd", settings.tetrisDotOrder);
+  preferences.putBool("tetBounce", settings.tetrisDigitBounce);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);

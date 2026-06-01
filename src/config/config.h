@@ -55,7 +55,7 @@ struct MetricData {
 // ========== Settings Structure ========== 
 struct Settings {
   // Clock settings
-  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man
+  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All
   int16_t gmtOffset;        // GMT offset in minutes (deprecated, kept for migration)
   bool daylightSaving;      // DST enabled (deprecated, kept for migration)
   char timezoneString[64];  // POSIX TZ string (e.g., "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00")
@@ -132,6 +132,23 @@ struct Settings {
   uint8_t pacmanPelletCount;    // Number of patrol pellets (0-20)
   bool pacmanPelletRandomSpacing;  // Random or even spacing
   bool pacmanBounceEnabled;     // Enable digit bounce on eat
+
+  // Snake clock settings
+  uint8_t snakeSpeed;           // Step pace, tenths (higher = faster)
+  uint8_t snakeLength;          // Base body length in cells (4-12)
+  bool snakeWallBorder;         // Draw Nokia-style arena frame
+  bool snakeShowDate;           // Show date row (off = snake uses full screen)
+
+  // Tetris clock settings
+  uint8_t tetrisFallSpeed;      // Slab/dot drop accel, tenths (12 = 1.2)
+  uint8_t tetrisBlockStyle;     // 0=LCD grid (gaps), 1=Solid blocks
+  bool tetrisIdleTumble;        // Show occasional tumbling piece when idle
+  uint8_t tetrisAnimStyle;      // 0=Drop-in slabs, 1=Falling dots build-up
+  bool tetrisShowDate;          // Show the date row (off = cleaner screen)
+  uint8_t tetrisDatePosition;   // 0=Top, 1=Bottom
+  uint8_t tetrisDotSpeed;       // Falling-dot build speed, tenths (12 = 1.2)
+  uint8_t tetrisDotOrder;       // 0=Bottom-up, 1=Random
+  bool tetrisDigitBounce;       // Bounce the new digit after it rebuilds
 
   // Metric configuration arrays
   char metricLabels[MAX_METRICS][METRIC_NAME_LEN];

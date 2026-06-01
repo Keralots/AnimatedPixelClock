@@ -48,6 +48,16 @@ bool isAnimationActive() {
     return true;
   }
 
+  // Snake clock (clockStyle == 7) - always moving
+  if (settings.clockStyle == 7) {
+    return true;
+  }
+
+  // Tetris clock (clockStyle == 8) - only during a rebuild or a tumbling piece
+  if (settings.clockStyle == 8) {
+    return tetrisIsAnimating();
+  }
+
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;
 }

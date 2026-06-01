@@ -138,7 +138,8 @@ int getOptimalRefreshRate() {
     if (manualClockMode && settings.boostAnimationRefresh &&
         (settings.clockStyle == 0 || settings.clockStyle == 3 ||
          settings.clockStyle == 4 || settings.clockStyle == 5 ||
-         settings.clockStyle == 6 || settings.clockStyle == 7)) {
+         settings.clockStyle == 6 || settings.clockStyle == 7 ||
+         settings.clockStyle == 8 || settings.clockStyle == 9)) {
       return 60; // Instant boost for smooth manual clock mode
     }
 #endif
@@ -151,8 +152,9 @@ int getOptimalRefreshRate() {
 
     if (settings.clockStyle == 0 || settings.clockStyle == 3 ||
         settings.clockStyle == 4 || settings.clockStyle == 5 ||
-        settings.clockStyle == 6 || settings.clockStyle == 7) {
-      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man)
+        settings.clockStyle == 6 || settings.clockStyle == 7 ||
+        settings.clockStyle == 8 || settings.clockStyle == 9) {
+      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle)
       return 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
@@ -172,28 +174,28 @@ bool firstTimeSynced = false;
 void cycleClockScreens() {
     struct tm timeinfo;
 
-    // Try to get time with your helper (short timeout)
-    if (!getTimeWithTimeout(&timeinfo)) {
-        return; // no valid time yet
+    // Advance the cycle only when we have valid time. When time is not yet
+    // available the per-screen draw functions below render their own
+    // "Syncing time..." message, so the display is never left blank.
+    if (getTimeWithTimeout(&timeinfo)) {
+        // Determine which 5-minute block we are in
+        int minuteBlock = timeinfo.tm_min / 5;
+
+        // First valid time -> initialize block WITHOUT advancing screen
+        if (!firstTimeSynced) {
+            lastMinuteBlock = minuteBlock;
+            firstTimeSynced = true;
+        }
+
+        // After that, normal cycling
+        if (minuteBlock != lastMinuteBlock) {
+            lastMinuteBlock = minuteBlock;
+            currentScreen = (currentScreen + 1) % 8; // Cycle through all 8 clock styles
+            resetClockAnimationState(); // Reset animation state when changing screens
+        }
     }
 
-    // Determine which 5‑minute block we are in
-    int minuteBlock = timeinfo.tm_min / 5;
-
-    // First time we get valid time → initialize block WITHOUT advancing screen
-    if (!firstTimeSynced) {
-        lastMinuteBlock = minuteBlock;
-        firstTimeSynced = true;
-    }
-
-    // After that, normal cycling
-    if (minuteBlock != lastMinuteBlock) {
-        lastMinuteBlock = minuteBlock;
-        currentScreen = (currentScreen + 1) % 6; // Cycle through 6 clock styles (0-5)
-        resetClockAnimationState(); // Reset animation state when changing screens
-    }
-
-    // Draw the correct screen
+    // Draw the current screen (each draw function handles the no-time case)
     switch (currentScreen) {
         case 0: displayStandardClock(); break;
         case 1: displayClockWithMario(); break;
@@ -201,6 +203,8 @@ void cycleClockScreens() {
         case 3: displayLargeClock(); break;
         case 4: displayClockWithPong(); break;
         case 5: displayClockWithPacman(); break;
+        case 6: displayClockWithSnake(); break;
+        case 7: displayClockWithTetris(); break;
     }
 }
 
@@ -344,7 +348,7 @@ void loop() {
           Serial.println("Touch button: Exiting manual clock mode (PC is online)");
         } else {
           // PC is offline (timeout triggered) - cycle through clock styles
-          settings.clockStyle = (settings.clockStyle + 1) % 7;
+          settings.clockStyle = (settings.clockStyle + 1) % 10;
           // Skip reserved clock style 4
           if (settings.clockStyle == 4) settings.clockStyle = 5;
           resetClockAnimationState();
@@ -357,7 +361,7 @@ void loop() {
         Serial.println("Touch button: Entering manual clock mode (PC is online)");
       } else {
         // PC is offline - cycle through clock styles
-        settings.clockStyle = (settings.clockStyle + 1) % 7;
+        settings.clockStyle = (settings.clockStyle + 1) % 10;
         // Skip reserved clock style 4
         if (settings.clockStyle == 4) settings.clockStyle = 5;
         resetClockAnimationState();
@@ -444,6 +448,12 @@ void loop() {
         displayClockWithPacman();
         break;
       case 7:
+        displayClockWithSnake();
+        break;
+      case 8:
+        displayClockWithTetris();
+        break;
+      case 9:
         cycleClockScreens();
         break;
       default:

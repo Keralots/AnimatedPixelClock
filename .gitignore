@@ -17,4 +17,6 @@ __pycache__/
 CLAUDE.md
 SmallOLED-PCMonitor.code-workspace
 nul
-.claude/settings.local.json
+
+# Claude Code local files (plans, notes, settings) - not synced
+.claude/

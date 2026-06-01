@@ -107,4 +107,13 @@ void updatePellets();
 void drawPellets();
 void drawPacman(int x, int y, int direction, int mouthFrame);
 
+// ========== Snake Clock ==========
+void displayClockWithSnake();
+void resetSnakeAnimation();
+
+// ========== Tetris Clock ==========
+void displayClockWithTetris();
+void resetTetrisAnimation();
+bool tetrisIsAnimating();
+
 #endif // CLOCKS_H
