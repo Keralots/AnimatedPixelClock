@@ -44,7 +44,7 @@ A real-time PC monitoring system that displays CPU, RAM, GPU, and disk stats on 
 
 - **Dual Display Modes:**
   - **PC Online**: Real-time stats with customizable metrics and positions
-  - **PC Offline**: Animated clock (Mario, Space Invaders, Arkanoid, Pac-Man, Standard, or Large styles)
+  - **PC Offline**: Animated clock (Mario, Space Invaders, Arkanoid, Pac-Man, Snake, Tetris, Standard, or Large styles, plus a Cycle All mode)
 - **v2.0 Python GUI**:
   - Easy graphical configuration - no more editing files!
   - Select from all available sensors on your system
@@ -145,7 +145,7 @@ The firmware supports an optional **TTP223 capacitive touch sensor** for physica
 
 #### Option A: Pre-built Binary (Easy - No Compilation Needed)
 
-**Download the latest release**: [v1.5.5](release/v1.5.5/)
+**Download the latest release**: [v1.5.6](release/v1.5.6/)
 
 **Easiest Method - Web Flasher (No Installation Required!):**
 1. Visit [ESP Web Flasher](https://espressif.github.io/esptool-js/)
@@ -190,7 +190,7 @@ Once connected to WiFi, access the full configuration page:
 ![ESP32 Web Portal - Clock Settings](img/ESP-WEBPortal1.png)
 
 2. **Clock Settings:**
-   - Idle clock style (Mario, Space Invaders, Arkanoid, Pac-Man, Standard, or Large)
+   - Idle clock style (Mario, Space Invaders, Arkanoid, Pac-Man, Snake, Tetris, Standard, or Large, plus a Cycle All mode)
    - Time format (12/24 hour)
    - Date format (DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD)
 
@@ -401,7 +401,7 @@ These require manual configuration by editing the ESP32_IP in the script file.
 
 The OLED will display:
 - **PC Online**: Real-time stats (CPU, RAM, GPU temp, disk, fan speed)
-- **PC Offline**: Animated clock (choose from 6 styles in the web portal)
+- **PC Offline**: Animated clock (choose from 8 styles in the web portal, or a Cycle All mode that rotates through them)
 
 ### Display Modes
 
@@ -416,8 +416,11 @@ The OLED will display:
 - **Space Invaders Clock**: Invader/ship shoots lasers to change digits
 - **Arkanoid Clock**: Breakout-style ball physics destroy and rebuild digits
 - **Pac-Man Clock**: Pac-Man eats pellet-based digits
+- **Snake Clock**: A Nokia-style snake roams the screen chasing food and steering around the digits and its own body. On each minute change the changed digits crumble into pellets that the snake hunts down one by one before the new digit drops in. Optional arena border and date row.
+- **Tetris Clock**: Block-grid digits sit low on the screen with the occasional tumbling tetromino. On each minute change the changed digits are rebuilt one at a time, either as drop-in slabs or as falling dots. Optional date row at the top or bottom.
 - **Standard Clock**: Simple centered clock with date and day of week
 - **Large Clock**: Extra-large time display with date
+- **Cycle All Styles**: Rotates through every clock style automatically, switching every 5 minutes.
 
 Change clock style anytime via the web portal or touch button!
 
@@ -483,10 +486,10 @@ Replace `smalloled.local` in the examples with your device's mDNS name (configur
 | GET | `/api/display/brightness?value=0-100` | Set display brightness (percent) |
 | GET | `/api/mode/clock` | Force the animated clock, even when the PC is online |
 | GET | `/api/mode/auto` | Resume automatic mode (PC stats when online, clock when offline) |
-| GET | `/api/clock/style?id=0-6` | Switch the clock animation |
+| GET | `/api/clock/style?id=0-9` | Switch the clock animation |
 | GET | `/api/reboot` | Soft-restart the device (does **not** erase settings) |
 
-**Clock style IDs:** `0` = Mario, `1` = Standard, `2` = Large, `3` = Space Invaders, `5` = Arkanoid/Pong, `6` = Pac-Man.
+**Clock style IDs:** `0` = Mario, `1` = Standard, `2` = Large, `3` = Space Invaders, `5` = Arkanoid/Pong, `6` = Pac-Man, `7` = Snake, `8` = Tetris, `9` = Cycle All Styles.
 
 ### Examples
 
