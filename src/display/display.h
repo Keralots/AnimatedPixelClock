@@ -31,7 +31,8 @@
   #ifndef DISPLAY_BLACK
     #define DISPLAY_BLACK SH110X_BLACK
   #endif
-// Display types 0 & 2: SSD1306 (0.96") and SSD1309 (2.42") - both have 128x64 RAM, no offset
+// Display type 0: SSD1306 (0.96") - 128x64 RAM, no offset. Also drives 2.42"
+// SSD1309 panels, which use the same SSD1306 driver.
 #else
   #include <Adafruit_SSD1306.h>
   extern Adafruit_SSD1306 display;

@@ -57,7 +57,7 @@ extern Preferences preferences;  // Defined in settings.cpp
   #define DISPLAY_WHITE SH110X_WHITE
   #define DISPLAY_BLACK SH110X_BLACK
 #else
-  // SSD1306 / SSD1309 display
+  // SSD1306 display (also drives 2.42" SSD1309 panels via the same driver)
   #if DISPLAY_INTERFACE == 1
     Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
   #else
