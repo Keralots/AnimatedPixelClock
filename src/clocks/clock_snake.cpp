@@ -28,6 +28,7 @@
 #define SCELL 4                      // grid cell size in pixels
 #define SGRID_W 32                   // 128 / 4
 #define SGRID_H 16                   // 64 / 4
+#define SNAKE_CELLS (SGRID_W * SGRID_H)  // 512 cells - flow-field work area
 #define SNAKE_MAX_LEN 24             // hard ceiling on body cells
 #define SNAKE_DIGIT_W 16             // size-3 digit obstacle width
 #define SNAKE_DIGIT_H 21             // size-3 digit obstacle height
@@ -207,7 +208,7 @@ void resetSnakeAnimation() {
   snake_init_done = true;
 }
 
-// ========== Movement (unchanged - looks good) ==========
+// ========== Movement ==========
 static int snakeStepIntervalMs() {
   float s = settings.snakeSpeed / 10.0f;
   if (s < 0.3f) s = 0.3f;
@@ -217,9 +218,12 @@ static int snakeStepIntervalMs() {
   return ms;
 }
 
-// Smart steer: pick the safe cardinal move (no reverse, no wall, no digit, no
+// Greedy steer: pick the safe cardinal move (no reverse, no wall, no digit, no
 // body) that gets closest to (tcx,tcy). Random tie-break avoids getting stuck.
-static void snakeChooseDir(int tcx, int tcy) {
+// Used only as a fallback when the flow-field cannot reach the target (e.g. the
+// food is momentarily walled off by the snake's own body). Returns true if a
+// move was chosen.
+static bool snakeChooseDir(int tcx, int tcy) {
   int minx, maxx, miny, maxy;
   snakeBounds(minx, maxx, miny, maxy);
   const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -241,11 +245,106 @@ static void snakeChooseDir(int tcx, int tcy) {
       found = true;
     }
   }
-  // If boxed in (extremely rare on this grid) keep the current heading.
   if (found) {
     snake_dir_x = bestDx;
     snake_dir_y = bestDy;
   }
+  return found;
+}
+
+// Flow-field pathfinder. A breadth-first search seeded from the target floods
+// the open grid (cells that are in-bounds and clear of digits/body) with the
+// exact shortest-path distance back to (tcx,tcy). The head then follows the
+// gradient downhill: it steps to the non-reverse neighbour with the smallest
+// distance. Because BFS sees the whole board, the snake routes *around* the
+// digits through the corridors above/below/between them instead of stalling
+// against a wall - it heads to the food the way a person steering it would.
+// Returns true if a reachable heading toward the target was found.
+static bool snakeFlowDir(int tcx, int tcy) {
+  if (tcx < 0 || tcx >= SGRID_W || tcy < 0 || tcy >= SGRID_H) return false;
+
+  int minx, maxx, miny, maxy;
+  snakeBounds(minx, maxx, miny, maxy);
+
+  static uint8_t dist[SNAKE_CELLS];
+  static uint16_t queue[SNAKE_CELLS];
+  for (int i = 0; i < SNAKE_CELLS; i++) dist[i] = 255;
+
+  const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  int qhead = 0, qtail = 0;
+
+  // Seed the target. It may sit on an obstacle (e.g. the next digit during the
+  // LEAVE phase); we still flood outward from it so the snake heads to the
+  // nearest free cell beside it.
+  int tidx = tcy * SGRID_W + tcx;
+  dist[tidx] = 0;
+  queue[qtail++] = tidx;
+
+  while (qhead < qtail) {
+    int cur = queue[qhead++];
+    int cx = cur % SGRID_W, cy = cur / SGRID_W;
+    uint8_t nd = dist[cur] + 1;
+    for (int k = 0; k < 4; k++) {
+      int nx = cx + dirs[k][0], ny = cy + dirs[k][1];
+      if (nx < minx || nx > maxx || ny < miny || ny > maxy) continue;
+      int nidx = ny * SGRID_W + nx;
+      if (dist[nidx] != 255) continue;            // already reached
+      if (snakeCellOnDigit(nx, ny)) continue;     // flood through open cells only
+      if (snakeCellOnBody(nx, ny)) continue;
+      dist[nidx] = nd;
+      queue[qtail++] = nidx;
+    }
+  }
+
+  // Follow the gradient: smallest-distance free neighbour, never reversing.
+  // On a tie prefer continuing straight so the path looks smooth, not jittery.
+  int hx = snake_body[0].cx, hy = snake_body[0].cy;
+  int bestDx = 0, bestDy = 0, bestDist = 256;
+  bool found = false;
+  for (int k = 0; k < 4; k++) {
+    int dx = dirs[k][0], dy = dirs[k][1];
+    if (dx == -snake_dir_x && dy == -snake_dir_y) continue;  // no reversing
+    int nx = hx + dx, ny = hy + dy;
+    if (!snakeCellFree(nx, ny, minx, maxx, miny, maxy)) continue;
+    int nd = dist[ny * SGRID_W + nx];
+    if (nd == 255) continue;                      // unreachable from target
+    bool straight = (dx == snake_dir_x && dy == snake_dir_y);
+    if (nd < bestDist || (nd == bestDist && straight)) {
+      bestDist = nd;
+      bestDx = dx;
+      bestDy = dy;
+      found = true;
+    }
+  }
+  if (found) {
+    snake_dir_x = bestDx;
+    snake_dir_y = bestDy;
+  }
+  return found;
+}
+
+// Top-level steering toward (tcx,tcy): try the flow-field first, fall back to
+// greedy if the target is temporarily unreachable, and as a last resort take
+// any free cell (or reverse) so the snake can never march off the screen.
+static void snakeSteer(int tcx, int tcy) {
+  if (snakeFlowDir(tcx, tcy)) return;
+  if (snakeChooseDir(tcx, tcy)) return;
+
+  int minx, maxx, miny, maxy;
+  snakeBounds(minx, maxx, miny, maxy);
+  const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  for (int k = 0; k < 4; k++) {
+    int nx = snake_body[0].cx + dirs[k][0], ny = snake_body[0].cy + dirs[k][1];
+    if (snakeCellFree(nx, ny, minx, maxx, miny, maxy)) {
+      snake_dir_x = dirs[k][0];
+      snake_dir_y = dirs[k][1];
+      return;
+    }
+  }
+  // Fully enclosed (effectively impossible on this open grid): turn back rather
+  // than keep driving into a wall and vanish off the edge.
+  snake_dir_x = -snake_dir_x;
+  snake_dir_y = -snake_dir_y;
 }
 
 // Advance the head one cell and drag the body along, growing toward target_len.
@@ -364,7 +463,7 @@ static void updateSnakeAnimation(struct tm *timeinfo) {
       snake_phase = SNAKE_LEAVE;
       return;
     }
-    snakeChooseDir(tcx, tcy);
+    snakeSteer(tcx, tcy);
     snakeAdvance();
     // Eat only the pellet the head lands exactly on (one at a time).
     hx = snake_body[0].cx;
@@ -391,7 +490,7 @@ static void updateSnakeAnimation(struct tm *timeinfo) {
       tcx = snake_food_cx;
       tcy = snake_food_cy;
     }
-    snakeChooseDir(tcx, tcy);
+    snakeSteer(tcx, tcy);
     snakeAdvance();
     snake_leave_steps++;
     if (snakeBodyClearOfDigit(snake_leaving_idx) ||
@@ -403,7 +502,7 @@ static void updateSnakeAnimation(struct tm *timeinfo) {
 
   // ROAM
   if (!snake_food_active) snakeSpawnFood();
-  snakeChooseDir(snake_food_cx, snake_food_cy);
+  snakeSteer(snake_food_cx, snake_food_cy);
   snakeAdvance();
   int hx = snake_body[0].cx, hy = snake_body[0].cy;
   if (snake_food_active && hx == snake_food_cx && hy == snake_food_cy) {
