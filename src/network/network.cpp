@@ -8,6 +8,7 @@
 #include "../display/display.h"
 #include "../utils/utils.h"
 #include "../timezones.h"
+#include "improv_setup.h"
 #include <Preferences.h>
 
 #if QR_SETUP_ENABLED
@@ -148,9 +149,51 @@ void initNetwork() {
   wifiManager.setSaveConfigCallback(saveConfigCallback);
   wifiManager.setDebugOutput(false);
 
+#if IMPROV_SETUP_ENABLED
+  // Run the config portal non-blocking so we can pump the Improv-Serial
+  // listener in parallel (the web-flasher "Configure WiFi" path). setup() still
+  // blocks here until WiFi connects or the portal times out - see the loop
+  // below - so the rest of boot behaves exactly as before.
+  wifiManager.setConfigPortalBlocking(false);
+#endif
+
   bool connected = (strlen(AP_PASSWORD) > 0)
     ? wifiManager.autoConnect(AP_NAME, AP_PASSWORD)
     : wifiManager.autoConnect(AP_NAME);
+
+#if IMPROV_SETUP_ENABLED
+  if (!connected) {
+    // autoConnect() started the captive portal (non-blocking). On genuinely
+    // fresh devices (no stored SSID) also open an Improv-Serial window so a
+    // browser that just flashed via the web flasher can push credentials over
+    // USB. Returning users who only mistyped a password get the AP portal
+    // alone - they need to fix what they typed, not a serial dialog over a
+    // port that may not even be connected anymore.
+    bool freshDevice = !wifiManager.getWiFiIsSaved();
+    if (freshDevice) {
+      improvSetupBegin(IMPROV_SETUP_WINDOW_MS);
+    }
+
+    while (!connected && wifiManager.getConfigPortalActive()) {
+      // Service the captive portal (DNS + web server).
+      if (wifiManager.process()) {
+        connected = true;
+        break;
+      }
+      // Service Improv-Serial. On success the library has already saved the
+      // credentials and connected STA, so restart for a clean STA-only boot.
+      if (freshDevice && improvSetupTick()) {
+        Serial.println("Improv: credentials received, restarting");
+        Serial.flush();
+        delay(200);  // let the response reach the browser before reset
+        ESP.restart();
+      }
+      delay(5);
+    }
+    improvSetupEnd();
+  }
+#endif
+
   if (!connected) {
     Serial.println("Failed to connect and hit timeout");
     if (displayAvailable) {

@@ -61,7 +61,8 @@ A real-time PC monitoring system that displays CPU, RAM, GPU, and disk stats on 
   - Display brightness control and scheduled night dimming
   - Export/Import configuration
   - OTA firmware updates
-- **WiFi Portal**: Easy first-time setup without code changes
+- **Browser Web Flasher (Preferred)**: Install firmware and push WiFi credentials entirely from the browser over USB - no tools to install
+- **WiFi Portal**: Easy first-time setup without code changes (fallback / build-from-source path)
 - **mDNS Discovery**: Access your device via `http://smalloled.local` (configurable name)
 - **Optimized Performance**: Minimal CPU usage on PC (<1%)
 - **Persistent Settings**: All preferences saved to ESP32 flash memory
@@ -70,8 +71,8 @@ A real-time PC monitoring system that displays CPU, RAM, GPU, and disk stats on 
 
 **Never done this before? Here's the simple version:**
 
-1. **Flash ESP32** - Use [Web Flasher](https://espressif.github.io/esptool-js/) (no installation needed!)
-2. **Connect ESP32 to WiFi** - Connect to "PCMonitor-Setup" network, go to 192.168.4.1
+1. **Flash ESP32** - Open the [SmallOLED Web Flasher](https://keralots.github.io/SmallOLED-PCMonitor/flasher/) in desktop Chrome or Edge, pick your OLED, and click Install (no installation needed!)
+2. **Connect ESP32 to WiFi** - Right after flashing, use the flasher's **Configure WiFi** step to send your network to the device over USB. (No web flasher? Join the "PCMonitor-Setup" network and open 192.168.4.1.)
 3. **Install Python** - Download from [python.org](https://www.python.org/downloads/) (check "Add to PATH" during install)
 4. **Install LibreHardwareMonitor** (Windows only) - Download from [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases), run as Admin
 5. **Run Python Script** - Open terminal/cmd, type: `pip install psutil pywin32 wmi pystray pillow` then `python pc_stats_monitor_v2.py`
@@ -143,26 +144,40 @@ The firmware supports an optional **TTP223 capacitive touch sensor** for physica
 
 ### 1. ESP32 Firmware
 
-#### Option A: Pre-built Binary (Easy - No Compilation Needed)
+#### Option A: SmallOLED Web Flasher (Preferred - No Installation Needed)
+
+A dedicated browser flasher that picks the right firmware for your OLED, installs it over USB, and then hands your WiFi to the device in the same tab. No separate flashing tool and no captive portal needed.
+
+1. Open the **[SmallOLED Web Flasher](https://keralots.github.io/SmallOLED-PCMonitor/flasher/)** in desktop **Chrome or Edge** (Web Serial is required, so Firefox, Safari and mobile won't work).
+2. Connect your ESP32-C3 via USB. If it constantly connects/disconnects, hold the **BOOT** button, connect to USB while still holding it, then release after connecting. Alternatively, hold **BOOT**, press **RESET** while holding **BOOT**, then release both buttons.
+3. Pick your OLED (0.96" SSD1306, 1.3" SH1106, or 2.42" SSD1309) and click **Install**. It erases and writes the full image at `0x0` in ~30 seconds.
+4. When the install finishes, use the **Configure WiFi** step to send your home network to the device over USB. If you miss it, join the **PCMonitor-Setup** hotspot and open `192.168.4.1` instead.
+5. The device reboots, joins your WiFi, and shows its IP address on the OLED.
+
+> The same page has a built-in serial monitor (section 04) for grabbing boot logs if you ever need them for a bug report.
+
+#### Option B: Manual Pre-built Binary (Optional)
+
+Prefer to flash the raw binary with your own tool? Download it from the latest release and flash the full image at `0x0`.
 
 **Download the latest release**: [v1.5.6](release/v1.5.6/)
 
-**Easiest Method - Web Flasher (No Installation Required!):**
+**Generic web flasher (esptool-js):**
 1. Visit [ESP Web Flasher](https://espressif.github.io/esptool-js/)
-2. Connect your ESP32-C3 via USB. If it constantly connects/disconnects, hold the **BOOT** button, connect to USB while still holding it, then release after connecting. Alternatively, hold **BOOT**, press **RESET** while holding **BOOT**, then release both buttons.
+2. Connect your ESP32-C3 via USB (use the BOOT/RESET trick above if it won't stay connected).
 3. Click **"Connect"** and select your port
-4. Click **"Choose File"** and select `firmware-vx.x.x.bin`
+4. Click **"Choose File"** and select the full image for your display, e.g. `firmware-v1.5.6-OLED_0.96inch.bin`
 5. Make sure you pick firmware for correct OLED size version! It may initially work but you will get black screen after you reconnect device.
 6. Set **Flash Address** to `0x0`
 7. Click **"Program"** and wait ~30 seconds
-8. Done!
+8. Done! Then set up WiFi via the **PCMonitor-Setup** hotspot (see below).
 
-**Alternative Methods:**
+**Other methods:**
 - **Windows**: Run `flash.bat` and follow prompts
 - **Linux/Mac**: Run `./flash.sh` and follow prompts
-- **Manual**: `esptool.py --chip esp32c3 --port COM3 --baud 460800 write_flash 0x0 firmware-complete.bin`
+- **Manual**: `esptool.py --chip esp32c3 --port COM3 --baud 460800 write_flash 0x0 firmware-v1.5.6-OLED_0.96inch.bin`
 
-#### Option B: Build from Source
+#### Option C: Build from Source
 
 **Prerequisites:**
 - [PlatformIO](https://platformio.org/) (or Arduino IDE)
@@ -177,6 +192,9 @@ The firmware supports an optional **TTP223 capacitive touch sensor** for physica
    ```
 
 #### First-Time WiFi Setup
+
+> Flashed with the SmallOLED Web Flasher (Option A)? You can skip this - set WiFi from the browser's **Configure WiFi** step right after flashing. The access-point method below is the fallback, and the path when you build from source.
+
 1. After uploading, the ESP32 will create a WiFi access point
 2. Connect to the network: **PCMonitor-Setup**
 3. Open your browser to `192.168.4.1`
@@ -470,9 +488,9 @@ With the v2.0 GUI, you can easily select any sensors available on your system:
 
 The firmware exposes a small set of HTTP endpoints for remote control and home automation (e.g. Home Assistant, Node-RED, or a simple `curl` from a script). This is handy for **turning the display off while you're away to extend OLED lifetime**, forcing the clock display, dimming on your own schedule, or rebooting the device remotely.
 
-All endpoints are plain **HTTP GET** (easy to call from any tool), return JSON, and have **no authentication** — anyone on your local network can call them, so keep the device on a trusted LAN.
+All endpoints are plain **HTTP GET** (easy to call from any tool), return JSON, and have **no authentication** - anyone on your local network can call them, so keep the device on a trusted LAN.
 
-> **Note:** These controls are **runtime-only** — they are *not* saved to flash and reset to your normal configured behavior after a reboot or power cycle. This is intentional: it avoids flash wear from automations toggling frequently, and lets an external scheduler own the state. To change defaults permanently, use the web configuration portal.
+> **Note:** These controls are **runtime-only** - they are *not* saved to flash and reset to your normal configured behavior after a reboot or power cycle. This is intentional: it avoids flash wear from automations toggling frequently, and lets an external scheduler own the state. To change defaults permanently, use the web configuration portal.
 
 Replace `smalloled.local` in the examples with your device's mDNS name (configurable) or its IP address.
 
@@ -530,7 +548,7 @@ A `/api/status` response looks like:
 |-------|---------|
 | `displayOn` | `false` when the panel is off (forced off, or brightness 0) |
 | `forcedOff` | `true` if the display was turned off via `/api/display/off` |
-| `mode` | `"metrics"` or `"clock"` — what is currently being shown |
+| `mode` | `"metrics"` or `"clock"` - what is currently being shown |
 | `forcedClock` | `true` if clock mode is being forced via `/api/mode/clock` |
 | `brightness` | Current brightness, 0-100% |
 | `clockStyle` | Active clock style ID (see list above) |
@@ -548,7 +566,7 @@ rest_command:
     url: "http://smalloled.local/api/display/on"
 ```
 
-You can then call `rest_command.oled_display_off` / `oled_display_on` from an automation — for example, turn the display off when everyone leaves home and back on when someone arrives.
+You can then call `rest_command.oled_display_off` / `oled_display_on` from an automation - for example, turn the display off when everyone leaves home and back on when someone arrives.
 
 ## Troubleshooting
 

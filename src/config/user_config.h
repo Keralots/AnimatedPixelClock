@@ -128,4 +128,18 @@
 #define BLE_SETUP_ENABLED 0              // 1 = BLE provisioning, 0 = AP mode (default)
 #define BLE_DEVICE_NAME "SmallOLED"      // BLE advertised name (shown in Android app scan)
 
+// ========== Improv-Serial WiFi Setup (Web Flasher) ==========
+// In-browser WiFi provisioning over USB serial, used by the web flasher at
+// docs/flasher/. After flashing, ESP Web Tools probes the device for
+// Improv-Serial and shows a "Configure WiFi" dialog right in the browser tab:
+// the user picks their home network and the credentials are pushed over USB.
+// Active only on first boot (no saved WiFi); the WiFiManager AP portal
+// (PCMonitor-Setup) keeps running in parallel as a fallback. Once WiFi is
+// saved, subsequent boots skip Improv entirely.
+//
+// Keep this ENABLED for the released web-flasher binaries so they are
+// WiFi-push capable. Costs nothing if no browser is listening.
+#define IMPROV_SETUP_ENABLED 1           // 1 = Improv-Serial WiFi push, 0 = AP portal only
+#define IMPROV_SETUP_WINDOW_MS 180000    // 3-min Improv listen window on first boot
+
 #endif // USER_CONFIG_H
