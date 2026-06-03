@@ -398,13 +398,17 @@ void handleRoot() {
  oninput="document.getElementById('dimBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #818cf8; font-size: 14px; margin-left: 10px;"><span id="dimBrightnessValue">)rawliteral" + String((settings.dimBrightness * 100) / 255) + R"rawliteral(</span>%
  </span><p style="color: #94a3b8; font-size: 11px; margin-top: 5px;">
  )rawliteral" + dimBrightnessHelp + R"rawliteral(
- </p></div><script> function toggleScheduledDimming(){const enabled=document.getElementById('enableScheduledDimming').checked;document.getElementById('scheduledDimmingFields').style.display=enabled ? 'block':'none';}</script><label for="ledBrightness" style="margin-top: 15px; display: block;">LED Night Light Brightness</label><input type="range" name="ledBrightness" id="ledBrightness"
+ </p></div><script> function toggleScheduledDimming(){const enabled=document.getElementById('enableScheduledDimming').checked;document.getElementById('scheduledDimmingFields').style.display=enabled ? 'block':'none';}</script>)rawliteral"
+#if LED_PWM_ENABLED
+ + R"rawliteral(<label for="ledBrightness" style="margin-top: 15px; display: block;">LED Night Light Brightness</label><input type="range" name="ledBrightness" id="ledBrightness"
  min="0" max="255" step="5"
  value=")rawliteral" + String(settings.ledBrightness) + R"rawliteral("
  oninput="document.getElementById('ledBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #fbbf24; font-size: 14px; margin-left: 10px;"><span id="ledBrightnessValue">)rawliteral" + String((settings.ledBrightness * 100) / 255) + R"rawliteral(</span>%
  </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
  LED brightness control (0-100%). Toggle via touch button long press (hold 1 second). This is optional feature and requires connected LED!
- </p><div style="margin-top: 15px; padding: 10px; background: #0f172a; border-radius: 5px; border-left: 3px solid #3b82f6;"><p style="color: #93c5fd; font-size: 12px; margin: 0;"><strong>&#128161; Refresh Rate Auto Mode:</strong> Adapts refresh rate based on content.<br>
+ </p>)rawliteral"
+#endif
+ + R"rawliteral(<div style="margin-top: 15px; padding: 10px; background: #0f172a; border-radius: 5px; border-left: 3px solid #3b82f6;"><p style="color: #93c5fd; font-size: 12px; margin: 0;"><strong>&#128161; Refresh Rate Auto Mode:</strong> Adapts refresh rate based on content.<br>
  • Static Clocks: 2 Hz (saves power)<br>
  • Idle Animations: 20 Hz (character movement)<br>
  • Active Animations: 40 Hz (with boost enabled, during bounces/explosions)<br>
