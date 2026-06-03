@@ -13,6 +13,7 @@
 #include "../clocks/clocks.h"
 #include "../display/display.h"
 #include "../timezones.h"
+#include "web_pages.h"
 #include <WebServer.h>
 #include <Update.h>
 #include <ArduinoJson.h>
@@ -260,223 +261,277 @@ void handleRename() {
  server.send(200, "application/json", "{\"success\":true,\"name\":\"" + String(settings.deviceName) + "\"}");
 }
 
-void handleRoot() {
- // Generate hour options for scheduled dimming
- String startHourOptions = "";
- String endHourOptions = "";
- for (int i = 0; i < 24; i++) {
- String hourStr = String(i) + ":00";
- startHourOptions += "<option value=\"" + String(i) + "\"" +
- (settings.dimStartHour == i ? " selected" : "") + ">" +
- hourStr + "</option>";
- endHourOptions += "<option value=\"" + String(i) + "\"" +
- (settings.dimEndHour == i ? " selected" : "") + ">" +
- hourStr + "</option>";
- }
+// ========== Config Page (streamed PROGMEM template) ==========
+// The full HTML config page lives in web_pages.h as PAGE_HTML[] (flash).
+// resolvePlaceholder() supplies the dynamic values for each %TOKEN%, and
+// streamTemplate() walks the template emitting it through a single small
+// buffer. Peak heap during a page render is ~2 KB plus the largest single
+// placeholder value, instead of the whole ~58 KB page as one String.
 
- const uint8_t minAllowedBrightness = isZeroBrightnessAllowed() ? 0 : 1;
- const String displayBrightnessHelp = isZeroBrightnessAllowed()
-     ? "Brightness control (0-100%). Set to 0% to turn the OLED off, then tap the touch button to wake it for 10 seconds."
-     : "Brightness control (0-100%). This build has no touch button, so the minimum brightness is 1%.";
- const String dimBrightnessHelp = isZeroBrightnessAllowed()
-     ? "Brightness level during scheduled dim period. Set to 0% for a fully dark screen, then tap the touch button to wake it for 10 seconds."
-     : "Brightness level during scheduled dim period. This build has no touch button, so the minimum brightness is 1%.";
+// Resolve a single %NAME% placeholder. Returns false for unknown names so the
+// streamer leaves the literal text untouched.
+static bool resolvePlaceholder(const char* n, String& out) {
+  // --- Header / identity ---
+  if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
+  if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
 
- String html = R"rawliteral(
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mini OLED Configurator v)rawliteral" + String(FIRMWARE_VERSION) + R"rawliteral(</title><style> *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;margin:0;padding:20px;background:linear-gradient(135deg,#0f0c29 0%,#1a1a2e 50%,#24243e 100%);background-attachment:fixed;color:#e0e7ff;min-height:100vh}.container{max-width:420px;margin:0 auto;padding-bottom:100px}h1{color:#fff;text-align:center;font-size:28px;font-weight:700;margin:0 0 8px;text-shadow:0 2px 10px rgba(0,212,255,.3)}.card{background:rgba(22,33,62,.6);backdrop-filter:blur(10px);padding:20px;border-radius:12px;margin-bottom:15px;border:1px solid rgba(0,212,255,.15);box-shadow:0 4px 15px rgba(0,0,0,.2)}label{display:block;margin:15px 0 8px;color:#00d4ff;font-size:14px;font-weight:500;letter-spacing:.3px}select,input[type="number"],input[type="text"]{width:100%;padding:12px 14px;border:2px solid rgba(0,212,255,.2);border-radius:8px;background:rgba(15,52,96,.5);color:#fff;font-size:15px;transition:all .3s ease;cursor:pointer}select:hover,input[type="number"]:hover,input[type="text"]:hover{border-color:rgba(0,212,255,.4);background:rgba(15,52,96,.7)}select:focus,input:focus{outline:none;border-color:#00d4ff;background:rgba(15,52,96,.8);box-shadow:0 0 0 3px rgba(0,212,255,.1)}input[type="checkbox"]{appearance:none;width:20px;height:20px;border:2px solid rgba(0,212,255,.4);border-radius:5px;background:rgba(15,52,96,.5);cursor:pointer;position:relative;transition:all .3s ease;flex-shrink:0}input[type="checkbox"]:hover{border-color:#00d4ff;transform:scale(1.05)}input[type="checkbox"]:checked{background:linear-gradient(135deg,#00d4ff 0%,#0096ff 100%);border-color:#00d4ff}input[type="checkbox"]:checked::after{content:'✓';position:absolute;color:#0f0c29;font-size:14px;font-weight:bold;top:50%;left:50%;transform:translate(-50%,-50%)}button{width:100%;padding:14px;margin-top:20px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s ease;text-transform:uppercase;letter-spacing:.5px}.save-btn{background:linear-gradient(135deg,#00d4ff 0%,#0096ff 100%);color:#0f0c29;box-shadow:0 4px 15px rgba(0,212,255,.3)}.save-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,212,255,.4)}.save-btn:active{transform:translateY(0)}.reset-btn{background:linear-gradient(135deg,#ff6b6b 0%,#ee5a52 100%);color:#fff;box-shadow:0 4px 15px rgba(255,107,107,.2)}.reset-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,.3)}.reset-btn:active{transform:translateY(0)}.info{text-align:center;color:#94a3b8;font-size:12px;margin-top:20px}.status{background:rgba(15,52,96,.4);padding:12px;border-radius:10px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,212,255,.2);font-size:14px}.section-header{background:linear-gradient(135deg,rgba(15,52,96,.6) 0%,rgba(26,77,122,.4) 100%);padding:16px 18px;border-radius:10px;cursor:pointer;margin-bottom:10px;user-select:none;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(0,212,255,.15);transition:all .3s ease}.section-header:hover{background:linear-gradient(135deg,rgba(15,52,96,.8) 0%,rgba(26,77,122,.6) 100%);transform:translateX(4px);border-color:rgba(0,212,255,.3)}.section-header h3{margin:0;color:#00d4ff;font-size:16px;font-weight:600}.section-arrow{font-size:14px;transition:transform .3s ease;color:#00d4ff}.section-arrow.collapsed{transform:rotate(-90deg)}.section-content{max-height:10000px;overflow:visible;transition:max-height .3s ease,opacity .3s ease;opacity:1}.section-content.collapsed{max-height:0;overflow:hidden;opacity:0}.config-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}.export-btn{background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;padding:12px;font-size:14px;margin-top:0;border-radius:8px;font-weight:600;box-shadow:0 4px 12px rgba(16,185,129,.2);transition:all .3s ease}.export-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,185,129,.3)}.import-btn{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:#fff;padding:12px;font-size:14px;margin-top:0;border-radius:8px;font-weight:600;box-shadow:0 4px 12px rgba(59,130,246,.2);transition:all .3s ease}.import-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(59,130,246,.3)}.sticky-save{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(15,12,41,.98) 0%,rgba(15,12,41,.95) 100%);backdrop-filter:blur(10px);padding:12px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.4);z-index:1000;border-top:1px solid rgba(0,212,255,.2)}.sticky-save .container{max-width:420px;margin:0 auto;padding-bottom:0}.sticky-save button{margin-top:0}#importFile{display:none}@media (max-width:480px){body{padding:12px}.container{padding-bottom:90px}h1{font-size:24px}.card{padding:16px}.section-header{padding:14px 16px}.section-header h3{font-size:15px}select,input[type="number"],input[type="text"]{font-size:16px;padding:11px 12px}button{padding:13px;font-size:15px}.sticky-save{padding:10px 12px}}@media (max-width:360px){h1{font-size:22px}.config-buttons{grid-template-columns:1fr;gap:8px}}</style></head><body><div class="container"><h1>&#128421; Mini OLED Configurator <span style="font-size: 0.5em; font-weight: normal;">v)rawliteral" + String(FIRMWARE_VERSION) + R"rawliteral(</span></h1><div class="status"><strong>IP:</strong> )rawliteral" + WiFi.localIP().toString() + R"rawliteral( | <strong>UDP Port:</strong> 4210
- </div><!-- Config Management --><div class="config-buttons"><button type="button" class="export-btn" onclick="exportConfig()">&#128190; Export Config</button><button type="button" class="import-btn" onclick="document.getElementById('importFile').click()">&#128229; Import Config</button></div><input type="file" id="importFile" accept=".json" onchange="importConfig(event)"><form action="/save" method="POST"><!-- Clock Settings Section --><div class="section-header" onclick="toggleSection('clockSection')"><h3>&#128348; Clock Settings</h3><span class="section-arrow">&#9660;</span></div><div id="clockSection" class="section-content collapsed"><div class="card"><label for="clockStyle">Idle Clock Style</label><select name="clockStyle" id="clockStyle" onchange="toggleMarioSettings()"><option value="0" )rawliteral" + String(settings.clockStyle == 0 ? "selected" : "") + R"rawliteral(>Mario Animation</option><option value="1" )rawliteral" + String(settings.clockStyle == 1 ? "selected" : "") + R"rawliteral(>Standard Clock</option><option value="2" )rawliteral" + String(settings.clockStyle == 2 ? "selected" : "") + R"rawliteral(>Large Clock</option><option value="3" )rawliteral" + String(settings.clockStyle == 3 ? "selected" : "") + R"rawliteral(>Space Invaders</option><option value="5" )rawliteral" + String(settings.clockStyle == 5 ? "selected" : "") + R"rawliteral(>Arkanoid</option><option value="6" )rawliteral" + String(settings.clockStyle == 6 ? "selected" : "") + R"rawliteral(>Pac-Man Clock</option><option value="7" )rawliteral" + String(settings.clockStyle == 7 ? "selected" : "") + R"rawliteral(>Snake</option><option value="8" )rawliteral" + String(settings.clockStyle == 8 ? "selected" : "") + R"rawliteral(>Tetris</option><option value="9" )rawliteral" + String(settings.clockStyle == 9 ? "selected" : "") + R"rawliteral(>Cycle All Styles (each 5m)</option></select><!-- Mario Clock Settings (only visible when Mario is selected) --><div id="marioSettings" style="display: )rawliteral" + String(settings.clockStyle == 0 ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">&#127922; Mario Animation Settings</h4><label for="marioBounceHeight">Bounce Height</label><input type="range" name="marioBounceHeight" id="marioBounceHeight"
- min="10" max="50" step="5"
- value=")rawliteral" + String(settings.marioBounceHeight) + R"rawliteral("
- oninput="document.getElementById('bounceHeightValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceHeightValue">)rawliteral" + String(settings.marioBounceHeight / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How high digits bounce when Mario hits them.</p><label for="marioBounceSpeed" style="margin-top: 15px;">Fall Speed</label><input type="range" name="marioBounceSpeed" id="marioBounceSpeed"
- min="2" max="15" step="1"
- value=")rawliteral" + String(settings.marioBounceSpeed) + R"rawliteral("
- oninput="document.getElementById('bounceSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceSpeedValue">)rawliteral" + String(settings.marioBounceSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast digits fall back down. Higher = faster fall. Default: 0.6
- </p><label for="marioWalkSpeed" style="margin-top: 15px;">Walk Speed</label><input type="range" name="marioWalkSpeed" id="marioWalkSpeed"
- min="15" max="35" step="1"
- value=")rawliteral" + String(settings.marioWalkSpeed) + R"rawliteral("
- oninput="document.getElementById('walkSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="walkSpeedValue">)rawliteral" + String(settings.marioWalkSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast Mario walks. Higher = faster. Default: 2.0
- </p><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="marioSmoothAnimation" id="marioSmoothAnimation"
- )rawliteral" + String(settings.marioSmoothAnimation ? "checked" : "") + R"rawliteral(
- style="margin-right: 10px; width: 18px; height: 18px;"><span>Smooth Animation (4-frame walk cycle)</span></label><p style="color: #888; font-size: 11px;">
- Enable smoother 4-frame walking animation.</p></div><div style="margin-top: 15px; border-top: 1px solid rgba(59,130,246,0.3); padding-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="marioIdleEncounters" id="marioIdleEncounters"
- )rawliteral" + String(settings.marioIdleEncounters ? "checked" : "") + R"rawliteral(
- style="margin-right: 10px; width: 18px; height: 18px;" onchange="document.getElementById('encounterFreqDiv').style.display=this.checked?'block':'none'"><span>Idle Encounters</span></label><p style="color: #888; font-size: 11px;">
- Goombas and Spinies appear between minute changes for Mario to defeat.</p><div id="encounterFreqDiv" style="display: )rawliteral" + String(settings.marioIdleEncounters ? "block" : "none") + R"rawliteral(; margin-top: 10px;"><label for="marioEncounterFreq">Encounter Frequency</label><select name="marioEncounterFreq" id="marioEncounterFreq" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px; margin-top: 5px;"><option value="0" )rawliteral" + String(settings.marioEncounterFreq == 0 ? "selected" : "") + R"rawliteral(>Rare (25-35s)</option><option value="1" )rawliteral" + String(settings.marioEncounterFreq == 1 ? "selected" : "") + R"rawliteral(>Normal (15-25s)</option><option value="2" )rawliteral" + String(settings.marioEncounterFreq == 2 ? "selected" : "") + R"rawliteral(>Frequent (8-15s)</option><option value="3" )rawliteral" + String(settings.marioEncounterFreq == 3 ? "selected" : "") + R"rawliteral(>Chaotic (2-5s)</option></select><label for="marioEncounterSpeed" style="margin-top: 10px; display: block;">Encounter Speed</label><select name="marioEncounterSpeed" id="marioEncounterSpeed" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px; margin-top: 5px;"><option value="0" )rawliteral" + String(settings.marioEncounterSpeed == 0 ? "selected" : "") + R"rawliteral(>Slow</option><option value="1" )rawliteral" + String(settings.marioEncounterSpeed == 1 ? "selected" : "") + R"rawliteral(>Normal</option><option value="2" )rawliteral" + String(settings.marioEncounterSpeed == 2 ? "selected" : "") + R"rawliteral(>Fast</option></select></div></div></div><!-- Arkanoid Clock Settings (only visible when Arkanoid is selected) --><div id="pongSettings" style="display: )rawliteral" + String(settings.clockStyle == 5 ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">🎮 Arkanoid Animation Settings</h4><label for="pongBallSpeed">Ball Speed</label><input type="range" name="pongBallSpeed" id="pongBallSpeed"
- min="16" max="30" step="1"
- value=")rawliteral" + String(settings.pongBallSpeed) + R"rawliteral("
- oninput="document.getElementById('ballSpeedValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="ballSpeedValue">)rawliteral" + String(settings.pongBallSpeed) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How fast the ball moves.</p><label for="pongBounceStrength" style="margin-top: 15px;">Bounce Strength</label><input type="range" name="pongBounceStrength" id="pongBounceStrength"
- min="1" max="8" step="1"
- value=")rawliteral" + String(settings.pongBounceStrength) + R"rawliteral("
- oninput="document.getElementById('bounceStrengthValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceStrengthValue">)rawliteral" + String(settings.pongBounceStrength / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How much digits wobble when hit.</p><label for="pongBounceDamping" style="margin-top: 15px;">Bounce Damping</label><input type="range" name="pongBounceDamping" id="pongBounceDamping"
- min="50" max="95" step="5"
- value=")rawliteral" + String(settings.pongBounceDamping) + R"rawliteral("
- oninput="document.getElementById('bounceDampingValue').textContent = (this.value / 100).toFixed(2)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceDampingValue">)rawliteral" + String(settings.pongBounceDamping / 100.0, 2) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How quickly wobble stops.</p><label for="pongPaddleWidth" style="margin-top: 15px;">Paddle Width</label><input type="range" name="pongPaddleWidth" id="pongPaddleWidth"
- min="10" max="40" step="2"
- value=")rawliteral" + String(settings.pongPaddleWidth) + R"rawliteral("
- oninput="document.getElementById('paddleWidthValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="paddleWidthValue">)rawliteral" + String(settings.pongPaddleWidth) + R"rawliteral(</span> px
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Size of the paddle. Narrower = harder, Wider = easier. Default: 20px
- </p><label style="margin-top: 15px;"><input type="checkbox" name="pongHorizontalBounce"
- )rawliteral" + String(settings.pongHorizontalBounce ? "checked" : "") + R"rawliteral(>
- Horizontal Digit Bounce
- </label><p style="color: #888; font-size: 11px;">
- When enabled, digits bounce sideways when hit from the side.</p></div><!-- Pac-Man Clock Settings (only visible when Pac-Man is selected) --><div id="pacmanSettings" style="display: )rawliteral" + String(settings.clockStyle == 6 ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #f1c40f;"><h4 style="color: #f1c40f; margin-top: 0; font-size: 14px;">👾 Pac-Man Clock Settings</h4><label for="pacmanSpeed">Patrol Speed</label><input type="range" name="pacmanSpeed" id="pacmanSpeed"
- min="5" max="30" step="1"
- value=")rawliteral" + String(settings.pacmanSpeed) + R"rawliteral("
- oninput="document.getElementById('pacmanSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanSpeedValue">)rawliteral" + String(settings.pacmanSpeed / 10.0, 1) + R"rawliteral(</span> px/frame
- </span><p style="color: #888; font-size: 11px;">
- How fast Pac-Man moves during patrol (at bottom).</p><label for="pacmanEatingSpeed" style="margin-top: 15px;">Digit Eating Speed</label><input type="range" name="pacmanEatingSpeed" id="pacmanEatingSpeed"
- min="10" max="50" step="1"
- value=")rawliteral" + String(settings.pacmanEatingSpeed) + R"rawliteral("
- oninput="document.getElementById('pacmanEatingSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanEatingSpeedValue">)rawliteral" + String(settings.pacmanEatingSpeed / 10.0, 1) + R"rawliteral(</span> px/frame
- </span><p style="color: #888; font-size: 11px;">
- How fast Pac-Man eats digits.</p><label for="pacmanMouthSpeed" style="margin-top: 15px;">Mouth Animation Speed</label><input type="range" name="pacmanMouthSpeed" id="pacmanMouthSpeed"
- min="5" max="20" step="1"
- value=")rawliteral" + String(settings.pacmanMouthSpeed) + R"rawliteral("
- oninput="document.getElementById('pacmanMouthSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanMouthSpeedValue">)rawliteral" + String(settings.pacmanMouthSpeed / 10.0, 1) + R"rawliteral(</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast Pac-Man's mouth opens and closes (waka-waka). Default: 1.0 Hz
- </p><label for="pacmanPelletCount" style="margin-top: 15px;">Number of Pellets</label><input type="range" name="pacmanPelletCount" id="pacmanPelletCount"
- min="0" max="20" step="1"
- value=")rawliteral" + String(settings.pacmanPelletCount) + R"rawliteral("
- oninput="document.getElementById('pacmanPelletCountValue').textContent = this.value"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanPelletCountValue">)rawliteral" + String(settings.pacmanPelletCount) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How many pellets appear during patrol mode.</p><label style="margin-top: 15px;"><input type="checkbox" name="pacmanPelletRandomSpacing"
- )rawliteral" + String(settings.pacmanPelletRandomSpacing ? "checked" : "") + R"rawliteral(>
- Randomize Pellet Spacing
- </label><p style="color: #888; font-size: 11px;">
- When enabled, pellets appear at random positions.</p><label style="margin-top: 15px;"><input type="checkbox" name="pacmanBounceEnabled"
- )rawliteral" + String(settings.pacmanBounceEnabled ? "checked" : "") + R"rawliteral(>
- Bounce Animation for New Digits
- </label><p style="color: #888; font-size: 11px;">
- When enabled, new digits bounce into place after being eaten.</p></div><!-- Space Clock Settings (visible when Invader or Ship is selected) --><div id="spaceSettings" style="display: )rawliteral" + String((settings.clockStyle == 3 || settings.clockStyle == 4) ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">🚀 Space Clock Animation Settings</h4><label for="spaceCharacterType">Character Type</label><select name="spaceCharacterType" id="spaceCharacterType"><option value="0" )rawliteral" + String(settings.spaceCharacterType == 0 ? "selected" : "") + R"rawliteral(>Space Invader</option><option value="1" )rawliteral" + String(settings.spaceCharacterType == 1 ? "selected" : "") + R"rawliteral(>Space Ship (Default)</option></select><p style="color: #888; font-size: 11px;">
- Choose the character that patrols and attacks the time digits.</p><label for="spacePatrolSpeed" style="margin-top: 15px;">Patrol Speed</label><input type="range" name="spacePatrolSpeed" id="spacePatrolSpeed"
- min="2" max="15" step="1"
- value=")rawliteral" + String(settings.spacePatrolSpeed) + R"rawliteral("
- oninput="document.getElementById('patrolSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="patrolSpeedValue">)rawliteral" + String(settings.spacePatrolSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How fast the character drifts during patrol.</p><label for="spaceAttackSpeed" style="margin-top: 15px;">Attack Speed</label><input type="range" name="spaceAttackSpeed" id="spaceAttackSpeed"
- min="10" max="40" step="5"
- value=")rawliteral" + String(settings.spaceAttackSpeed) + R"rawliteral("
- oninput="document.getElementById('attackSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="attackSpeedValue">)rawliteral" + String(settings.spaceAttackSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How fast the character slides to attack position.</p><label for="spaceLaserSpeed" style="margin-top: 15px;">Laser Speed</label><input type="range" name="spaceLaserSpeed" id="spaceLaserSpeed"
- min="20" max="80" step="5"
- value=")rawliteral" + String(settings.spaceLaserSpeed) + R"rawliteral("
- oninput="document.getElementById('laserSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="laserSpeedValue">)rawliteral" + String(settings.spaceLaserSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- How fast the laser extends downward.</p><label for="spaceExplosionGravity" style="margin-top: 15px;">Explosion Intensity</label><input type="range" name="spaceExplosionGravity" id="spaceExplosionGravity"
- min="3" max="10" step="1"
- value=")rawliteral" + String(settings.spaceExplosionGravity) + R"rawliteral("
- oninput="document.getElementById('explosionGravityValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="explosionGravityValue">)rawliteral" + String(settings.spaceExplosionGravity / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">
- Controls fragment gravity (how fast debris falls).</p></div><!-- Snake Clock Settings (only visible when Snake is selected) --><div id="snakeSettings" style="display: )rawliteral" + String(settings.clockStyle == 7 ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #2ecc71;"><h4 style="color: #2ecc71; margin-top: 0; font-size: 14px;">&#128013; Snake Clock Settings</h4><label for="snakeSpeed">Speed</label><input type="range" name="snakeSpeed" id="snakeSpeed" min="5" max="30" step="1" value=")rawliteral" + String(settings.snakeSpeed) + R"rawliteral(" oninput="document.getElementById('snakeSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #2ecc71; font-size: 14px; margin-left: 10px;"><span id="snakeSpeedValue">)rawliteral" + String(settings.snakeSpeed / 10.0, 1) + R"rawliteral(</span> px/frame</span><p style="color: #888; font-size: 11px;">How fast the snake slithers.</p><label for="snakeLength" style="margin-top: 15px;">Starting Length</label><input type="range" name="snakeLength" id="snakeLength" min="4" max="12" step="1" value=")rawliteral" + String(settings.snakeLength) + R"rawliteral(" oninput="document.getElementById('snakeLengthValue').textContent = this.value"><span style="color: #2ecc71; font-size: 14px; margin-left: 10px;"><span id="snakeLengthValue">)rawliteral" + String(settings.snakeLength) + R"rawliteral(</span> segments</span><p style="color: #888; font-size: 11px;">Body length at start; the snake grows as it eats.</p><label style="margin-top: 15px;"><input type="checkbox" name="snakeWallBorder" )rawliteral" + String(settings.snakeWallBorder ? "checked" : "") + R"rawliteral(> Arena Border</label><p style="color: #888; font-size: 11px;">Draw a Nokia-style frame around the playfield.</p><label style="margin-top: 15px;"><input type="checkbox" name="snakeShowDate" )rawliteral" + String(settings.snakeShowDate ? "checked" : "") + R"rawliteral(> Show Date</label><p style="color: #888; font-size: 11px;">Off gives the snake the whole screen and centres the clock.</p></div><!-- Tetris Clock Settings (only visible when Tetris is selected) --><div id="tetrisSettings" style="display: )rawliteral" + String(settings.clockStyle == 8 ? "block" : "none") + R"rawliteral(; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #9b59b6;"><h4 style="color: #9b59b6; margin-top: 0; font-size: 14px;">&#129513; Tetris Clock Settings</h4><label for="tetrisFallSpeed">Slab Drop Speed</label><input type="range" name="tetrisFallSpeed" id="tetrisFallSpeed" min="5" max="30" step="1" value=")rawliteral" + String(settings.tetrisFallSpeed) + R"rawliteral(" oninput="document.getElementById('tetrisFallSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #9b59b6; font-size: 14px; margin-left: 10px;"><span id="tetrisFallSpeedValue">)rawliteral" + String(settings.tetrisFallSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">How fast the slabs drop in (Drop-in Slabs style).</p><label for="tetrisBlockStyle" style="margin-top: 15px;">Block Style</label><select name="tetrisBlockStyle" id="tetrisBlockStyle"><option value="0" )rawliteral" + String(settings.tetrisBlockStyle == 0 ? "selected" : "") + R"rawliteral(>LCD Grid (gaps)</option><option value="1" )rawliteral" + String(settings.tetrisBlockStyle == 1 ? "selected" : "") + R"rawliteral(>Solid Blocks</option></select><p style="color: #888; font-size: 11px;">Look of the digit blocks.</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisIdleTumble" )rawliteral" + String(settings.tetrisIdleTumble ? "checked" : "") + R"rawliteral(> Block Game</label><p style="color: #888; font-size: 11px;">Auto-playing Tetris fills the bottom while idle (forces a centred, dateless clock).</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisDigitBounce" )rawliteral" + String(settings.tetrisDigitBounce ? "checked" : "") + R"rawliteral(> Digit Bounce</label><p style="color: #888; font-size: 11px;">New digit bounces after it rebuilds.</p><label for="tetrisAnimStyle" style="margin-top: 15px;">Change Animation</label><select name="tetrisAnimStyle" id="tetrisAnimStyle"><option value="0" )rawliteral" + String(settings.tetrisAnimStyle == 0 ? "selected" : "") + R"rawliteral(>Drop-in Slabs</option><option value="1" )rawliteral" + String(settings.tetrisAnimStyle == 1 ? "selected" : "") + R"rawliteral(>Falling Dots</option></select><p style="color: #888; font-size: 11px;">How a digit rebuilds on change. Digits always change one at a time.</p><label for="tetrisDotSpeed" style="margin-top: 15px;">Dot Fall Speed</label><input type="range" name="tetrisDotSpeed" id="tetrisDotSpeed" min="5" max="30" step="1" value=")rawliteral" + String(settings.tetrisDotSpeed) + R"rawliteral(" oninput="document.getElementById('tetrisDotSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #9b59b6; font-size: 14px; margin-left: 10px;"><span id="tetrisDotSpeedValue">)rawliteral" + String(settings.tetrisDotSpeed / 10.0, 1) + R"rawliteral(</span></span><p style="color: #888; font-size: 11px;">Speed of the falling dots. Lower = slower, more separated.</p><label for="tetrisDotOrder" style="margin-top: 15px;">Dot Build Order</label><select name="tetrisDotOrder" id="tetrisDotOrder"><option value="0" )rawliteral" + String(settings.tetrisDotOrder == 0 ? "selected" : "") + R"rawliteral(>Bottom-up</option><option value="1" )rawliteral" + String(settings.tetrisDotOrder == 1 ? "selected" : "") + R"rawliteral(>Random</option></select><p style="color: #888; font-size: 11px;">How the dots fill in to form the digit.</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisShowDate" )rawliteral" + String(settings.tetrisShowDate ? "checked" : "") + R"rawliteral(> Show Date</label><p style="color: #888; font-size: 11px;">Uncheck for a cleaner screen.</p><label for="tetrisDatePosition" style="margin-top: 15px;">Date Position</label><select name="tetrisDatePosition" id="tetrisDatePosition"><option value="0" )rawliteral" + String(settings.tetrisDatePosition == 0 ? "selected" : "") + R"rawliteral(>Top</option><option value="1" )rawliteral" + String(settings.tetrisDatePosition == 1 ? "selected" : "") + R"rawliteral(>Bottom</option></select></div><label for="use24Hour">Time Format</label><select name="use24Hour" id="use24Hour"><option value="1" )rawliteral" + String(settings.use24Hour ? "selected" : "") + R"rawliteral(>24-Hour (14:30)</option><option value="0" )rawliteral" + String(!settings.use24Hour ? "selected" : "") + R"rawliteral(>12-Hour (2:30 PM)</option></select><label for="dateFormat">Date Format</label><select name="dateFormat" id="dateFormat"><option value="0" )rawliteral" + String(settings.dateFormat == 0 ? "selected" : "") + R"rawliteral(>DD/MM/YYYY</option><option value="1" )rawliteral" + String(settings.dateFormat == 1 ? "selected" : "") + R"rawliteral(>MM/DD/YYYY</option><option value="2" )rawliteral" + String(settings.dateFormat == 2 ? "selected" : "") + R"rawliteral(>YYYY-MM-DD</option><option value="3" )rawliteral" + String(settings.dateFormat == 3 ? "selected" : "") + R"rawliteral(>DD.MM.YYYY</option></select></div></div><!-- Display Settings Section --><div class="section-header" onclick="toggleSection('displayPerfSection')"><h3>&#9889; Display Settings</h3><span class="section-arrow">&#9660;</span></div><div id="displayPerfSection" class="section-content collapsed"><div class="card"><label for="colonBlinkMode">Clock Colon Display</label><select name="colonBlinkMode" id="colonBlinkMode"><option value="0" )rawliteral" + String(settings.colonBlinkMode == 0 ? "selected" : "") + R"rawliteral(>On</option><option value="1" )rawliteral" + String(settings.colonBlinkMode == 1 ? "selected" : "") + R"rawliteral(>Blinking</option><option value="2" )rawliteral" + String(settings.colonBlinkMode == 2 ? "selected" : "") + R"rawliteral(>Off</option></select><label for="colonBlinkRate">Blink Rate (Hz)</label><input type="range" name="colonBlinkRate" id="colonBlinkRate"
- min="5" max="50" step="5"
- value=")rawliteral" + String(settings.colonBlinkRate) + R"rawliteral("
- oninput="document.getElementById('blinkRateValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="blinkRateValue">)rawliteral" + String(settings.colonBlinkRate / 10.0, 1) + R"rawliteral(</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Blink speed. 1.0Hz = once/second.
- </p><label for="refreshRateMode" style="margin-top: 15px;">Refresh Rate Mode</label><select name="refreshRateMode" id="refreshRateMode" onchange="toggleRefreshRateFields()"><option value="0" )rawliteral" + String(settings.refreshRateMode == 0 ? "selected" : "") + R"rawliteral(>Auto</option><option value="1" )rawliteral" + String(settings.refreshRateMode == 1 ? "selected" : "") + R"rawliteral(>Manual</option></select><div id="refreshRateFields" style="display: )rawliteral" + String(settings.refreshRateMode == 1 ? "block" : "none") + R"rawliteral(;"><label for="refreshRateHz">Manual Refresh Rate (Hz)</label><input type="range" name="refreshRateHz" id="refreshRateHz"
- min="1" max="60" step="1"
- value=")rawliteral" + String(settings.refreshRateHz) + R"rawliteral("
- oninput="document.getElementById('refreshRateValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="refreshRateValue">)rawliteral" + String(settings.refreshRateHz) + R"rawliteral(</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Updates/second. Higher = smoother, more power.
- </p></div><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="boostAnim" id="boostAnim" style="margin-right: 10px;" )rawliteral" + String(settings.boostAnimationRefresh ? "checked" : "") + R"rawliteral(><span style="font-size: 14px;"><strong>Enable Smooth Animations</strong> (Boost refresh during action)
- </span></label></div><label for="displayBrightness" style="margin-top: 15px;">Display Brightness</label><input type="range" name="displayBrightness" id="displayBrightness"
- min=")rawliteral" + String(minAllowedBrightness) + R"rawliteral(" max="255" step="5"
- value=")rawliteral" + String(settings.displayBrightness) + R"rawliteral("
- oninput="document.getElementById('brightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="brightnessValue">)rawliteral" + String((settings.displayBrightness * 100) / 255) + R"rawliteral(</span>%
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- )rawliteral" + displayBrightnessHelp + R"rawliteral(
- </p><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="enableScheduledDimming" id="enableScheduledDimming" style="margin-right: 10px;" )rawliteral" + String(settings.enableScheduledDimming ? "checked" : "") + R"rawliteral( onchange="toggleScheduledDimming()"><span style="font-size: 14px;">
- <strong>&#127749; Scheduled Night Mode</strong>
- </span></label></div><div id="scheduledDimmingFields" style="display: )rawliteral" + String(settings.enableScheduledDimming ? "block" : "none") + R"rawliteral(; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; margin-top: 10px;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;"><div><label for="dimStartHour" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">Start Dimming At</label><select name="dimStartHour" id="dimStartHour" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f1f5f9; font-size: 13px;">)rawliteral" + startHourOptions + R"rawliteral(</select></div><div><label for="dimEndHour" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">End Dimming At</label><select name="dimEndHour" id="dimEndHour" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f1f5f9; font-size: 13px;">)rawliteral" + endHourOptions + R"rawliteral(</select></div></div><label for="dimBrightness" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">Dim Brightness Level</label><input type="range" name="dimBrightness" id="dimBrightness"
- min=")rawliteral" + String(minAllowedBrightness) + R"rawliteral(" max="255" step="5"
- value=")rawliteral" + String(settings.dimBrightness) + R"rawliteral("
- oninput="document.getElementById('dimBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #818cf8; font-size: 14px; margin-left: 10px;"><span id="dimBrightnessValue">)rawliteral" + String((settings.dimBrightness * 100) / 255) + R"rawliteral(</span>%
- </span><p style="color: #94a3b8; font-size: 11px; margin-top: 5px;">
- )rawliteral" + dimBrightnessHelp + R"rawliteral(
- </p></div><script> function toggleScheduledDimming(){const enabled=document.getElementById('enableScheduledDimming').checked;document.getElementById('scheduledDimmingFields').style.display=enabled ? 'block':'none';}</script>)rawliteral"
+  // --- Brightness help text and minimum (depend on touch-button presence) ---
+  if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
+  if (!strcmp(n, "HELP_DISPBRIGHT")) {
+    out = isZeroBrightnessAllowed()
+        ? "Brightness control (0-100%). Set to 0% to turn the OLED off, then tap the touch button to wake it for 10 seconds."
+        : "Brightness control (0-100%). This build has no touch button, so the minimum brightness is 1%.";
+    return true;
+  }
+  if (!strcmp(n, "HELP_DIMBRIGHT")) {
+    out = isZeroBrightnessAllowed()
+        ? "Brightness level during scheduled dim period. Set to 0% for a fully dark screen, then tap the touch button to wake it for 10 seconds."
+        : "Brightness level during scheduled dim period. This build has no touch button, so the minimum brightness is 1%.";
+    return true;
+  }
+
+  // --- Scheduled-dimming hour dropdowns ---
+  if (!strcmp(n, "OPT_DIMSTART") || !strcmp(n, "OPT_DIMEND")) {
+    uint8_t selHour = (!strcmp(n, "OPT_DIMSTART")) ? settings.dimStartHour : settings.dimEndHour;
+    for (int i = 0; i < 24; i++) {
+      out += "<option value=\"" + String(i) + "\"" + (selHour == i ? " selected" : "") + ">" + String(i) + ":00</option>";
+    }
+    return true;
+  }
+
+  // --- Timezone region dropdown ---
+  if (!strcmp(n, "OPT_TZ")) {
+    size_t tzCount;
+    const TimezoneRegion* regions = getSupportedTimezones(&tzCount);
+    out += "<option value=\"\">-- Select Region --</option>\n";
+    for (size_t i = 0; i < tzCount; i++) {
+      bool isSelected = (settings.timezoneIndex < 255) ? (i == settings.timezoneIndex)
+                                                       : (strcmp(settings.timezoneString, regions[i].posixString) == 0);
+      out += "<option value=\"" + String(i) + "\"" + (isSelected ? " selected" : "") + ">" + String(regions[i].name) + "</option>\n";
+    }
+    return true;
+  }
+
+  // --- LED night-light slider (only present when the feature is compiled in) ---
+  if (!strcmp(n, "LED_SLIDER")) {
 #if LED_PWM_ENABLED
- + R"rawliteral(<label for="ledBrightness" style="margin-top: 15px; display: block;">LED Night Light Brightness</label><input type="range" name="ledBrightness" id="ledBrightness"
+    out = R"LED(<label for="ledBrightness" style="margin-top: 15px; display: block;">LED Night Light Brightness</label><input type="range" name="ledBrightness" id="ledBrightness"
  min="0" max="255" step="5"
- value=")rawliteral" + String(settings.ledBrightness) + R"rawliteral("
- oninput="document.getElementById('ledBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #fbbf24; font-size: 14px; margin-left: 10px;"><span id="ledBrightnessValue">)rawliteral" + String((settings.ledBrightness * 100) / 255) + R"rawliteral(</span>%
+ value=")LED" + String(settings.ledBrightness) + R"LED("
+ oninput="document.getElementById('ledBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #fbbf24; font-size: 14px; margin-left: 10px;"><span id="ledBrightnessValue">)LED" + String((settings.ledBrightness * 100) / 255) + R"LED(</span>%
  </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
  LED brightness control (0-100%). Toggle via touch button long press (hold 1 second). This is optional feature and requires connected LED!
- </p>)rawliteral"
+ </p>)LED";
 #endif
- + R"rawliteral(<div style="margin-top: 15px; padding: 10px; background: #0f172a; border-radius: 5px; border-left: 3px solid #3b82f6;"><p style="color: #93c5fd; font-size: 12px; margin: 0;"><strong>&#128161; Refresh Rate Auto Mode:</strong> Adapts refresh rate based on content.<br>
- • Static Clocks: 2 Hz (saves power)<br>
- • Idle Animations: 20 Hz (character movement)<br>
- • Active Animations: 40 Hz (with boost enabled, during bounces/explosions)<br>
- • PC Metrics: 10 Hz (balanced)<br><br><strong>Benefits:</strong> Blinking colon extends OLED life 2×. Dynamic refresh rates balance smoothness with power efficiency.
- </p></div></div></div><!-- Timezone Section --><div class="section-header" onclick="toggleSection('timezoneSection')"><h3>&#127760; Timezone</h3><span class="section-arrow">&#9660;</span></div><div id="timezoneSection" class="section-content collapsed"><div class="card"><label for="timezoneRegion">Timezone Region</label><select name="timezoneRegion" id="timezoneRegion" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 3px;">
-)rawliteral";
+    return true; // resolved to "" when LED is disabled, so the slider is omitted
+  }
 
- // Generate timezone options from timezone database
- size_t tzCount;
- const TimezoneRegion* regions = getSupportedTimezones(&tzCount);
+  // --- Per-setting placeholders (auto-generated, see gen_template.py) ---
+  if (!strcmp(n, "SEL_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_1")) { out = String(settings.clockStyle == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_2")) { out = String(settings.clockStyle == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_3")) { out = String(settings.clockStyle == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_5")) { out = String(settings.clockStyle == 5 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_6")) { out = String(settings.clockStyle == 6 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_7")) { out = String(settings.clockStyle == 7 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_8")) { out = String(settings.clockStyle == 8 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_9")) { out = String(settings.clockStyle == 9 ? "selected" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
+  if (!strcmp(n, "F_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight / 10.0, 1); return true; }
+  if (!strcmp(n, "V_MARIOBOUNCESPEED")) { out = String(settings.marioBounceSpeed); return true; }
+  if (!strcmp(n, "F_MARIOBOUNCESPEED")) { out = String(settings.marioBounceSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_MARIOWALKSPEED")) { out = String(settings.marioWalkSpeed); return true; }
+  if (!strcmp(n, "F_MARIOWALKSPEED")) { out = String(settings.marioWalkSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "CHK_MARIOSMOOTHANIMATION")) { out = String(settings.marioSmoothAnimation ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_MARIOIDLEENCOUNTERS")) { out = String(settings.marioIdleEncounters ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_MARIOIDLEENCOUNTERS")) { out = String(settings.marioIdleEncounters ? "block" : "none"); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_0")) { out = String(settings.marioEncounterFreq == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_1")) { out = String(settings.marioEncounterFreq == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_2")) { out = String(settings.marioEncounterFreq == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_3")) { out = String(settings.marioEncounterFreq == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_0")) { out = String(settings.marioEncounterSpeed == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_1")) { out = String(settings.marioEncounterSpeed == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_2")) { out = String(settings.marioEncounterSpeed == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_5")) { out = String(settings.clockStyle == 5 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_PONGBALLSPEED")) { out = String(settings.pongBallSpeed); return true; }
+  if (!strcmp(n, "V_PONGBOUNCESTRENGTH")) { out = String(settings.pongBounceStrength); return true; }
+  if (!strcmp(n, "F_PONGBOUNCESTRENGTH")) { out = String(settings.pongBounceStrength / 10.0, 1); return true; }
+  if (!strcmp(n, "V_PONGBOUNCEDAMPING")) { out = String(settings.pongBounceDamping); return true; }
+  if (!strcmp(n, "F2_PONGBOUNCEDAMPING")) { out = String(settings.pongBounceDamping / 100.0, 2); return true; }
+  if (!strcmp(n, "V_PONGPADDLEWIDTH")) { out = String(settings.pongPaddleWidth); return true; }
+  if (!strcmp(n, "CHK_PONGHORIZONTALBOUNCE")) { out = String(settings.pongHorizontalBounce ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_6")) { out = String(settings.clockStyle == 6 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_PACMANSPEED")) { out = String(settings.pacmanSpeed); return true; }
+  if (!strcmp(n, "F_PACMANSPEED")) { out = String(settings.pacmanSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_PACMANEATINGSPEED")) { out = String(settings.pacmanEatingSpeed); return true; }
+  if (!strcmp(n, "F_PACMANEATINGSPEED")) { out = String(settings.pacmanEatingSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_PACMANMOUTHSPEED")) { out = String(settings.pacmanMouthSpeed); return true; }
+  if (!strcmp(n, "F_PACMANMOUTHSPEED")) { out = String(settings.pacmanMouthSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_PACMANPELLETCOUNT")) { out = String(settings.pacmanPelletCount); return true; }
+  if (!strcmp(n, "CHK_PACMANPELLETRANDOMSPACING")) { out = String(settings.pacmanPelletRandomSpacing ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_PACMANBOUNCEENABLED")) { out = String(settings.pacmanBounceEnabled ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_34")) { out = String((settings.clockStyle == 3 || settings.clockStyle == 4) ? "block" : "none"); return true; }
+  if (!strcmp(n, "SEL_SPACECHARACTERTYPE_0")) { out = String(settings.spaceCharacterType == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_SPACECHARACTERTYPE_1")) { out = String(settings.spaceCharacterType == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "V_SPACEPATROLSPEED")) { out = String(settings.spacePatrolSpeed); return true; }
+  if (!strcmp(n, "F_SPACEPATROLSPEED")) { out = String(settings.spacePatrolSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_SPACEATTACKSPEED")) { out = String(settings.spaceAttackSpeed); return true; }
+  if (!strcmp(n, "F_SPACEATTACKSPEED")) { out = String(settings.spaceAttackSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_SPACELASERSPEED")) { out = String(settings.spaceLaserSpeed); return true; }
+  if (!strcmp(n, "F_SPACELASERSPEED")) { out = String(settings.spaceLaserSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_SPACEEXPLOSIONGRAVITY")) { out = String(settings.spaceExplosionGravity); return true; }
+  if (!strcmp(n, "F_SPACEEXPLOSIONGRAVITY")) { out = String(settings.spaceExplosionGravity / 10.0, 1); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_7")) { out = String(settings.clockStyle == 7 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_SNAKESPEED")) { out = String(settings.snakeSpeed); return true; }
+  if (!strcmp(n, "F_SNAKESPEED")) { out = String(settings.snakeSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "V_SNAKELENGTH")) { out = String(settings.snakeLength); return true; }
+  if (!strcmp(n, "CHK_SNAKEWALLBORDER")) { out = String(settings.snakeWallBorder ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_SNAKESHOWDATE")) { out = String(settings.snakeShowDate ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_8")) { out = String(settings.clockStyle == 8 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_TETRISFALLSPEED")) { out = String(settings.tetrisFallSpeed); return true; }
+  if (!strcmp(n, "F_TETRISFALLSPEED")) { out = String(settings.tetrisFallSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "SEL_TETRISBLOCKSTYLE_0")) { out = String(settings.tetrisBlockStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISBLOCKSTYLE_1")) { out = String(settings.tetrisBlockStyle == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_TETRISIDLETUMBLE")) { out = String(settings.tetrisIdleTumble ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_TETRISDIGITBOUNCE")) { out = String(settings.tetrisDigitBounce ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISANIMSTYLE_0")) { out = String(settings.tetrisAnimStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISANIMSTYLE_1")) { out = String(settings.tetrisAnimStyle == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "V_TETRISDOTSPEED")) { out = String(settings.tetrisDotSpeed); return true; }
+  if (!strcmp(n, "F_TETRISDOTSPEED")) { out = String(settings.tetrisDotSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "SEL_TETRISDOTORDER_0")) { out = String(settings.tetrisDotOrder == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISDOTORDER_1")) { out = String(settings.tetrisDotOrder == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_TETRISSHOWDATE")) { out = String(settings.tetrisShowDate ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISDATEPOSITION_0")) { out = String(settings.tetrisDatePosition == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISDATEPOSITION_1")) { out = String(settings.tetrisDatePosition == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DATEFORMAT_1")) { out = String(settings.dateFormat == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DATEFORMAT_2")) { out = String(settings.dateFormat == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DATEFORMAT_3")) { out = String(settings.dateFormat == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_COLONBLINKMODE_0")) { out = String(settings.colonBlinkMode == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_COLONBLINKMODE_1")) { out = String(settings.colonBlinkMode == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_COLONBLINKMODE_2")) { out = String(settings.colonBlinkMode == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "V_COLONBLINKRATE")) { out = String(settings.colonBlinkRate); return true; }
+  if (!strcmp(n, "F_COLONBLINKRATE")) { out = String(settings.colonBlinkRate / 10.0, 1); return true; }
+  if (!strcmp(n, "SEL_REFRESHRATEMODE_0")) { out = String(settings.refreshRateMode == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_REFRESHRATEMODE_1")) { out = String(settings.refreshRateMode == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "DSP_REFRESHRATEMODE_1")) { out = String(settings.refreshRateMode == 1 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_REFRESHRATEHZ")) { out = String(settings.refreshRateHz); return true; }
+  if (!strcmp(n, "CHK_BOOSTANIMATIONREFRESH")) { out = String(settings.boostAnimationRefresh ? "checked" : ""); return true; }
+  if (!strcmp(n, "V_DISPLAYBRIGHTNESS")) { out = String(settings.displayBrightness); return true; }
+  if (!strcmp(n, "PCT_DISPLAYBRIGHTNESS")) { out = String((settings.displayBrightness * 100) / 255); return true; }
+  if (!strcmp(n, "CHK_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
+  if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
+  if (!strcmp(n, "V_DEVICENAME")) { out = String(settings.deviceName); return true; }
+  if (!strcmp(n, "SEL_USESTATICIP_NOT")) { out = String(!settings.useStaticIP ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_USESTATICIP")) { out = String(settings.useStaticIP ? "selected" : ""); return true; }
+  if (!strcmp(n, "DSP_USESTATICIP")) { out = String(settings.useStaticIP ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_STATICIP")) { out = String(settings.staticIP); return true; }
+  if (!strcmp(n, "V_GATEWAY")) { out = String(settings.gateway); return true; }
+  if (!strcmp(n, "V_SUBNET")) { out = String(settings.subnet); return true; }
+  if (!strcmp(n, "V_DNS1")) { out = String(settings.dns1); return true; }
+  if (!strcmp(n, "V_DNS2")) { out = String(settings.dns2); return true; }
+  if (!strcmp(n, "CHK_SHOWIPATBOOT")) { out = String(settings.showIPAtBoot ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKPOSITION_0")) { out = String(settings.clockPosition == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKPOSITION_1")) { out = String(settings.clockPosition == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKPOSITION_2")) { out = String(settings.clockPosition == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "V_CLOCKOFFSET")) { out = String(settings.clockOffset); return true; }
+  if (!strcmp(n, "CHK_SHOWCLOCK")) { out = String(settings.showClock ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_DISPLAYROWMODE_0")) { out = String(settings.displayRowMode == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DISPLAYROWMODE_1")) { out = String(settings.displayRowMode == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DISPLAYROWMODE_2")) { out = String(settings.displayRowMode == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DISPLAYROWMODE_3")) { out = String(settings.displayRowMode == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_USERPMKFORMAT")) { out = String(settings.useRpmKFormat ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_USENETWORKMBFORMAT")) { out = String(settings.useNetworkMBFormat ? "checked" : ""); return true; }
+  if (!strcmp(n, "JS_MAXROWS")) { out = String(settings.displayRowMode==0?5:settings.displayRowMode==1?6:settings.displayRowMode==2?2:3); return true; }
+  if (!strcmp(n, "JS_ISLARGE")) { out = String(settings.displayRowMode>=2?"true":"false"); return true; }
 
- // Group timezones by region
- html += "<option value=\"\">-- Select Region --</option>\n";
+  return false;
+}
 
- for (size_t i = 0; i < tzCount; i++) {
-   bool isSelected = (settings.timezoneIndex < 255) ? (i == settings.timezoneIndex) : (strcmp(settings.timezoneString, regions[i].posixString) == 0);
-   html += "<option value=\"" + String(i) + "\"" + (isSelected ? " selected" : "") + ">" + String(regions[i].name) + "</option>\n";
- }
+// Stream PAGE_HTML from flash, resolving %TOKEN% placeholders on the fly.
+// Literal HTML and resolved values flow through one fixed buffer that is
+// flushed to the client only when full (HTTP chunked transfer).
+static void streamTemplate(const char* tmpl, size_t tmplLen) {
+  static const size_t BUF_SIZE = 2048;
+  char* buf = (char*)malloc(BUF_SIZE + 1);
+  if (!buf) {
+    server.send(503, "text/plain", "Out of memory");
+    return;
+  }
+  size_t bufLen = 0;
 
- html += R"rawliteral(
- </select><p style="color: #888; font-size: 12px; margin-top: 10px;">
- Select your timezone region for automatic DST adjustment. The system will automatically switch between standard and daylight saving time.
- </p></div></div><!-- Network Configuration Section --><div class="section-header" onclick="toggleSection('networkSection')"><h3>&#127760; Network Configuration</h3><span class="section-arrow">&#9660;</span></div><div id="networkSection" class="section-content collapsed"><div class="card"><label for="deviceName">Device Name</label><input type="text" name="deviceName" id="deviceName" value=")rawliteral" + String(settings.deviceName) + R"rawliteral(" maxlength="31" pattern="^[a-zA-Z][a-zA-Z0-9-]*$" placeholder="smalloled" oninput="document.getElementById('deviceNamePreview').textContent=this.value.toLowerCase()"><p style="color: #888; font-size: 12px; margin-top: 5px;">Used for network discovery (<span id="deviceNamePreview">)rawliteral" + String(settings.deviceName) + R"rawliteral(</span>.local). Letters, numbers, and hyphens only.</p><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><label for="useStaticIP">IP Address Mode</label><select name="useStaticIP" id="useStaticIP" onchange="toggleStaticIPFields()"><option value="0" )rawliteral" + String(!settings.useStaticIP ? "selected" : "") + R"rawliteral(>DHCP (Automatic)</option><option value="1" )rawliteral" + String(settings.useStaticIP ? "selected" : "") + R"rawliteral(>Static IP</option></select><div id="staticIPFields" style="display: )rawliteral" + String(settings.useStaticIP ? "block" : "none") + R"rawliteral(;"><label for="staticIP" style="margin-top: 15px;">Static IP Address</label><input type="text" name="staticIP" id="staticIP" value=")rawliteral" + String(settings.staticIP) + R"rawliteral(" placeholder="192.168.1.100" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="gateway">Gateway</label><input type="text" name="gateway" id="gateway" value=")rawliteral" + String(settings.gateway) + R"rawliteral(" placeholder="192.168.1.1" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="subnet">Subnet Mask</label><input type="text" name="subnet" id="subnet" value=")rawliteral" + String(settings.subnet) + R"rawliteral(" placeholder="255.255.255.0" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="dns1">Primary DNS</label><input type="text" name="dns1" id="dns1" value=")rawliteral" + String(settings.dns1) + R"rawliteral(" placeholder="8.8.8.8" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="dns2">Secondary DNS</label><input type="text" name="dns2" id="dns2" value=")rawliteral" + String(settings.dns2) + R"rawliteral(" placeholder="8.8.4.4" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div><p style="color: #888; font-size: 12px; margin-top: 15px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #fbbf24;"><strong>&#9888; Warning:</strong> Changing to Static IP will require a device restart. Make sure the IP address does not conflict with other devices on your network.
- </p><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><div style="display: flex; align-items: center; margin-top: 15px;"><input type="checkbox" name="showIPAtBoot" id="showIPAtBoot" value="1" )rawliteral" + String(settings.showIPAtBoot ? "checked" : "") + R"rawliteral( style="width: 20px; margin: 0;"><label for="showIPAtBoot" style="margin: 0 0 0 10px; text-align: left; color: #00d4ff;">Show IP address on display at startup (5 seconds)</label></div></div></div><!-- Display Layout Section --><div class="section-header" onclick="toggleSection('layoutSection')"><h3>&#128202; Display Layout (PC Monitor only)</h3><span class="section-arrow">&#9660;</span></div><div id="layoutSection" class="section-content collapsed"><div class="card"><label for="clockPosition">Clock Position</label><select name="clockPosition" id="clockPosition"><option value="0" )rawliteral" + String(settings.clockPosition == 0 ? "selected" : "") + R"rawliteral(>Center (Top)</option><option value="1" )rawliteral" + String(settings.clockPosition == 1 ? "selected" : "") + R"rawliteral(>Left Column (Row 1)</option><option value="2" )rawliteral" + String(settings.clockPosition == 2 ? "selected" : "") + R"rawliteral(>Right Column (Row 1)</option></select><label for="clockOffset" style="margin-top: 15px; display: block;">Clock Offset (pixels)</label><input type="number" name="clockOffset" id="clockOffset" value=")rawliteral" + String(settings.clockOffset) + R"rawliteral(" min="-20" max="20" style="width: 100%; padding: 8px; box-sizing: border-box;"><p style="color: #888; font-size: 12px; margin-top: 10px;">
- Position clock to optimize space for metrics. Use offset to fine-tune horizontal position (-20 to +20 pixels).
- </p><div style="display: flex; align-items: center; margin-top: 15px;"><input type="checkbox" name="showClock" id="showClock" value="1" )rawliteral" + String(settings.showClock ? "checked" : "") + R"rawliteral( style="width: 20px; margin: 0;"><label for="showClock" style="margin: 0 0 0 10px; text-align: left; color: #00d4ff;">Show Clock/Time in metrics display</label></div><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><label for="rowMode">Display Row Mode</label><select name="rowMode" id="rowMode" onchange="updateRowMode()"><option value="0" )rawliteral" + String(settings.displayRowMode == 0 ? "selected" : "") + R"rawliteral(>5 Rows (13px spacing - optimized)</option><option value="1" )rawliteral" + String(settings.displayRowMode == 1 ? "selected" : "") + R"rawliteral(>6 Rows (10px spacing - compact)</option><option value="2" )rawliteral" + String(settings.displayRowMode == 2 ? "selected" : "") + R"rawliteral(>Large 2-Row (double size text)</option><option value="3" )rawliteral" + String(settings.displayRowMode == 3 ? "selected" : "") + R"rawliteral(>Large 3-Row (double size text)</option></select><p style="color: #888; font-size: 12px; margin-top: 10px;">
- 5-row and 6-row modes use small text in 2-column layout. Large modes use double-size text in single-column layout for better readability at a distance.
- </p><div style="margin-top: 20px;"><label><input type="checkbox" name="rpmKFormat" id="rpmKFormat" )rawliteral" + String(settings.useRpmKFormat ? "checked" : "") + R"rawliteral(>
- Use K-format for RPM values (e.g., 1.8K instead of 1800RPM)
- </label><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Applies to all fan and pump speed metrics with RPM unit.
- </p></div><div style="margin-top: 20px;"><label><input type="checkbox" name="netMBFormat" id="netMBFormat" )rawliteral" + String(settings.useNetworkMBFormat ? "checked" : "") + R"rawliteral(>
- Use M-format for network speeds (e.g., 1.2M instead of 1200KB/s)
- </label><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Applies to all network speed metrics with KB/s unit.
- </p></div></div></div><!-- Visible Metrics Section --><div class="section-header" onclick="toggleSection('metricsSection')"><h3>&#128195; Visible Metrics (PC Monitor only)</h3><span class="section-arrow">&#9660;</span></div><div id="metricsSection" class="section-content collapsed"><div class="card"><p style="color: #888; font-size: 14px; margin-top: 0; text-align: left;">
- Select which metrics to show on OLED
- </p><p style="color: #888; font-size: 12px; margin-top: 10px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #00d4ff;"><strong>&#128161; Tip:</strong> Use <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">^</code> character for spacing.<br>
- Example: <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">CPU^^</code> displays as <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">CPU: 45C</code> (2 spaces after colon)
- </p><div id="metricsContainer"><p style="color: #888;">Loading metrics...</p></div><p style="color: #888; font-size: 12px; margin-top: 15px;"><strong>Note:</strong> Metrics are configured in Python script.<br>
- Select up to 20 in pc_stats_monitor_v2.py (use companion metrics to fit more)
- </p><script> let metricsData=[];let MAX_ROWS=)rawliteral"+String(settings.displayRowMode==0?5:settings.displayRowMode==1?6:settings.displayRowMode==2?2:3)+R"rawliteral(;let IS_LARGE_MODE=)rawliteral"+String(settings.displayRowMode>=2?"true":"false")+R"rawliteral(;function saveFormState(){metricsData.forEach(metric=>{const labelInput=document.querySelector(`input[name="label_${metric.id}"]`);if(labelInput){metric.label=labelInput.value;}const posDropdown=document.getElementById('pos_'+metric.id);if(posDropdown){metric.position=parseInt(posDropdown.value);}const compDropdown=document.getElementById('comp_'+metric.id);if(compDropdown){metric.companionId=parseInt(compDropdown.value);}const barPosDropdown=document.getElementById('barPos_'+metric.id);if(barPosDropdown){metric.barPosition=parseInt(barPosDropdown.value);}const barMinInput=document.querySelector(`input[name="barMin_${metric.id}"]`);if(barMinInput){metric.barMin=parseInt(barMinInput.value)|| 0;}const barMaxInput=document.querySelector(`input[name="barMax_${metric.id}"]`);if(barMaxInput){metric.barMax=parseInt(barMaxInput.value)|| 100;}const barWidthInput=document.querySelector(`input[name="barWidth_${metric.id}"]`);if(barWidthInput){metric.barWidth=parseInt(barWidthInput.value)|| 60;}const barOffsetInput=document.querySelector(`input[name="barOffset_${metric.id}"]`);if(barOffsetInput){metric.barOffsetX=parseInt(barOffsetInput.value)|| 0;}});}function updatePosition(metricId){saveFormState();renderMetrics();}function updateCompanion(metricId){saveFormState();renderMetrics();}function updateRowMode(){const rowMode=parseInt(document.getElementById('rowMode').value);const oldMaxRows=MAX_ROWS;const oldLargeMode=IS_LARGE_MODE;IS_LARGE_MODE=(rowMode>=2);MAX_ROWS=(rowMode===0)?5:(rowMode===1)?6:(rowMode===2)?2:3;const maxPos=IS_LARGE_MODE?MAX_ROWS:MAX_ROWS*2;const oldMaxPos=oldLargeMode?oldMaxRows:oldMaxRows*2;if(maxPos<oldMaxPos){const hiddenMetrics=metricsData.filter(m=>(m.position!==255&&m.position>=maxPos)||(m.barPosition!==255&&m.barPosition>=maxPos));if(hiddenMetrics.length>0){const names=hiddenMetrics.map(m=>m.name).join(', ');if(!confirm(`Warning: ${hiddenMetrics.length} metric(s) (${names}) will be hidden. Continue?`)){IS_LARGE_MODE=oldLargeMode;MAX_ROWS=oldMaxRows;if(oldLargeMode){document.getElementById('rowMode').value=oldMaxRows===2?'2':'3';}else{document.getElementById('rowMode').value=oldMaxRows===5?'0':'1';}return;}}metricsData.forEach(metric=>{if(metric.position!==255&&metric.position>=maxPos){metric.position=255;}if(metric.barPosition!==255&&metric.barPosition>=maxPos){metric.barPosition=255;}});}renderMetrics();}function renderMetrics(){const container=document.getElementById('metricsContainer');container.innerHTML='';const sortedMetrics=[...metricsData].sort((a,b)=>a.displayOrder-b.displayOrder);const header=document.createElement('div');header.style.cssText='background:#1e293b;padding:12px;border-radius:6px;margin-bottom:15px;border:2px solid #00d4ff;';header.innerHTML=`<div style="color:#00d4ff;font-weight:bold;font-size:14px;margin-bottom:5px;">&#128247;OLED Display Preview (`+MAX_ROWS+` Rows${IS_LARGE_MODE?' - Large Text, Single Column':' - 2 Columns'})</div><div style="color:#888;font-size:12px;">Assign each metric to a specific position using the dropdown</div>`;container.appendChild(header);for(let rowIndex=0;rowIndex<MAX_ROWS;rowIndex++){const rowDiv=document.createElement('div');rowDiv.style.cssText='background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:10px;overflow:hidden;';const rowHeader=document.createElement('div');rowHeader.style.cssText='background:#1e293b;padding:6px 10px;color:#00d4ff;font-weight:bold;font-size:12px;border-bottom:1px solid #334155;';rowHeader.textContent=`Row ${rowIndex+1}`;rowDiv.appendChild(rowHeader);if(IS_LARGE_MODE){const metric=sortedMetrics.find(m=>m.position===rowIndex)||null;const rowContent=document.createElement('div');rowContent.style.cssText='background:#0f172a;padding:15px;min-height:60px;';if(metric){const companionName=metric.companionId>0?(metricsData.find(m=>m.id===metric.companionId)?.name||'Unknown'):'None';rowContent.innerHTML=`<div><div style="color:#00d4ff;font-weight:bold;font-size:15px;margin-bottom:2px;">${metric.name} (Large Text)</div><div style="color:#888;font-size:11px;">Label: ${metric.label||metric.name}</div>${metric.companionId>0?`<div style="color:#888;font-size:11px;">Paired with: ${companionName}</div>`:''}</div>`;}else{rowContent.innerHTML='<div style="color:#555;font-size:12px;text-align:center;padding:10px;">Empty<br><span style="font-size:10px;">No metric assigned</span></div>';}rowDiv.appendChild(rowContent);}else{const leftPos=rowIndex*2;const rightPos=rowIndex*2+1;const leftMetric=sortedMetrics.find(m=>m.position===leftPos)||null;const rightMetric=sortedMetrics.find(m=>m.position===rightPos)||null;const rowContent=document.createElement('div');rowContent.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#334155;';const leftSlot=createMetricSlot(leftMetric,'left',leftPos);rowContent.appendChild(leftSlot);const rightSlot=createMetricSlot(rightMetric,'right',rightPos);rowContent.appendChild(rightSlot);rowDiv.appendChild(rowContent);}container.appendChild(rowDiv);}const metricsListDiv=document.createElement('div');metricsListDiv.style.cssText='background:#1e293b;border:1px solid #334155;border-radius:6px;padding:15px;margin-top:20px;';metricsListDiv.innerHTML='<div style="color:#00d4ff;font-weight:bold;font-size:14px;margin-bottom:10px;">&#9881;All Metrics Configuration</div>';sortedMetrics.forEach(metric=>{const metricDiv=createMetricConfig(metric);metricsListDiv.appendChild(metricDiv);});container.appendChild(metricsListDiv);}function createMetricSlot(metric,side,position){const slot=document.createElement('div');slot.style.cssText='background:#0f172a;padding:15px;min-height:60px;';if(!metric){slot.innerHTML=`<div style="color:#555;font-size:12px;text-align:center;padding:10px;">${side==='left' ? '&#8592;':'&#8594;'}Empty<br><span style="font-size:10px;">No metric assigned</span></div>`;return slot;}const companionName=metric.companionId>0 ?(metricsData.find(m=>m.id===metric.companionId)?.name || 'Unknown'):'None';slot.innerHTML=`<div style="margin-bottom:4px;"><div style="color:#00d4ff;font-weight:bold;font-size:13px;margin-bottom:2px;">${metric.name}</div><div style="color:#888;font-size:10px;">Label:${metric.label || metric.name}</div>${metric.companionId>0 ? `<div style="color:#888;font-size:10px;">Paired with:${companionName}</div>`:''}</div>`;return slot;}function createMetricConfig(metric){const div=document.createElement('div');div.style.cssText='background:#0f172a;padding:12px;border-radius:6px;margin-bottom:8px;border:1px solid #334155;';let positionOptions='<option value="255">None(Hidden)</option>';if(IS_LARGE_MODE){for(let row=0;row<MAX_ROWS;row++){positionOptions+=`<option value="${row}" ${metric.position===row?'selected':''}>Row ${row+1}</option>`;}}else{for(let row=0;row<MAX_ROWS;row++){const leftPos=row*2;const rightPos=row*2+1;positionOptions+=`<option value="${leftPos}" ${metric.position===leftPos?'selected':''}>Row ${row+1}-&#8592;Left</option>`;positionOptions+=`<option value="${rightPos}" ${metric.position===rightPos?'selected':''}>Row ${row+1}-Right &#8594;</option>`;}}let barPositionOptions='<option value="255">None</option>';if(IS_LARGE_MODE){for(let row=0;row<MAX_ROWS;row++){barPositionOptions+=`<option value="${row}" ${metric.barPosition===row?'selected':''}>Row ${row+1}</option>`;}}else{for(let row=0;row<MAX_ROWS;row++){const leftPos=row*2;const rightPos=row*2+1;barPositionOptions+=`<option value="${leftPos}" ${metric.barPosition===leftPos?'selected':''}>Row ${row+1}-&#8592;Left</option>`;barPositionOptions+=`<option value="${rightPos}" ${metric.barPosition===rightPos?'selected':''}>Row ${row+1}-Right &#8594;</option>`;}}let companionOptions='<option value="0">None</option>';metricsData.forEach(m=>{if(m.id !==metric.id){const selected=(metric.companionId===m.id)? 'selected':'';companionOptions+=`<option value="${m.id}" ${selected}>${m.name}(${m.unit})</option>`;}});div.innerHTML=`<div style="margin-bottom:8px;"><div style="color:#00d4ff;font-weight:bold;font-size:13px;">${metric.name}(${metric.unit})</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Position:</label><select name="position_${metric.id}" id="pos_${metric.id}" onchange="updatePosition(${metric.id})" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;">${positionOptions}</select></div><div><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Pair with:</label><select name="companion_${metric.id}" id="comp_${metric.id}" onchange="updateCompanion(${metric.id})" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;">${companionOptions}</select></div></div><div style="margin-top:8px;"><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Custom Label(10 chars max):</label><input type="text" name="label_${metric.id}" value="${metric.label}" maxlength="10" placeholder="${metric.name}" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;box-sizing:border-box;"></div><div style="margin-top:10px;padding-top:8px;border-top:1px solid #334155;"><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Progress Bar Position:</label><select name="barPosition_${metric.id}" id="barPos_${metric.id}" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;margin-bottom:8px;">${barPositionOptions}</select><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Min Value:</label><input type="number" name="barMin_${metric.id}" value="${metric.barMin || 0}" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Max Value:</label><input type="number" name="barMax_${metric.id}" value="${metric.barMax || 100}" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;"><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Width(px):</label><input type="number" name="barWidth_${metric.id}" value="${metric.barWidth || 60}" min="10" max="64" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Offset X(px):</label><input type="number" name="barOffset_${metric.id}" value="${metric.barOffsetX || 0}" min="0" max="54" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div></div></div><input type="hidden" name="order_${metric.id}" value="${metric.displayOrder}">`;return div;}fetch('/metrics').then(res=>res.json()).then(data=>{if(data.metrics && data.metrics.length>0){metricsData=data.metrics;renderMetrics();}else{document.getElementById('metricsContainer').innerHTML='<p style="color:#ff6666;">No metrics received yet. Start Python script.</p>';}}).catch(err=>{document.getElementById('metricsContainer').innerHTML='<p style="color:#ff6666;">Error loading metrics</p>';});</script></div></div></form><!-- Firmware Update Section (Outside main form) --><div class="section-header" onclick="toggleSection('firmwareSection')"><h3>&#128190; Firmware Update</h3><span class="section-arrow">&#9660;</span></div><div id="firmwareSection" class="section-content collapsed"><div class="card"><p style="color: #888; font-size: 14px; margin-top: 0;">
- Upload new firmware (.bin file) to update the device
- </p><form id="uploadForm" method="POST" action="/update" enctype="multipart/form-data" style="margin-top: 15px;"><input type="file" id="firmwareFile" name="firmware" accept=".bin" style="width: 100%; padding: 10px; margin-bottom: 10px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px;"><button type="submit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;">
- &#128190; Upload & Update Firmware
- </button></form><div id="uploadProgress" style="display: none; margin-top: 15px;"><div style="background: #1e293b; border-radius: 8px; overflow: hidden; height: 30px; margin-bottom: 10px;"><div id="progressBar" style="background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%); height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #0f0c29; font-weight: bold; font-size: 14px;">
- 0%
- </div></div><p id="uploadStatus" style="text-align: center; color: #00d4ff; font-size: 14px;">Uploading...</p></div><p style="color: #888; font-size: 12px; margin-top: 15px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #ef4444;"><strong>&#9888; Warning:</strong> Do not disconnect power during firmware update! Device will restart automatically after update completes.
- </p></div></div><form action="/reset" method="GET" onsubmit="return confirmFactoryReset();"><button type="submit" class="reset-btn">&#128260; Factory Reset</button></form></div><!-- Sticky Save Button --><div class="sticky-save"><div class="container"><button type="button" class="save-btn" onclick="saveSettings()">&#128190; Save Settings</button><span id="saveMessage" style="margin-left: 15px; color: #4CAF50; font-weight: bold; display: none;">&#10004; Settings Saved!</span></div></div><script> function confirmFactoryReset(){if(!confirm('Have you exported a backup of your settings?\n\nUse the \"Export Config\" button to save your configuration before proceeding.\n\nPress OK to continue with factory reset, or Cancel to go back.')){return false;}return confirm('ARE YOU SURE?\n\nThis will permanently erase ALL settings:\n- WiFi credentials\n- Display & clock configuration\n- Metric labels & layout\n- Animation settings\n- Network settings\n\nThe device will restart in AP setup mode.\nThis cannot be undone.');}function toggleSection(sectionId){const content=document.getElementById(sectionId);const arrow=event.currentTarget.querySelector('.section-arrow');content.classList.toggle('collapsed');arrow.classList.toggle('collapsed');const isCollapsed=content.classList.contains('collapsed');if(!isCollapsed){localStorage.setItem('lastExpandedSection',sectionId);}}function toggleStaticIPFields(){const useStaticIP=document.getElementById('useStaticIP').value==='1';const staticIPFields=document.getElementById('staticIPFields');staticIPFields.style.display=useStaticIP ? 'block':'none';}function toggleRefreshRateFields(){const refreshRateMode=document.getElementById('refreshRateMode').value==='1';const refreshRateFields=document.getElementById('refreshRateFields');refreshRateFields.style.display=refreshRateMode ? 'block':'none';}function toggleMarioSettings(){const clockStyle=document.getElementById('clockStyle').value;const marioSettings=document.getElementById('marioSettings');const pongSettings=document.getElementById('pongSettings');const pacmanSettings=document.getElementById('pacmanSettings');const spaceSettings=document.getElementById('spaceSettings');const snakeSettings=document.getElementById('snakeSettings');const tetrisSettings=document.getElementById('tetrisSettings');marioSettings.style.display=(clockStyle==='0')? 'block':'none';pongSettings.style.display=(clockStyle==='5')? 'block':'none';pacmanSettings.style.display=(clockStyle==='6')? 'block':'none';spaceSettings.style.display=(clockStyle==='3' || clockStyle==='4')? 'block':'none';snakeSettings.style.display=(clockStyle==='7')? 'block':'none';tetrisSettings.style.display=(clockStyle==='8')? 'block':'none';}function exportConfig(){fetch('/api/export').then(response=>response.json()).then(data=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pc-monitor-config.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);alert('Configuration exported successfully!');}).catch(err=>alert('Error exporting configuration:'+err));}function importConfig(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(e){try{const config=JSON.parse(e.target.result);fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)}).then(response=>response.json()).then(data=>{if(data.success){alert('Configuration imported successfully! Reloading page...');location.reload();}else{alert('Error importing configuration:'+data.message);}}).catch(err=>alert('Error importing configuration:'+err));}catch(err){alert('Invalid configuration file:'+err);}};reader.readAsText(file);}function saveSettings(){const form=document.querySelector('form[action="/save"]');const formData=new FormData(form);const saveMessage=document.getElementById('saveMessage');const saveBtn=document.querySelector('.save-btn');const urlEncoded=new URLSearchParams(formData);saveBtn.disabled=true;saveBtn.textContent='💾 Saving...';fetch('/save',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:urlEncoded}).then(response=>response.json()).then(data=>{if(data.success){saveMessage.style.display='inline';setTimeout(()=>{saveMessage.style.display='none';},3000);saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';if(data.networkChanged){alert('Network settings changed! Device is restarting. You may need to reconnect to the new IP address.');setTimeout(()=>{window.location.href='/';},3000);}}else{alert('Error saving settings');saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';}}).catch(err=>{alert('Error saving settings:'+err);saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';});}document.getElementById('uploadForm').addEventListener('submit',function(e){e.preventDefault();const fileInput=document.getElementById('firmwareFile');const file=fileInput.files[0];if(!file){alert('Please select a firmware file(.bin)');return;}if(!file.name.endsWith('.bin')){alert('Please select a valid .bin firmware file');return;}document.getElementById('uploadProgress').style.display='block';document.querySelector('#uploadForm button').disabled=true;const xhr=new XMLHttpRequest();xhr.upload.addEventListener('progress',function(e){if(e.lengthComputable){const percent=Math.round((e.loaded/e.total)*100);document.getElementById('progressBar').style.width=percent+'%';document.getElementById('progressBar').textContent=percent+'%';document.getElementById('uploadStatus').textContent='Uploading:'+percent+'%';}});xhr.addEventListener('load',function(){if(xhr.status===200){document.getElementById('progressBar').style.width='100%';document.getElementById('progressBar').textContent='100%';document.getElementById('uploadStatus').textContent='Update successful! Device is rebooting...';document.getElementById('uploadStatus').style.color='#10b981';setTimeout(function(){window.location.href='/';},8000);}else{document.getElementById('uploadStatus').textContent='Upload failed! Please try again.';document.getElementById('uploadStatus').style.color='#ef4444';document.querySelector('#uploadForm button').disabled=false;}});xhr.addEventListener('error',function(){document.getElementById('uploadStatus').textContent='Upload error! Please try again.';document.getElementById('uploadStatus').style.color='#ef4444';document.querySelector('#uploadForm button').disabled=false;});const formData=new FormData();formData.append('firmware',file);xhr.open('POST','/update');xhr.send(formData);});window.addEventListener('DOMContentLoaded',function(){toggleStaticIPFields();toggleRefreshRateFields();const lastExpandedSection=localStorage.getItem('lastExpandedSection');if(lastExpandedSection){const content=document.getElementById(lastExpandedSection);const headers=document.querySelectorAll('.section-header');if(content){for(let header of headers){if(header.getAttribute('onclick')&& header.getAttribute('onclick').includes(lastExpandedSection)){const arrow=header.querySelector('.section-arrow');content.classList.remove('collapsed');if(arrow)arrow.classList.remove('collapsed');break;}}}}});</script></body></html>
-)rawliteral";
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/html", "");
 
- // Send HTML in chunks to avoid buffer overflow
- // ESP32 WebServer has limited buffer, so we send in 4KB chunks
- const int chunkSize = 4096;
- int htmlLength = html.length();
+  auto flush = [&]() {
+    if (bufLen > 0) {
+      buf[bufLen] = '\0';
+      server.sendContent(buf);
+      bufLen = 0;
+    }
+  };
 
- // Send headers first
- server.setContentLength(htmlLength);
- server.send(200, "text/html", "");
+  auto emit = [&](const char* data, size_t len) {
+    while (len > 0) {
+      size_t space = BUF_SIZE - bufLen;
+      size_t take = len < space ? len : space;
+      memcpy(buf + bufLen, data, take);
+      bufLen += take;
+      data += take;
+      len -= take;
+      if (bufLen >= BUF_SIZE) flush();
+    }
+  };
 
- // Send content in chunks
- int bytesSent = 0;
- while (bytesSent < htmlLength) {
- int bytesToSend = min(chunkSize, htmlLength - bytesSent);
- server.sendContent(html.substring(bytesSent, bytesSent + bytesToSend));
- bytesSent += bytesToSend;
- delay(2); // Small delay between chunks
- }
+  // On ESP32 PROGMEM is memory-mapped, so the template is readable directly.
+  const char* end = tmpl + tmplLen;
+  const char* pos = tmpl;
+  const char* literalStart = tmpl;
+
+  while (pos < end) {
+    if (*pos != '%') { pos++; continue; }
+    if (pos + 1 >= end || !(pos[1] >= 'A' && pos[1] <= 'Z')) { pos++; continue; }
+
+    const char* pEnd = pos + 1;
+    while (pEnd < end && *pEnd != '%' && (pEnd - pos) < 40) pEnd++;
+    if (pEnd >= end || *pEnd != '%') { pos++; continue; }
+
+    bool valid = true;
+    for (const char* c = pos + 1; c < pEnd; c++) {
+      if (!((*c >= 'A' && *c <= 'Z') || (*c >= '0' && *c <= '9') || *c == '_')) { valid = false; break; }
+    }
+    if (!valid) { pos++; continue; }
+
+    size_t nameLen = pEnd - pos - 1;
+    char name[40];
+    if (nameLen >= sizeof(name)) { pos++; continue; }
+    memcpy(name, pos + 1, nameLen);
+    name[nameLen] = '\0';
+
+    String value;
+    if (resolvePlaceholder(name, value)) {
+      if (pos > literalStart) emit(literalStart, pos - literalStart);
+      if (value.length() > 0) emit(value.c_str(), value.length());
+      pos = pEnd + 1;
+      literalStart = pos;
+    } else {
+      pos++;
+    }
+  }
+
+  if (end > literalStart) emit(literalStart, end - literalStart);
+  flush();
+  server.sendContent("");
+  free(buf);
+}
+
+void handleRoot() {
+  streamTemplate(PAGE_HTML, sizeof(PAGE_HTML) - 1);
 }
 
 void handleSave() {
