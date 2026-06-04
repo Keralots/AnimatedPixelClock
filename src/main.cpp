@@ -398,13 +398,32 @@ void loop() {
     lastNtpSyncTime = millis();
   }
 
-  // Periodic NTP re-sync even when already synced (safety net)
+  // Periodic NTP re-sync even when already synced (safety net). SNTP keeps the
+  // system clock valid between refreshes, so refresh the timezone/SNTP client
+  // without clearing ntpSynced - dropping it would needlessly re-anchor the
+  // clocks (below) every hour and could flash "Syncing time..." for a frame.
   if (ntpSynced && millis() - lastNtpSyncTime > NTP_RESYNC_INTERVAL) {
     applyTimezone();
-    ntpSynced = false;
     lastNtpSyncTime = millis();
     Serial.println("Periodic NTP re-sync triggered");
   }
+
+  // Re-anchor the animated clocks when NTP first becomes valid (or after a
+  // reconnect resync). At boot the clocks seed displayed_hour/min with a 00:00
+  // fallback; if the first sync lands inside a clock's minute-change window the
+  // animation advances from 00:00 instead of jumping to the real time, leaving
+  // the clock stuck near 00:00 until a reboot or clock-cycle. Resetting the
+  // animation state clears the stale time override, and syncDisplayedTime()
+  // forces displayed_hour/min to match reality.
+  static bool prevNtpSynced = false;
+  if (ntpSynced && !prevNtpSynced) {
+    resetClockAnimationState();
+    struct tm now_tm;
+    if (getLocalTime(&now_tm, 10)) {
+      syncDisplayedTime(&now_tm);
+    }
+  }
+  prevNtpSynced = ntpSynced;
 
   // Display update with adaptive refresh rate
   int targetHz = getOptimalRefreshRate();
