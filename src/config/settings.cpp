@@ -322,6 +322,8 @@ void loadSettings() {
       preferences.getUChar("tetDotOrd", 0); // Default: bottom-up
   settings.tetrisDigitBounce =
       preferences.getBool("tetBounce", true); // Default: bounce on
+  settings.tetrisSmoothGame =
+      preferences.getBool("tetSmooth", false); // Default: real-game (off)
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -536,6 +538,7 @@ void saveSettings() {
   preferences.putUChar("tetDotSpd", settings.tetrisDotSpeed);
   preferences.putUChar("tetDotOrd", settings.tetrisDotOrder);
   preferences.putBool("tetBounce", settings.tetrisDigitBounce);
+  preferences.putBool("tetSmooth", settings.tetrisSmoothGame);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);

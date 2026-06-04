@@ -149,6 +149,7 @@ struct Settings {
   uint8_t tetrisDotSpeed;       // Falling-dot build speed, tenths (12 = 1.2)
   uint8_t tetrisDotOrder;       // 0=Bottom-up, 1=Random
   bool tetrisDigitBounce;       // Bounce the new digit after it rebuilds
+  bool tetrisSmoothGame;        // Block Game plays near-perfectly (smart piece pick, avoids holes)
 
   // Metric configuration arrays
   char metricLabels[MAX_METRICS][METRIC_NAME_LEN];

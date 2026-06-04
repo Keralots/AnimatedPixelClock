@@ -395,6 +395,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_TETRISBLOCKSTYLE_1")) { out = String(settings.tetrisBlockStyle == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_TETRISIDLETUMBLE")) { out = String(settings.tetrisIdleTumble ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_TETRISDIGITBOUNCE")) { out = String(settings.tetrisDigitBounce ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_TETRISSMOOTHGAME")) { out = String(settings.tetrisSmoothGame ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_TETRISANIMSTYLE_0")) { out = String(settings.tetrisAnimStyle == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_TETRISANIMSTYLE_1")) { out = String(settings.tetrisAnimStyle == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "V_TETRISDOTSPEED")) { out = String(settings.tetrisDotSpeed); return true; }
@@ -756,6 +757,7 @@ void handleSave() {
  }
  settings.tetrisIdleTumble = server.hasArg("tetrisIdleTumble");
  settings.tetrisDigitBounce = server.hasArg("tetrisDigitBounce");
+ settings.tetrisSmoothGame = server.hasArg("tetrisSmoothGame");
  if (server.hasArg("tetrisAnimStyle")) {
  settings.tetrisAnimStyle = server.arg("tetrisAnimStyle").toInt();
  }

@@ -37,6 +37,8 @@
 #define TET_MAX_DOTS (TET_GRID_W * TET_GRID_H)
 #define TET_DATE_Y_TOP 4
 #define TET_DATE_Y_BOTTOM 56
+#define TET_SLIP_PCT 8               // Smooth Play: % of drops allowed to leave a
+                                     // hole (a "human slip") instead of avoiding it
 
 // 5x7 block glyphs (same numerals as the Pac-Man pellet font)
 static const uint8_t blockDigitPatterns[10][TET_GRID_H] = {
@@ -247,7 +249,18 @@ static int tetDropOy(int rot, int leftCol) {
 }
 
 // Score a placement (higher is better): reward line clears, punish height/holes.
-static int tetScorePlacement(int rot, int leftCol, int oy) {
+// `outHoles`, when non-null, returns the resulting hole count - Smooth Play uses
+// it to refuse any drop that would bury a new gap.
+//
+// Smooth Play's goal in this very wide (32 col), shallow (5 row) well is simply
+// to keep the stack LOW and cover every column, because the bottom row clears
+// the moment all columns are touched. The dominant term is "landing depth":
+// always prefer the lowest spot, so pieces fill the empty floor instead of
+// growing a tower. (Rewarding flatness alone, as a first attempt did, backfires
+// - extending an existing tall plateau adds no step, so it piled up one side.)
+// A mild bumpiness term keeps the floor filling contiguously and tidy. The
+// piece itself stays random, so the stack still looks natural, not like bars.
+static int tetScorePlacement(int rot, int leftCol, int oy, bool smooth, int *outHoles) {
   const TetRot &p = TET_ROTS[rot];
   uint32_t tmp[TET_WELL_ROWS];
   for (int r = 0; r < TET_WELL_ROWS; r++) tmp[r] = tet_well[r];
@@ -256,51 +269,96 @@ static int tetScorePlacement(int rot, int leftCol, int oy) {
   int lines = 0;
   for (int r = 0; r < TET_WELL_ROWS; r++) if (tmp[r] == TET_FULLROW) lines++;
 
-  int aggH = 0, holes = 0, maxH = 0;
+  int aggH = 0, holes = 0, maxH = 0, bumps = 0, prevH = -1;
   for (int c = 0; c < TET_WELL_COLS; c++) {
     int top = TET_WELL_ROWS;
     for (int r = 0; r < TET_WELL_ROWS; r++) if (tmp[r] & (1u << c)) { top = r; break; }
     int h = TET_WELL_ROWS - top;
     aggH += h;
     if (h > maxH) maxH = h;
+    if (prevH >= 0) bumps += abs(h - prevH);
+    prevH = h;
     for (int r = top + 1; r < TET_WELL_ROWS; r++) if (!(tmp[r] & (1u << c))) holes++;
+  }
+  if (outHoles) *outHoles = holes;
+  if (smooth) {
+    // landDepth = screen row of the piece's lowest cell (TET_WELL_ROWS-1 = floor).
+    // Higher = landed lower = better, so it always fills the floor first.
+    int maxCy = 0;
+    for (int k = 0; k < 4; k++) if (p.cy[k] > maxCy) maxCy = p.cy[k];
+    int landDepth = oy + maxCy;
+    return lines * 1000 + landDepth * 24 - holes * 60 - maxH * 6 - bumps * 4;
   }
   return lines * 1000 - aggH * 2 - holes * 16 - maxH * 4;
 }
 
-// Pick a RANDOM piece (for variety); the "cheat" only chooses where to drop it
-// (best rotation + column). Spawns it above the screen, centred.
+// Choose where to drop a piece, then spawn it above the screen, centred.
+//
+// The piece itself is ALWAYS RANDOM, exactly like a real game - that is what
+// gives the natural shape variety (S/Z/T/L/J make real skyline steps). The
+// "cheat" only ever chooses the best rotation + column for the piece it was
+// dealt; it never hand-picks flat I/O bars (which is what made it look like it
+// was laying down rectangles).
+//
+// Default play takes the best-scoring spot, holes and all - that real-game feel
+// where it sometimes can't fix the stack.
+//
+// Smooth Play (settings.tetrisSmoothGame): same random pieces, but it scores
+// spots to keep the stack LOW and every column covered AND refuses any drop
+// that would bury a NEW hole (relaxed fallback only if nothing hole-free fits),
+// so the wide bottom row actually fills across and clears instead of piling up
+// one side. A small share of drops (TET_SLIP_PCT) still allow a hole - a "human
+// slip" - so it is not suspiciously perfect.
 static bool tetGamePickPiece() {
-  int piece = random(7);
+  bool smart = settings.tetrisSmoothGame;
+  bool avoidHoles = smart && (random(100) >= TET_SLIP_PCT);
+
+  int piece = random(7);                       // random shape -> natural variety
   int rotStart = TET_PIECE_ROT[piece][0];
   int rotCount = TET_PIECE_ROT[piece][1];
 
+  // Holes already in the well: only forbid drops that ADD to them.
+  int curHoles = 0;
+  for (int c = 0; c < TET_WELL_COLS; c++) {
+    int top = TET_WELL_ROWS;
+    for (int r = 0; r < TET_WELL_ROWS; r++) if (tet_well[r] & (1u << c)) { top = r; break; }
+    for (int r = top + 1; r < TET_WELL_ROWS; r++) if (!(tet_well[r] & (1u << c))) curHoles++;
+  }
+
   int bestScore = -1000000, bestRot = -1, bestCol = 0, bestOy = 0, ties = 0;
-  for (int ri = 0; ri < rotCount; ri++) {
-    int rot = rotStart + ri;
-    for (int leftCol = 0; leftCol + TET_ROTS[rot].w <= TET_WELL_COLS; leftCol++) {
-      int oy = tetDropOy(rot, leftCol);
-      if (oy <= -100) continue;
-      int sc = tetScorePlacement(rot, leftCol, oy);
-      if (sc > bestScore) {
-        bestScore = sc; bestRot = rot; bestCol = leftCol; bestOy = oy; ties = 1;
-      } else if (sc == bestScore) {
-        // Random tie-break: equally-good spots (e.g. an open bottom row) get
-        // scattered placements instead of packing tightly left-to-right.
-        if (random(++ties) == 0) { bestRot = rot; bestCol = leftCol; bestOy = oy; }
+  // Pass 0 (Smooth Play) refuses hole-burying drops; pass 1 is the relaxed
+  // fallback for the rare case nothing hole-free fits. Default/slip use pass 1.
+  for (int pass = (avoidHoles ? 0 : 1); pass < 2 && bestRot < 0; pass++) {
+    bool forbidHoles = (pass == 0);
+    for (int ri = 0; ri < rotCount; ri++) {
+      int rot = rotStart + ri;
+      for (int leftCol = 0; leftCol + TET_ROTS[rot].w <= TET_WELL_COLS; leftCol++) {
+        int oy = tetDropOy(rot, leftCol);
+        if (oy <= -100) continue;
+        int placedHoles = 0;
+        int sc = tetScorePlacement(rot, leftCol, oy, smart, &placedHoles);
+        if (forbidHoles && placedHoles > curHoles) continue;  // would bury a gap
+        if (sc > bestScore) {
+          bestScore = sc; bestRot = rot; bestCol = leftCol; bestOy = oy; ties = 1;
+        } else if (sc == bestScore) {
+          // Random tie-break: equally-good spots (e.g. an open bottom row) get
+          // scattered placements instead of packing tightly left-to-right.
+          if (random(++ties) == 0) { bestRot = rot; bestCol = leftCol; bestOy = oy; }
+        }
       }
     }
   }
   if (bestRot < 0) return false;
+
   tet_pc_rot = bestRot;
   tet_pc_destCol = bestCol;
   tet_pc_destOy = bestOy;
   tet_pc_piece = piece;
-  tet_pc_drawRot = rotStart + random(rotCount);                        // random start orientation
-  tet_spin_left = random(1, 5);                                        // tumble 1-4 times, then settle
+  tet_pc_drawRot = rotStart + random(rotCount);                       // random start orientation
+  tet_spin_left = random(1, 5);                                       // tumble 1-4 times, then settle
   tet_spin_timer = 0;
-  tet_pc_curCol = (TET_WELL_COLS - TET_ROTS[bestRot].w) / 2.0f;        // centre
-  tet_pc_py = -(float)(TET_ROTS[bestRot].h * TET_WELL_CELL);           // above screen
+  tet_pc_curCol = (TET_WELL_COLS - TET_ROTS[bestRot].w) / 2.0f;       // centre
+  tet_pc_py = -(float)(TET_ROTS[bestRot].h * TET_WELL_CELL);          // above screen
   tet_game_phase = TG_MOVING;
   return true;
 }
