@@ -37,6 +37,7 @@ from pathlib import Path
 VARIANTS = [
     ("oled-096", "ssd1306", '0.96" SSD1306  (also 2.42" SSD1309)'),
     ("oled-13",  "sh1106",  '1.3" SH1106'),
+    ("oled-154", "ch1116",  '1.54" CH1116'),
 ]
 
 # Flash offsets for the ESP32-C3 (bootloader starts at 0x0).

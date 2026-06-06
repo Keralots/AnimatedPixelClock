@@ -34,7 +34,8 @@ FIRMWARE_OFFSET = 0x10000
 # OLED type -> human-readable name (used in output filenames)
 OLED_TYPES = {
     '0': '0.96inch',
-    '1': '1.3inch'
+    '1': '1.3inch',
+    '2': '1.54inch'
 }
 
 # OLED type -> PlatformIO environment that fixes DISPLAY_TYPE via build flag.
@@ -42,7 +43,8 @@ OLED_TYPES = {
 # never share object files and don't need a clean between builds.
 OLED_ENVS = {
     '0': 'oled-096',
-    '1': 'oled-13'
+    '1': 'oled-13',
+    '2': 'oled-154'
 }
 
 
@@ -230,9 +232,9 @@ Examples:
     parser.add_argument(
         'oled_type',
         nargs='?',
-        choices=['0', '1'],
+        choices=['0', '1', '2'],
         default=None,
-        help='OLED type: 0 = 0.96inch, 1 = 1.3inch. Omit to build BOTH.'
+        help='OLED type: 0 = 0.96inch, 1 = 1.3inch, 2 = 1.54inch. Omit to build ALL.'
     )
     parser.add_argument(
         '--no-build',
@@ -243,7 +245,7 @@ Examples:
     args = parser.parse_args()
 
     # Determine which variant(s) to process
-    oled_types = [args.oled_type] if args.oled_type else ['0', '1']
+    oled_types = [args.oled_type] if args.oled_type else ['0', '1', '2']
 
     # Create release directory if needed
     output_dir = os.path.join(RELEASES_DIR, args.version)

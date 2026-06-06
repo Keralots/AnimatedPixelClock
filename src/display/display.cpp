@@ -28,7 +28,7 @@ const uint8_t TEMPORARY_WAKE_BRIGHTNESS = 20;
 #endif
 
 static void setDisplayPower(bool on) {
-#if DISPLAY_TYPE == 1
+#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.oled_command(on ? 0xAF : 0xAE);
 #else
   display.ssd1306_command(on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
@@ -36,7 +36,7 @@ static void setDisplayPower(bool on) {
 }
 
 static void setDisplayContrast(uint8_t brightness) {
-#if DISPLAY_TYPE == 1
+#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.setContrast(brightness);
 #else
   display.ssd1306_command(SSD1306_SETCONTRAST);
@@ -98,8 +98,8 @@ bool initDisplay() {
   SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, SPI_CS_PIN);
 
   for (int attempt = 0; attempt < 3; attempt++) {
-  #if DISPLAY_TYPE == 1
-    if (display.begin(0, true)) {  // SH1106 SPI: address ignored, reset=true
+  #if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+    if (display.begin(0, true)) {  // SH1106/CH1116 SPI: address ignored, reset=true
       display.setContrast(255);
       return true;
     }
@@ -115,7 +115,7 @@ bool initDisplay() {
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
   for (int attempt = 0; attempt < 3; attempt++) {
-  #if DISPLAY_TYPE == 1
+  #if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
     byte addrToTry = (attempt == 0) ? DISPLAY_I2C_ADDRESS : 0x3D;
     if (display.begin(addrToTry)) {
       display.setContrast(255);

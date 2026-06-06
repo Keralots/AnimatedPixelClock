@@ -22,9 +22,15 @@
 #endif
 
 // Display type 1: SH1106 (1.3") - has 132x64 RAM, driver applies 2-column offset
-#if DISPLAY_TYPE == 1
-  #include <Adafruit_SH110X.h>
-  extern Adafruit_SH1106G display;
+// Display type 2: CH1116 (1.54") - SH1106-compatible, uses a 1-column offset
+#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+  #if DISPLAY_TYPE == 2
+    #include "ch1116.h"
+    extern Adafruit_CH1116 display;
+  #else
+    #include <Adafruit_SH110X.h>
+    extern Adafruit_SH1106G display;
+  #endif
   #ifndef DISPLAY_WHITE
     #define DISPLAY_WHITE SH110X_WHITE
   #endif

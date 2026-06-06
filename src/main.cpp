@@ -26,7 +26,9 @@
 #include <Wire.h>
 #endif
 
-#if DISPLAY_TYPE == 1
+#if DISPLAY_TYPE == 2
+#include "display/ch1116.h"  // For 1.54" CH1116 (SH1106-compatible, 1-col offset)
+#elif DISPLAY_TYPE == 1
 #include <Adafruit_SH110X.h> // For 1.3" SH1106
 #else
 #include <Adafruit_SSD1306.h> // For 0.96" SSD1306
@@ -47,7 +49,16 @@ extern WebServer server;         // Defined in web.cpp
 extern Preferences preferences;  // Defined in settings.cpp
 
 // ========== Display Object ==========
-#if DISPLAY_TYPE == 1
+#if DISPLAY_TYPE == 2
+  // CH1116 display (1.54", SH1106-compatible with corrected column offset)
+  #if DISPLAY_INTERFACE == 1
+    Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
+  #else
+    Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+  #endif
+  #define DISPLAY_WHITE SH110X_WHITE
+  #define DISPLAY_BLACK SH110X_BLACK
+#elif DISPLAY_TYPE == 1
   // SH1106 display
   #if DISPLAY_INTERFACE == 1
     Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);

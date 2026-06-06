@@ -16,6 +16,7 @@
 // Display type:
 //   0 = SSD1306 (0.96" OLED, common small displays)
 //   1 = SH1106  (1.3" OLED, larger displays - has 132x64 RAM with 2-col offset)
+//   2 = CH1116  (1.54" OLED, SH1106-compatible but uses no column offset)
 //
 // Note: 2.42" SSD1309 panels use the SSD1306 driver, so leave this at 0 for
 // those as well - there is no separate display type for them.

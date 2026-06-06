@@ -11,7 +11,7 @@ src/config/user_config.h
 
 | Setting | Location | Description |
 |---------|----------|-------------|
-| `DEFAULT_DISPLAY_TYPE` | user_config.h:13 | 0 = SSD1306 (0.96"), 1 = SH1106 (1.3") |
+| `DEFAULT_DISPLAY_TYPE` | user_config.h:13 | 0 = SSD1306 (0.96"), 1 = SH1106 (1.3"), 2 = CH1116 (1.54") |
 | `I2C_SDA_PIN` | user_config.h:16 | I2C data pin (default: 8) |
 | `I2C_SCL_PIN` | user_config.h:17 | I2C clock pin (default: 9) |
 | `DISPLAY_I2C_ADDRESS` | user_config.h:24 | Display address (0x3C or 0x3D) |

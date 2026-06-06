@@ -19,6 +19,13 @@ const BOARDS = {
     display: 'SH1106 · 128×64',
     note: 'Uses its own firmware — the SH1106 has a 132-px RAM with a 2-column offset. Don\u2019t flash the 0.96″ image here.',
   },
+  ch1116: {
+    label: 'ESP32-C3 · CH1116 1.54″',
+    chipFamily: 'ESP32-C3',
+    firmware: 'ch1116',
+    display: 'CH1116 · 128×64',
+    note: 'Uses its own firmware — the CH1116 is SH1106-compatible but needs a 1-column offset. Don’t flash the SH1106 or 0.96″ image here.',
+  },
   ssd1309: {
     label: 'ESP32-C3 · SSD1309 2.42″ (largest)',
     chipFamily: 'ESP32-C3',

@@ -20,6 +20,9 @@ https://aliexpress.com/item/1005009757205826.html
 For 2.42" OLED (SSD1309) I have used this version:
 https://aliexpress.com/item/4000002579405.html
 
+For 1.54" OLED (CH1116) I have used this version:
+https://aliexpress.com/item/1005006579037427.html
+
 ESP32-C3 SuperMini:
 https://aliexpress.com/item/1005008988143743.html
 
@@ -90,6 +93,7 @@ For detailed instructions, keep reading below.
 - **OLED Display** (128x64, I2C):
   - SSD1306 0.96" (most common)
   - SH1106 1.3" (larger, recommended)
+  - CH1116 1.54" (SH1106-compatible, own firmware)
   - SSD1309 2.42" (largest, uses same firmware as 0.96")
 - **TTP223 Touch Sensor** (optional - for physical button control)
 - **Wiring (I2C):**
@@ -576,6 +580,7 @@ You can then call `rest_command.oled_display_off` / `oled_display_on` from an au
 - Check I2C wiring (SDA=GPIO8, SCL=GPIO9)
 - Verify I2C address is 0x3C (common for SSD1306)
 - For SH1106 (1.3"): change `DEFAULT_DISPLAY_TYPE` to `1` in `user_config.h`
+- For CH1116 (1.54"): change `DEFAULT_DISPLAY_TYPE` to `2` in `user_config.h`
 - For SSD1309 (2.42"): use `DEFAULT_DISPLAY_TYPE` `0` (same as 0.96", no change needed)
 
 **Can't connect to WiFi portal**
@@ -693,6 +698,7 @@ Change `DEFAULT_DISPLAY_TYPE` to match your OLED:
 |-------|---------|------|-------|
 | `0` | SSD1306 | 0.96" / 2.42" | Default. Works for both 0.96" SSD1306 and 2.42" SSD1309 |
 | `1` | SH1106 | 1.3" | 132x64 RAM with 2-column offset |
+| `2` | CH1116 | 1.54" | SH1106-compatible, no column offset ([example panel](https://aliexpress.com/item/1005006579037427.html)) |
 
 ### SPI Display Interface
 
