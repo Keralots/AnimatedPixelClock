@@ -76,11 +76,12 @@ A real-time PC monitoring system that displays CPU, RAM, GPU, and disk stats on 
 
 1. **Flash ESP32** - Open the [SmallOLED Web Flasher](https://keralots.github.io/SmallOLED-PCMonitor/) in desktop Chrome or Edge, pick your OLED, and click Install (no installation needed!)
 2. **Connect ESP32 to WiFi** - Right after flashing, use the flasher's **Configure WiFi** step to send your network to the device over USB. (No web flasher? Join the "PCMonitor-Setup" network and open 192.168.4.1.)
-3. **Install Python** - Download from [python.org](https://www.python.org/downloads/) (check "Add to PATH" during install)
-4. **Install LibreHardwareMonitor** (Windows only) - Download from [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases), run as Admin
-5. **Run Python Script** - Open terminal/cmd, type: `pip install psutil pywin32 wmi pystray pillow` then `python pc_stats_monitor_v2.py`
-6. **Configure in GUI** - Enter ESP32 IP address, select sensors you want to monitor, click "Save & Start"
-7. **Position Metrics** - Open ESP32 IP in browser, drag metrics to desired positions on display preview
+3. **Install LibreHardwareMonitor** (Windows only) - Download from [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases), run as Admin (needed for temps/fans/GPU/power)
+4. **Get the companion app:**
+   - **Windows (easiest, recommended):** download `pc_stats_monitor_v3.exe` from [`PC-Companion-App-v3-beta/dist/`](PC-Companion-App-v3-beta/) and double-click it - no Python needed. This v3 beta adds a built-in **"Configure OLED screen"** editor so you arrange the whole display right from the app.
+   - **Linux, or prefer the classic script:** install Python from [python.org](https://www.python.org/downloads/) (check "Add to PATH"), then in a terminal run `pip install psutil pywin32 wmi pystray pillow` followed by `python pc_stats_monitor_v2.py`. The v2 script still works the same.
+5. **Configure in GUI** - Enter ESP32 IP address, select the sensors you want, click "Save & Start"
+6. **Position metrics** - In the v3 beta app click **"Configure OLED screen"**; with the v2 script, open the ESP32 IP in a browser and drag metrics on the preview
 
 Done! Your PC stats will now appear on the OLED display.
 
@@ -234,9 +235,13 @@ Once connected to WiFi, access the full configuration page:
    - Import configuration from JSON file (restore)
    - Reset to factory defaults
 
-### 2. PC Stats Sender (Python)
+### 2. PC Stats Sender
 
-#### Prerequisites
+> **Windows users - start here (recommended):** grab the prebuilt **`pc_stats_monitor_v3.exe`** from [`PC-Companion-App-v3-beta/dist/`](PC-Companion-App-v3-beta/). It needs **no Python install**, runs from the system tray, and adds a built-in **"Configure OLED screen"** layout editor (drag/drop, 1:1 live preview, pull/push the layout to the device, backup to file) so you can do all the PC-monitoring setup from the desktop app instead of the device web page. See [`PC-Companion-App-v3-beta/README.md`](PC-Companion-App-v3-beta/README.md). It is BETA but stable for daily use.
+>
+> The classic **`pc_stats_monitor_v2.py`** script below still works exactly as before and remains the supported path on Linux - use it if you prefer running from source or aren't on Windows. New setups are easier with the v3 beta app.
+
+#### Prerequisites (v2 script)
 - **Python 3.7+**
 - **LibreHardwareMonitor** (for hardware sensor monitoring)
 - **Note:** LibreHardwareMonitor 0.9.5+ changed its WMI backend. The Python script automatically detects this and falls back to the REST API. If using 0.9.5+, enable "Options > Remote Web Server > Run" in LibreHardwareMonitor.

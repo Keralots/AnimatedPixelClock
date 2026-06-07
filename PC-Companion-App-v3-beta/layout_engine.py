@@ -211,6 +211,9 @@ def _default_entry(m):
     """A hidden-by-default layout entry for one metric."""
     return {
         "label": (m.get("label") or m.get("name") or "")[:10],
+        # Stable identity of the metric this entry belongs to, so a saved layout
+        # can be re-bound by name when the selection (and thus ids) change.
+        "metricName": (m.get("name") or ""),
         "order": 0,
         "position": 255,
         "companionId": 0,
@@ -220,6 +223,56 @@ def _default_entry(m):
         "barWidth": 60,
         "barOffsetX": 0,
     }
+
+
+def remap_layout_by_name(saved_layout, metrics):
+    """Re-key a saved layout (keyed by the ids it was built with) onto the current
+    metrics by matching each entry's metric NAME, not its id slot.
+
+    The app numbers metrics by selection order, so removing one and adding another
+    reuses an id - and an id-keyed layout would hand the new metric its
+    predecessor's label/bar/companion. Matching by name instead drops entries
+    whose metric is gone and gives genuinely new metrics a fresh hidden default.
+    companionId references (old ids) are remapped to the new ids by name too.
+
+    `saved_layout`: {old_id: entry}. `metrics`: current metric dicts (id, name,
+    label). Returns {new_id: entry}.
+    """
+    def ident(e):
+        return (str(e.get("metricName") or e.get("label") or "")).strip()
+
+    name_to_newid = {}
+    for m in metrics:
+        for k in ((m.get("name") or "").strip(), (m.get("label") or "").strip()):
+            if k:
+                name_to_newid.setdefault(k, m["id"])
+
+    name_to_oldentry = {}
+    for _oid, e in saved_layout.items():
+        k = ident(e)
+        if k:
+            name_to_oldentry.setdefault(k, e)
+
+    out = {}
+    for m in metrics:
+        mid = m["id"]
+        src = None
+        for k in ((m.get("name") or "").strip(), (m.get("label") or "").strip()):
+            if k and k in name_to_oldentry:
+                src = name_to_oldentry[k]
+                break
+        if src is None:
+            out[mid] = _default_entry(m)
+            continue
+        e = dict(src)
+        e["metricName"] = m.get("name") or e.get("metricName", "")
+        old_comp = e.get("companionId", 0)
+        if old_comp and old_comp in saved_layout:
+            e["companionId"] = name_to_newid.get(ident(saved_layout[old_comp]), 0)
+        else:
+            e["companionId"] = 0
+        out[mid] = e
+    return out
 
 
 def _layout_singles(metrics, layout, pair):
@@ -326,12 +379,18 @@ def auto_layout(metrics, template):
 
 
 def build_device_layout_json(row_mode, layout_by_id, show_clock=False, clock_position=0,
-                             rpm_k=None, net_mb=None, clock_offset=None):
+                             rpm_k=None, net_mb=None, clock_offset=None, metric_names=None):
     """Assemble the /api/import payload from a layout.
 
-    Arrays are MAX_METRICS long, indexed by (id-1). metricNames is pushed EMPTY
-    so the firmware binds the layout to whatever names arrive on those ids on
-    the next UDP packet (initial-bind-by-id).
+    Arrays are MAX_METRICS long, indexed by (id-1).
+
+    metric_names (id -> display name the device receives over UDP) is pushed into
+    metricNames so the firmware's name guard (network.cpp) binds each slot to the
+    metric that actually owns that id: if a different metric arrives on that id
+    (the app re-numbers metrics whenever the selection changes), the firmware
+    falls back to defaults for it instead of misapplying this slot's
+    position/companion - which is what caused the on-device scramble. When
+    metric_names is None we still send names derived from the layout labels.
 
     rpm_k / net_mb / clock_offset are the device display-format settings. They are
     only added to the payload when not None, so a push can carry the values shown
@@ -339,6 +398,7 @@ def build_device_layout_json(row_mode, layout_by_id, show_clock=False, clock_pos
     device's existing settings when they are unknown.
     """
     n = MAX_METRICS
+    metric_names = metric_names or {}
     payload = {
         "displayRowMode": row_mode,
         "showClock": show_clock,
@@ -358,7 +418,11 @@ def build_device_layout_json(row_mode, layout_by_id, show_clock=False, clock_pos
         idx = mid - 1
         if idx < 0 or idx >= n:
             continue
-        payload["metricLabels"][idx] = (e.get("label") or "")[:10]
+        label = (e.get("label") or "")[:10]
+        payload["metricLabels"][idx] = label
+        # The UDP name the device guards against: caller-supplied display name,
+        # else the layout label (the device sends custom_label-or-name as 'name').
+        payload["metricNames"][idx] = (str(metric_names.get(mid, "")) or label)[:31]
         payload["metricOrder"][idx] = e.get("order", 0)
         payload["metricCompanions"][idx] = e.get("companionId", 0)
         payload["metricPositions"][idx] = e.get("position", 255)
@@ -389,6 +453,141 @@ def push_layout_to_device(esp32_ip, payload, timeout=4):
         body = resp.read().decode("utf-8", "replace")
         ok = resp.status == 200 and '"success":true' in body.replace(" ", "")
         return ok, body
+
+
+def fetch_device_export(esp32_ip, timeout=4):
+    """GET the device's current config from /api/export. Returns the parsed JSON
+    dict. Raises urllib/OSError on a network failure (the caller handles it)."""
+    url = f"http://{esp32_ip}/api/export"
+    with urllib_request.urlopen(url, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", "replace"))
+
+
+def _default_pull_entry(label=""):
+    return {
+        "label": (label or "")[:10],
+        "order": 0,
+        "companionId": 0,
+        "position": 255,
+        "barPosition": 255,
+        "barMin": 0,
+        "barMax": 100,
+        "barWidth": 60,
+        "barOffsetX": 0,
+    }
+
+
+def parse_device_layout(data, metrics):
+    """Inverse of build_device_layout_json: turn an /api/export JSON dict into a
+    layout keyed by the app's CURRENT metric ids.
+
+    The device's arrays are indexed by the metric id it was configured with. The
+    app re-assigns ids from the current selection order, so a raw id-1 lookup
+    scrambles the layout whenever the selection has been reordered since the
+    device was configured (a metric's bar/companion would bind to a different
+    live sensor). To stay correct, we bind each device slot to the app metric by
+    NAME (the display name the app sends, mirrored in metricNames/metricLabels),
+    and fall back to index only when no name matches.
+
+    `data`: parsed /api/export JSON. `metrics`: the app's current metric dicts,
+    each with 'id', 'name' and optionally 'label'. Returns
+    {"row_mode", "layout", "show_clock", "clock_position", "rpm_k", "net_mb",
+     "clock_offset"}.
+    """
+    def col(key):
+        v = data.get(key)
+        return v if isinstance(v, list) else []
+
+    def at(a, idx, default):
+        try:
+            return a[idx]
+        except (IndexError, TypeError):
+            return default
+
+    def as_int(v, default):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    names = col("metricNames")
+    labels = col("metricLabels")
+    order = col("metricOrder")
+    companions = col("metricCompanions")
+    positions = col("metricPositions")
+    bar_pos = col("metricBarPositions")
+    bar_min = col("metricBarMin")
+    bar_max = col("metricBarMax")
+    bar_w = col("metricBarWidths")
+    bar_off = col("metricBarOffsets")
+    n_dev = max(len(names), len(labels), len(positions))
+
+    def dev_name(i):
+        # The display name the device knows: metricNames (live UDP bind) first,
+        # then metricLabels (survives an app push that blanks metricNames).
+        return (str(at(names, i, "") or "").strip()
+                or str(at(labels, i, "") or "").strip())
+
+    # Identity keys for each app metric: its display name(s).
+    metric_keys = {m["id"]: {str(k).strip() for k in (m.get("name"), m.get("label")) if k}
+                   for m in metrics}
+
+    # Bind each app metric to a device index, by name then by index fallback.
+    id_to_devidx = {}
+    used_dev = set()
+    for m in metrics:
+        mid = m["id"]
+        found = None
+        keys = metric_keys[mid]
+        for i in range(n_dev):
+            if i in used_dev:
+                continue
+            dn = dev_name(i)
+            if dn and dn in keys:
+                found = i
+                break
+        if found is None:
+            idx = mid - 1  # fallback: same index, if not already claimed by a name match
+            if 0 <= idx < n_dev and idx not in used_dev:
+                found = idx
+        if found is not None:
+            used_dev.add(found)
+        id_to_devidx[mid] = found
+
+    devidx_to_id = {i: mid for mid, i in id_to_devidx.items() if i is not None}
+
+    layout = {}
+    for m in metrics:
+        mid = m["id"]
+        i = id_to_devidx[mid]
+        if i is None:
+            e = _default_pull_entry(m.get("label") or m.get("name") or "")
+            e["metricName"] = m.get("name") or ""
+            layout[mid] = e
+            continue
+        comp_dev = as_int(at(companions, i, 0), 0)  # device metric id (1-based)
+        comp_id = devidx_to_id.get(comp_dev - 1, 0) if comp_dev else 0
+        layout[mid] = {
+            "label": (str(at(labels, i, "")) or "")[:10],
+            "metricName": m.get("name") or "",
+            "order": as_int(at(order, i, 0), 0),
+            "companionId": comp_id,
+            "position": as_int(at(positions, i, 255), 255),
+            "barPosition": as_int(at(bar_pos, i, 255), 255),
+            "barMin": as_int(at(bar_min, i, 0), 0),
+            "barMax": as_int(at(bar_max, i, 100), 100),
+            "barWidth": as_int(at(bar_w, i, 60), 60),
+            "barOffsetX": as_int(at(bar_off, i, 0), 0),
+        }
+    return {
+        "row_mode": as_int(data.get("displayRowMode", 0), 0),
+        "layout": layout,
+        "show_clock": bool(data.get("showClock", False)),
+        "clock_position": as_int(data.get("clockPosition", 0), 0),
+        "rpm_k": bool(data.get("useRpmKFormat", False)),
+        "net_mb": bool(data.get("useNetworkMBFormat", False)),
+        "clock_offset": as_int(data.get("clockOffset", 0), 0),
+    }
 
 
 _ROWMODE_LABELS = [

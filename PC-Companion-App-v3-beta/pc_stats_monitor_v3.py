@@ -163,6 +163,7 @@ from layout_engine import (
     auto_layout,
     build_device_layout_json,
     push_layout_to_device,
+    remap_layout_by_name,
 )
 from layout_editor import LayoutEditorDialog
 
@@ -1699,6 +1700,9 @@ class MetricSelectorGUI:
     def __init__(self, root, existing_config=None):
         self.root = root
         self.root.title("PC Monitor v3.0 - Configuration")
+        # Dark window background so the padding/margins around the themed frames
+        # don't show the default light grey (the white gaps between sections).
+        self.root.configure(bg="#1e1e1e")
         self.root.geometry("1200x800")
         self.root.resizable(True, True)
         self.root.minsize(1000, 700)
@@ -1721,6 +1725,10 @@ class MetricSelectorGUI:
         # Load existing selections if editing
         if existing_config and existing_config.get("metrics"):
             self.load_existing_metrics(existing_config["metrics"])
+
+        # Restore a previously-saved custom layout so the editor (and the device
+        # push on Save & Start) reuse it instead of regenerating from a template.
+        self._restore_layout_from_config(existing_config)
 
     def create_widgets(self):
         # Title
@@ -1923,13 +1931,16 @@ class MetricSelectorGUI:
         )
         clear_btn.pack(side=tk.RIGHT, padx=20)
 
-        # Main scrollable frame
-        main_frame = tk.Frame(self.root)
+        # Main scrollable frame. bg matches the dark theme so the frame's padding
+        # doesn't show as a stray white strip under the (white) sensor list.
+        main_frame = tk.Frame(self.root, bg="#1e1e1e")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        canvas = tk.Canvas(main_frame, bg="#ffffff")
+        # Dark canvas/frame so any empty area below the columns matches the theme
+        # (the columns themselves stay light); fixes the white strip at the bottom.
+        canvas = tk.Canvas(main_frame, bg="#1e1e1e", highlightthickness=0)
         scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="#ffffff")
+        scrollable_frame = tk.Frame(canvas, bg="#1e1e1e")
 
         scrollable_frame.bind(
             "<Configure>",
@@ -1999,7 +2010,7 @@ class MetricSelectorGUI:
         layout_frame.pack(fill=tk.X, padx=10, pady=(0, 4))
         self._default_template_key = "compact"
         self.customize_layout_btn = tk.Button(
-            layout_frame, text="Customize layout / preview...",
+            layout_frame, text="Configure OLED screen",
             command=self.open_layout_editor,
             bg="#00d4ff", fg="#000000", font=("Arial", 11, "bold"),
             relief=tk.FLAT, padx=16, pady=5, state=tk.DISABLED
@@ -2484,21 +2495,36 @@ class MetricSelectorGUI:
         return fmt
 
     def _make_device_session(self, config):
-        """Build the device-session dict the layout dialog uses to fetch live
-        values and stream them to the OLED. Captures `config` (metrics + ip/port).
-        The dialog calls collect() on its worker thread once per second."""
+        """Build the device-session dict the layout dialog uses. Captures `config`
+        (metrics + ip/port). The dialog calls collect() on its worker thread once
+        per second to feed its in-dialog 1:1 preview, and uses esp_ip for the OK
+        push / Pull-from-device requests. The dialog does NOT stream value frames
+        to the OLED, so a transient sensor read can never flash an error there."""
         def collect(last_good):
             snapshot = build_snapshot(config, force=True)  # keep trying; self-recover
-            payload, values, fresh, lg, _stale = collect_metrics(config, snapshot, last_good)
-            # A single transient REST miss must not flash "LHM API Error" on the
-            # device during a live preview. If we still have cached values, keep
-            # streaming them as a normal (OK) frame.
-            if not fresh and lg:
-                payload["status"] = STATUS_OK
-                payload["timestamp"] = datetime.now().strftime('%H:%M')
+            payload, values, _fresh, lg, _stale = collect_metrics(config, snapshot, last_good)
             return payload, values, lg
+
+        # The dialog runs collect() on its own worker thread. WMI needs COM
+        # initialized per thread, else every LHM sensor reads 0 there (psutil
+        # CPU/RAM still work) - which is exactly why the preview showed 0s.
+        def thread_init():
+            if PYTHONCOM_AVAILABLE:
+                try:
+                    pythoncom.CoInitialize()
+                except Exception:
+                    pass
+
+        def thread_done():
+            if PYTHONCOM_AVAILABLE:
+                try:
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+
         return {"collect": collect, "esp_ip": config["esp32_ip"],
-                "udp_port": config["udp_port"]}
+                "udp_port": config["udp_port"],
+                "thread_init": thread_init, "thread_done": thread_done}
 
     def _update_customize_btn_state(self):
         if getattr(self, "customize_layout_btn", None) is None:
@@ -2517,7 +2543,10 @@ class MetricSelectorGUI:
         # Starting layout: reuse a previous custom layout, else auto-layout now.
         if self.current_layout is not None and self.current_layout.get("layout"):
             row_mode = self.current_layout["row_mode"]
-            layout = copy.deepcopy(self.current_layout["layout"])
+            # Re-bind the saved layout to the current metrics by name, so a metric
+            # removed/added since last time doesn't inherit a reused id's label/bar.
+            layout = remap_layout_by_name(
+                copy.deepcopy(self.current_layout["layout"]), metrics)
             tpl_key = self.current_layout.get("source", self._current_template_key())
             show_clock = self.current_layout.get("show_clock", False)
             clock_position = self.current_layout.get("clock_position", 0)
@@ -2541,19 +2570,53 @@ class MetricSelectorGUI:
 
         dlg = LayoutEditorDialog(self.root, metrics, row_mode, layout, tpl_key,
                                  show_clock, clock_position,
-                                 device_session=device_session, fmt=fmt)
-        if dlg.result is not None:
-            self.current_layout = {
-                "row_mode": dlg.result["row_mode"],
-                "layout": dlg.result["layout"],
-                "source": "custom",
-                "show_clock": dlg.result.get("show_clock", False),
-                "clock_position": dlg.result.get("clock_position", 0),
-                "rpm_k": dlg.result.get("rpm_k", False),
-                "net_mb": dlg.result.get("net_mb", False),
-                "clock_offset": dlg.result.get("clock_offset", 0),
-            }
-            self._apply_label_overrides(dlg.result["layout"])
+                                 device_session=device_session, fmt=fmt,
+                                 on_save=self._save_layout_from_dialog)
+        self._adopt_layout_result(dlg.result)
+
+    def _adopt_layout_result(self, result):
+        """Keep the editor's layout in memory (current_layout) and push any renamed
+        labels back to the main label entries. Used on dialog close and by Save."""
+        if result is None:
+            return
+        self.current_layout = {
+            "row_mode": result["row_mode"],
+            "layout": result["layout"],
+            "source": "custom",
+            "show_clock": result.get("show_clock", False),
+            "clock_position": result.get("clock_position", 0),
+            "rpm_k": result.get("rpm_k", False),
+            "net_mb": result.get("net_mb", False),
+            "clock_offset": result.get("clock_offset", 0),
+        }
+        self._apply_label_overrides(result["layout"])
+
+    def _save_layout_from_dialog(self, result):
+        """Save button in the editor: adopt the layout, then persist the whole
+        config (now including the layout) to disk. Returns True on success."""
+        self._adopt_layout_result(result)
+        config = self.build_config_from_gui(require_metrics=False)
+        if config is None:
+            return False
+        return bool(save_config(config))
+
+    def _restore_layout_from_config(self, config):
+        """Load a saved custom layout into current_layout. JSON object keys are
+        strings; the editor and device bind by int id, so re-key the inner map."""
+        if not config:
+            return
+        saved = config.get("layout")
+        if not isinstance(saved, dict) or not isinstance(saved.get("layout"), dict):
+            return
+        inner = {}
+        for k, v in saved["layout"].items():
+            try:
+                inner[int(k)] = v
+            except (ValueError, TypeError):
+                continue
+        saved = dict(saved)
+        saved["layout"] = inner
+        self.current_layout = saved
 
     def _apply_label_overrides(self, layout):
         """Write names edited in the dialog back to the main label entries, so the
@@ -2762,6 +2825,11 @@ class MetricSelectorGUI:
 
             config["metrics"].append(metric_config)
 
+        # Persist the custom layout (positions/companions/bars) so it survives a
+        # restart. JSON stringifies the int ids; load_existing restores them.
+        if self.current_layout and self.current_layout.get("layout"):
+            config["layout"] = self.current_layout
+
         return config
 
     def _push_layout_best_effort(self, config):
@@ -2769,17 +2837,26 @@ class MetricSelectorGUI:
         the screen matches the selection. Non-fatal: monitoring still starts and
         the layout binds by id on the next packet even if the push fails."""
         try:
+            # Names the device will receive over UDP (custom_label or name), so the
+            # firmware's name guard binds each slot to the right metric.
+            cfg_metrics = [{"id": m["id"], "name": m.get("name", ""),
+                            "label": (m.get("custom_label") or m.get("name") or "")}
+                           for m in config.get("metrics", [])]
+            names = {m["id"]: m["label"] for m in cfg_metrics}
             cl = self.current_layout
             if cl is not None and cl.get("layout"):
+                # Re-bind the saved layout to the config's metrics by name so a
+                # changed selection doesn't push stale id-slot labels/bars.
+                layout = remap_layout_by_name(cl["layout"], cfg_metrics)
                 payload = build_device_layout_json(
-                    cl["row_mode"], cl["layout"],
+                    cl["row_mode"], layout,
                     cl.get("show_clock", False), cl.get("clock_position", 0),
                     rpm_k=cl.get("rpm_k"), net_mb=cl.get("net_mb"),
-                    clock_offset=cl.get("clock_offset"))
+                    clock_offset=cl.get("clock_offset"), metric_names=names)
             else:
                 metrics = self._build_layout_input()
                 row_mode, layout, _hidden = auto_layout(metrics, self._current_template_key())
-                payload = build_device_layout_json(row_mode, layout)
+                payload = build_device_layout_json(row_mode, layout, metric_names=names)
             push_layout_to_device(config["esp32_ip"], payload, timeout=4)
         except Exception as e:
             print(f"Layout push skipped (device unreachable?): {e}")
@@ -2900,6 +2977,7 @@ class MetricSelectorGUI:
         imported = config.get("metrics", [])
         self.load_existing_metrics(imported)
         self.config = config
+        self._restore_layout_from_config(config)
 
         matched = len(self.selected_metrics)
         total = len(imported)
@@ -3049,28 +3127,33 @@ def build_rest_snapshot(host, port):
 
 # Cached WMI connection so we don't rebind COM (an expensive operation) on every
 # metric of every cycle. Reset to None on error to force a clean reconnect.
-_wmi_connection = None
+# WMI/COM objects are apartment-threaded: a connection made on one thread can't
+# be used from another. The monitor loop AND the layout editor's live-preview
+# worker both build snapshots, so the connection is cached PER THREAD (each
+# thread CoInitializes itself) instead of in one shared global.
+_wmi_tls = threading.local()
 
 
 def build_wmi_snapshot():
     """
     Enumerate all LibreHardwareMonitor WMI sensors ONCE and return
-    {Identifier: float_value}, or None on failure. Reuses a cached connection.
+    {Identifier: float_value}, or None on failure. Caches a per-thread connection.
     """
-    global _wmi_connection
     try:
         import wmi
-        if _wmi_connection is None:
-            _wmi_connection = wmi.WMI(namespace="root\\LibreHardwareMonitor")
+        conn = getattr(_wmi_tls, "connection", None)
+        if conn is None:
+            conn = wmi.WMI(namespace="root\\LibreHardwareMonitor")
+            _wmi_tls.connection = conn
         snapshot = {}
-        for sensor in _wmi_connection.Sensor():
+        for sensor in conn.Sensor():
             try:
                 snapshot[sensor.Identifier] = float(sensor.Value)
             except Exception:
                 pass
         return snapshot
     except Exception:
-        _wmi_connection = None  # Force reconnect next cycle
+        _wmi_tls.connection = None  # Force reconnect next cycle (this thread)
         return None
 
 

@@ -2,20 +2,25 @@
 
 Tkinter modal dialog to manually edit the device layout. Hosts the template
 picker, the schematic drag/drop grid, a pixel-exact live 1:1 device preview
-(device_render), inline rename, and a manual "Push to device" live preview that
-streams real sensor values to the OLED.
+(device_render), inline rename, per-bar width/offset controls, an "OK" that
+pushes the layout config to the device (window stays open), and a "Pull from
+device" that loads the device's current working config back in to edit.
+
+The editor never streams value frames to the OLED - it only POSTs the layout
+config once on OK; the main monitor loop owns value streaming. That is what
+keeps a transient sensor read from flashing an API error on the device.
 
 Depends on layout_engine for layout logic and device_render for the 1:1 preview.
-Live sensor values + UDP streaming are provided by the caller via `device_session`
-(a callable) so this module does not import the main app (avoids a cycle).
+Live sensor values (for the in-dialog preview only) are provided by the caller
+via `device_session` (a callable) so this module does not import the main app
+(avoids a cycle).
 """
-import socket
+import json
 import threading
-import json as _json
 from datetime import datetime
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox, filedialog
 
 from PIL import Image, ImageTk
 
@@ -24,6 +29,7 @@ from layout_engine import (
     ROWMODE_5x2, ROWMODE_6x2, ROWMODE_LARGE2, ROWMODE_LARGE3,
     slot_count, slot_geometry, clock_blocked_slot,
     auto_layout, build_device_layout_json, push_layout_to_device,
+    fetch_device_export, parse_device_layout,
     LAYOUT_TEMPLATES, _bar_bounds, _ROWMODE_LABELS,
 )
 
@@ -39,7 +45,8 @@ class LayoutEditorDialog:
     PREVIEW_H = 64 * PSCALE   # 192
 
     def __init__(self, parent, metrics, row_mode, layout_by_id, template_key,
-                 show_clock=False, clock_position=0, device_session=None, fmt=None):
+                 show_clock=False, clock_position=0, device_session=None, fmt=None,
+                 on_save=None):
         self.result = None
         self.metrics = metrics
         self.metrics_by_id = {m["id"]: m for m in metrics}
@@ -50,6 +57,8 @@ class LayoutEditorDialog:
         self.clock_position = clock_position
         self.selected_id = None
         self._drag_data = None
+        # Callback(result_dict) -> bool: persist the layout to disk (Save button).
+        self._on_save_cb = on_save
 
         # Live preview / device-push state.
         # device_session: {"collect": callable(last_good)->(payload,values,last_good)|None,
@@ -68,8 +77,6 @@ class LayoutEditorDialog:
         self._rename_entry = None
         self._stop_event = threading.Event()
         self._worker = None
-        self._live_push = False
-        self._sock = None
 
         self.win = tk.Toplevel(parent)
         self.win.title("Customize Layout")
@@ -82,7 +89,7 @@ class LayoutEditorDialog:
         self._build_ui()
         self._redraw()
 
-        self.win.protocol("WM_DELETE_WINDOW", self._on_cancel)
+        self.win.protocol("WM_DELETE_WINDOW", self._on_close)
         self.win.bind("<F2>", lambda _e: self._start_rename())
 
         if self.device_session is not None:
@@ -115,8 +122,30 @@ class LayoutEditorDialog:
         tpl_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_template_change())
 
         # Schematic editor grid (drag/drop).
-        tk.Label(left, text="Drag to arrange (double-click = bar, Shift-click = companion, F2 = rename)",
-                 bg="#1e1e1e", fg="#888888", font=("Arial", 8)).pack(anchor="w", padx=4)
+        hint_row = tk.Frame(left, bg="#1e1e1e")
+        hint_row.pack(fill=tk.X, padx=4)
+        tk.Label(hint_row, text="Drag to arrange (double-click = bar, Shift-click = companion, F2 = rename)",
+                 bg="#1e1e1e", fg="#888888", font=("Arial", 8)).pack(side=tk.LEFT)
+        self._help_btn = tk.Button(hint_row, text="How to use ▾", command=self._toggle_help,
+                                   bg="#37474f", fg="#ffffff", font=("Arial", 8),
+                                   relief=tk.FLAT, padx=6, pady=0)
+        self._help_btn.pack(side=tk.RIGHT)
+        self._help_text = (
+            "How to use:\n"
+            "• Drag a metric from the palette below onto a row to place it.\n"
+            "• Drag a placed metric to move it; drag it off the grid to remove it.\n"
+            "• Double-click a metric = add/remove its progress bar.\n"
+            "• Shift-click another metric = make it a companion (shares the row).\n"
+            "• F2 or the Name box = rename a metric (max 10 chars).\n"
+            "• Bar Width / Offset = size the bar and shift it right, in pixels.\n"
+            "• Pull from device = load the layout already on the device to edit it.\n"
+            "• Export/Import file = back up the layout to a file and restore it later.\n"
+            "• Save to device = push the layout to the device (window stays open).\n"
+            "• Save = store the layout in the app.  Close = exit."
+        )
+        self._help_label = tk.Label(left, text=self._help_text, bg="#23272e", fg="#cfd8dc",
+                                    font=("Arial", 8), justify=tk.LEFT, anchor="w")
+        self._help_visible = False
         cf = tk.Frame(left, bg="#1e1e1e")
         cf.pack(fill=tk.X, padx=4, pady=2)
         self.canvas = tk.Canvas(
@@ -184,8 +213,23 @@ class LayoutEditorDialog:
         self.clk_pos_combo.pack(padx=8, anchor="w")
         self.clk_pos_combo.bind("<<ComboboxSelected>>", lambda _: self._on_clock_pos_change())
         self._CLK_POS_LABELS = _CLK_POS_LABELS
+
+        # Clock X offset (pixels), same idea as the device web UI's clockOffset.
+        off_row = tk.Frame(right, bg="#2d2d2d")
+        off_row.pack(fill=tk.X, padx=8, anchor="w", pady=(2, 0))
+        tk.Label(off_row, text="Clock offset (px):", bg="#2d2d2d", fg="#aaaaaa",
+                 font=("Arial", 9)).pack(side=tk.LEFT)
+        self.clk_off_var = tk.StringVar(value=str(self.clock_offset))
+        self.clk_off_spin = tk.Spinbox(off_row, from_=-64, to=64, width=5,
+                                       textvariable=self.clk_off_var,
+                                       bg="#3a3a3a", fg="#ffffff", insertbackground="#ffffff",
+                                       buttonbackground="#3a3a3a",
+                                       command=self._on_clock_offset_change)
+        self.clk_off_spin.pack(side=tk.LEFT, padx=4)
+        self.clk_off_spin.bind("<KeyRelease>", lambda _e: self._on_clock_offset_change())
         if not self.show_clock:
             self.clk_pos_combo.config(state=tk.DISABLED)
+            self.clk_off_spin.config(state=tk.DISABLED)
 
         # Display-format flags (affect both the preview and the device).
         self.rpm_k_var = tk.IntVar(value=1 if self._init_rpm_k else 0)
@@ -249,6 +293,23 @@ class LayoutEditorDialog:
         max_e.grid(row=0, column=3, padx=4)
         max_e.bind("<KeyRelease>", lambda _e: self._on_bar_minmax_change())
 
+        # Bar size in pixels: Width (length) + Offset (shift right from the slot's
+        # left edge), mirroring the device web UI's barWidth / barOffsetX fields.
+        tk.Label(bar_opts, text="Width:", bg="#2d2d2d", fg="#aaaaaa",
+                 font=("Arial", 9)).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        self.bar_width_var = tk.StringVar(value="60")
+        w_e = tk.Entry(bar_opts, textvariable=self.bar_width_var, width=5,
+                       bg="#3a3a3a", fg="#ffffff", insertbackground="#ffffff")
+        w_e.grid(row=1, column=1, padx=4, pady=(4, 0))
+        w_e.bind("<KeyRelease>", lambda _e: self._on_bar_size_change())
+        tk.Label(bar_opts, text="Offset:", bg="#2d2d2d", fg="#aaaaaa",
+                 font=("Arial", 9)).grid(row=1, column=2, sticky="w", pady=(4, 0))
+        self.bar_off_var = tk.StringVar(value="0")
+        o_e = tk.Entry(bar_opts, textvariable=self.bar_off_var, width=5,
+                       bg="#3a3a3a", fg="#ffffff", insertbackground="#ffffff")
+        o_e.grid(row=1, column=3, padx=4, pady=(4, 0))
+        o_e.bind("<KeyRelease>", lambda _e: self._on_bar_size_change())
+
         tk.Frame(self.detail_frame, bg="#444444", height=1).pack(fill=tk.X, pady=6)
         tk.Label(self.detail_frame, text="Companion:", bg="#2d2d2d", fg="#aaaaaa",
                  font=("Arial", 10)).pack(anchor="w")
@@ -265,27 +326,52 @@ class LayoutEditorDialog:
         btn_frame = tk.Frame(right, bg="#2d2d2d")
         btn_frame.pack(fill=tk.X, padx=8, pady=8)
 
-        # Live push to the real device.
-        self.push_btn = tk.Button(btn_frame, text="Push to device (live)",
-                                  command=self._on_push, bg="#2e7d32", fg="#ffffff",
-                                  font=("Arial", 10, "bold"), relief=tk.FLAT, pady=4)
-        self.push_btn.pack(fill=tk.X, pady=(0, 4))
-        self.stop_btn = tk.Button(btn_frame, text="Stop live", command=self._on_stop_push,
-                                  bg="#555555", fg="#ffffff", font=("Arial", 10),
-                                  relief=tk.FLAT, pady=3, state=tk.DISABLED)
-        self.stop_btn.pack(fill=tk.X, pady=(0, 6))
-        if self.device_session is None:
-            self.push_btn.config(state=tk.DISABLED)
-
+        # Pull the device's working config in to edit it (device is source of truth).
+        self.pull_btn = tk.Button(btn_frame, text="Pull from device",
+                                  command=self._on_pull, bg="#37474f", fg="#ffffff",
+                                  font=("Arial", 10), relief=tk.FLAT, pady=3)
+        self.pull_btn.pack(fill=tk.X, pady=(0, 4))
+        # Backup / restore the layout to a JSON file (selection-independent: binds
+        # by name on import, same format the device /api/import accepts).
+        io_row = tk.Frame(btn_frame, bg="#2d2d2d")
+        io_row.pack(fill=tk.X, pady=(0, 4))
+        tk.Button(io_row, text="Export file", command=self._on_export_file,
+                  bg="#37474f", fg="#ffffff", font=("Arial", 9),
+                  relief=tk.FLAT, pady=3).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 2))
+        tk.Button(io_row, text="Import file", command=self._on_import_file,
+                  bg="#37474f", fg="#ffffff", font=("Arial", 9),
+                  relief=tk.FLAT, pady=3).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(2, 0))
         tk.Button(btn_frame, text="Reset to template", command=self._on_reset,
                   bg="#555555", fg="#ffffff", font=("Arial", 10),
                   relief=tk.FLAT, padx=8, pady=3).pack(fill=tk.X, pady=(0, 4))
-        tk.Button(btn_frame, text="OK", command=self._on_ok,
-                  bg="#00d4ff", fg="#000000", font=("Arial", 11, "bold"),
-                  relief=tk.FLAT, pady=4).pack(fill=tk.X, pady=(0, 4))
-        tk.Button(btn_frame, text="Cancel", command=self._on_cancel,
-                  bg="#666666", fg="#ffffff", font=("Arial", 10),
+        # Wipe the device's stored layout (incl. stale bindings) and push a fresh
+        # auto-layout from the current metrics.
+        self.reset_dev_btn = tk.Button(btn_frame, text="Reset device layout",
+                                       command=self._on_reset_device,
+                                       bg="#6d4c41", fg="#ffffff", font=("Arial", 10),
+                                       relief=tk.FLAT, padx=8, pady=3)
+        self.reset_dev_btn.pack(fill=tk.X, pady=(0, 8))
+
+        # "Save to device" pushes the layout to the device and KEEPS the window
+        # open, so editing never streams value frames to it (no error flash).
+        self.push_btn = tk.Button(btn_frame, text="Save to device", command=self._on_ok,
+                                  bg="#2e7d32", fg="#ffffff", font=("Arial", 11, "bold"),
+                                  relief=tk.FLAT, pady=4)
+        self.push_btn.pack(fill=tk.X, pady=(0, 4))
+        # Save persists the layout to the app's config so it survives a restart.
+        self.save_btn = tk.Button(btn_frame, text="Save", command=self._on_save,
+                                  bg="#0277bd", fg="#ffffff", font=("Arial", 10, "bold"),
+                                  relief=tk.FLAT, pady=3)
+        self.save_btn.pack(fill=tk.X, pady=(0, 4))
+        tk.Button(btn_frame, text="Close", command=self._on_close,
+                  bg="#455a64", fg="#ffffff", font=("Arial", 10, "bold"),
                   relief=tk.FLAT, pady=3).pack(fill=tk.X)
+
+        if self.device_session is None:
+            self.pull_btn.config(state=tk.DISABLED)
+            self.reset_dev_btn.config(state=tk.DISABLED)
+        if self._on_save_cb is None:
+            self.save_btn.config(state=tk.DISABLED)
 
     # ---- Drawing ----
 
@@ -354,9 +440,15 @@ class LayoutEditorDialog:
                 continue
             x, y, col_w = geo
             bar_h = 16 if is_large else (13 if self.row_mode == 0 else 10)
-            width = min(e.get("barWidth", 60), col_w)
+            # Match device_render: offset shifts the bar right, clamp to 128px.
+            bx = x + e.get("barOffsetX", 0)
+            width = e.get("barWidth", 60)
+            if bx + width > 128:
+                width = 128 - bx
+            if width <= 0 or bx < 0 or bx >= 128:
+                continue
             fill_color = "#005577" if mid == self.selected_id else "#003344"
-            c.create_rectangle(x * S, y * S, (x + width) * S, (y + bar_h) * S,
+            c.create_rectangle(bx * S, y * S, (bx + width) * S, (y + bar_h) * S,
                                outline="#00aacc", fill=fill_color, tags=f"bar_{mid}")
             m = self.metrics_by_id.get(mid, {})
             bmin, bmax = e.get("barMin", 0), e.get("barMax", 100)
@@ -365,8 +457,8 @@ class LayoutEditorDialog:
             frac = max(0.0, min(1.0, (val - bmin) / rng))
             fill_w = int((width - 2) * frac)
             if fill_w > 0:
-                c.create_rectangle((x + 1) * S, (y + 1) * S,
-                                   (x + 1 + fill_w) * S, (y + bar_h - 1) * S,
+                c.create_rectangle((bx + 1) * S, (y + 1) * S,
+                                   (bx + 1 + fill_w) * S, (y + bar_h - 1) * S,
                                    fill="#00aacc", outline="")
 
         # Draw text metrics
@@ -458,6 +550,8 @@ class LayoutEditorDialog:
         self.bar_slot_var.set(self._slot_label(cur_bar) if cur_bar != 255 else "None")
         self.bar_min_var.set(str(e.get("barMin", 0)))
         self.bar_max_var.set(str(e.get("barMax", 100)))
+        self.bar_width_var.set(str(e.get("barWidth", 60)))
+        self.bar_off_var.set(str(e.get("barOffsetX", 0)))
 
         # Companion dropdown
         choices = ["None"]
@@ -519,47 +613,54 @@ class LayoutEditorDialog:
         self._poll_id = None
         self._worker = threading.Thread(target=self._worker_loop, daemon=True)
         self._worker.start()
-        self._poll_live()         # main-thread poller (Tk + socket live here)
+        self._poll_live()         # main-thread poller (Tk lives here)
 
     def _worker_loop(self):
-        """Off-thread sensor collection. Sensor I/O can block ~1s, so it runs on
-        its own thread and performs NO Tk or socket calls - it just stores the
-        latest result for the main-thread poller to pick up."""
-        while not self._stop_event.is_set():
+        """Off-thread sensor collection feeding the in-dialog 1:1 preview only.
+        Sensor I/O can block ~1s, so it runs on its own thread and performs NO Tk
+        calls - it just stores the latest values for the main-thread poller. It
+        does NOT stream to the device (the main monitor loop owns that), so the
+        editor can never flash a transient API error on the OLED.
+
+        thread_init/thread_done (supplied by the caller) initialize COM for WMI on
+        THIS thread - without it every LHM sensor reads 0 here while psutil keeps
+        working."""
+        thread_init = self.device_session.get("thread_init")
+        thread_done = self.device_session.get("thread_done")
+        if thread_init:
             try:
-                result = self.device_session["collect"](self._last_good)
-                if result is not None:
-                    payload, values, self._last_good = result
-                    self._latest = (values, payload)
-                    self._seq += 1
+                thread_init()
             except Exception:
                 pass
-            self._stop_event.wait(1.0)
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    result = self.device_session["collect"](self._last_good)
+                    if result is not None:
+                        _payload, values, self._last_good = result
+                        self._latest = values
+                        self._seq += 1
+                except Exception:
+                    pass
+                self._stop_event.wait(1.0)
+        finally:
+            if thread_done:
+                try:
+                    thread_done()
+                except Exception:
+                    pass
 
     def _poll_live(self):
-        """Main thread: apply the worker's newest values to the 1:1 preview and,
-        when live-push is on, stream them to the device. Reschedules itself."""
+        """Main thread: apply the worker's newest values to the 1:1 preview.
+        Reschedules itself. Never touches the device."""
         if self._stop_event.is_set():
             return
         latest, seq = self._latest, self._seq
         if latest is not None and seq != self._applied_seq:
             self._applied_seq = seq
-            values, payload = latest
-            self._live_values = values or {}
+            self._live_values = latest or {}
             self._render_live_preview()
-            if self._live_push and payload is not None:
-                try:
-                    self._ensure_socket().sendto(
-                        _json.dumps(payload).encode("utf-8"),
-                        (self.device_session_ip, self.device_session_port))
-                except Exception:
-                    pass
         self._poll_id = self.win.after(400, self._poll_live)
-
-    def _ensure_socket(self):
-        if self._sock is None:
-            self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        return self._sock
 
     def _stop_worker(self):
         self._stop_event.set()
@@ -569,12 +670,6 @@ class LayoutEditorDialog:
             except Exception:
                 pass
             self._poll_id = None
-        if self._sock is not None:
-            try:
-                self._sock.close()
-            except Exception:
-                pass
-            self._sock = None
 
     # ---- Slot hit-testing ----
 
@@ -952,6 +1047,21 @@ class LayoutEditorDialog:
             pass
         self._refresh_views()
 
+    def _on_bar_size_change(self):
+        """Apply the bar Width/Offset (pixels) live as the user types."""
+        if self.selected_id is None:
+            return
+        e = self.layout[self.selected_id]
+        try:
+            e["barWidth"] = max(1, min(128, int(self.bar_width_var.get())))
+        except ValueError:
+            pass
+        try:
+            e["barOffsetX"] = max(0, min(127, int(self.bar_off_var.get())))
+        except ValueError:
+            pass
+        self._refresh_views()
+
     def _on_companion_change(self):
         if self.selected_id is None:
             return
@@ -978,7 +1088,9 @@ class LayoutEditorDialog:
 
     def _on_clock_toggle(self):
         self.show_clock = bool(self.clock_var.get())
-        self.clk_pos_combo.config(state="readonly" if self.show_clock else tk.DISABLED)
+        state = "readonly" if self.show_clock else tk.DISABLED
+        self.clk_pos_combo.config(state=state)
+        self.clk_off_spin.config(state=tk.NORMAL if self.show_clock else tk.DISABLED)
         blocked = clock_blocked_slot(self.row_mode, self.clock_position) if self.show_clock else None
         if blocked is not None:
             self._bump_occupant(blocked)
@@ -992,6 +1104,14 @@ class LayoutEditorDialog:
             self._bump_occupant(blocked)
         self._redraw()
 
+    def _on_clock_offset_change(self):
+        """Apply the clock X offset (px) live to the preview (and the push)."""
+        try:
+            self.clock_offset = max(-64, min(64, int(self.clk_off_var.get())))
+        except (ValueError, tk.TclError):
+            return
+        self._render_live_preview()
+
     def _on_reset(self):
         row_mode, layout, _hidden = auto_layout(self.metrics, self.template_key)
         self.row_mode = row_mode
@@ -1001,21 +1121,69 @@ class LayoutEditorDialog:
         self.clock_var.set(0)
         self.clk_pos_var.set(self._CLK_POS_LABELS[0])
         self.clk_pos_combo.config(state=tk.DISABLED)
+        self.clk_off_spin.config(state=tk.DISABLED)
         self.rm_var.set(self._rm_label_by_mode.get(self.row_mode, self._rm_labels[0]))
         self.selected_id = None
         self._redraw()
 
-    # ---- Live push ----
-
-    def _on_push(self):
+    def _on_reset_device(self):
+        """Push a fresh auto-layout to the DEVICE only, to recover a stale or
+        scrambled device. Leaves this window's layout and live preview untouched
+        (use 'Reset to template' to reset the editor itself)."""
         if self.device_session is None:
             return
-        # Apply pending bar edits before building the payload.
-        self._flush_bar_edits()
+        if not messagebox.askyesno(
+                "Reset device layout",
+                "Reset the layout ON THE DEVICE to a fresh auto-layout from your "
+                "current metrics?\n\nThis only changes the device screen - your edits "
+                "in this window and the live preview are left as-is.",
+                parent=self.win):
+            return
+        # Build the auto-layout locally and push it; do NOT mutate self.layout.
+        row_mode, layout, _hidden = auto_layout(self.metrics, self.template_key)
+        names = {m["id"]: (m.get("label") or m.get("name") or "") for m in self.metrics}
+        payload = build_device_layout_json(
+            row_mode, layout, show_clock=False, clock_position=0,
+            rpm_k=bool(self.rpm_k_var.get()), net_mb=bool(self.net_mb_var.get()),
+            clock_offset=self.clock_offset, metric_names=names)
+        self.reset_dev_btn.config(state=tk.DISABLED, text="Resetting...")
+        self.live_status.config(text="Resetting device layout...", fg="#ffb454")
+        ip = self.device_session_ip
+
+        def worker():
+            try:
+                ok, detail = push_layout_to_device(ip, payload)
+            except Exception as e:
+                ok, detail = False, str(e)
+            self.win.after(0, lambda: self._reset_device_done(ok, detail))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _reset_device_done(self, ok, detail):
+        self.reset_dev_btn.config(state=tk.NORMAL, text="Reset device layout")
+        if ok:
+            self.live_status.config(text="Device layout reset (your edits kept)", fg="#00ff88")
+        else:
+            self.live_status.config(text=f"Reset failed: {str(detail)[:40]}", fg="#ff6666")
+
+    # ---- Apply (OK) / Pull / Close ----
+
+    def _on_ok(self):
+        """Commit the layout and push it to the device. The window stays open so
+        the user can keep tweaking; only the layout config is sent (one POST), no
+        value-frame streaming, so the device never flashes a transient API error."""
+        self._commit_result()
+        if self.device_session is None:
+            self.live_status.config(text="No device - layout kept in app only", fg="#ffb454")
+            return
+        # Names the device receives over UDP, so its name guard binds each slot to
+        # the right metric even if the selection's id order has drifted.
+        metric_names = {m["id"]: (m.get("label") or m.get("name") or "")
+                        for m in self.metrics}
         payload = build_device_layout_json(
             self.row_mode, self.layout, self.show_clock, self.clock_position,
             rpm_k=bool(self.rpm_k_var.get()), net_mb=bool(self.net_mb_var.get()),
-            clock_offset=self.clock_offset)
+            clock_offset=self.clock_offset, metric_names=metric_names)
         self.push_btn.config(state=tk.DISABLED, text="Pushing...")
         self.live_status.config(text="Pushing layout...", fg="#ffb454")
 
@@ -1029,18 +1197,99 @@ class LayoutEditorDialog:
         threading.Thread(target=worker, daemon=True).start()
 
     def _push_done(self, ok, detail):
-        self.push_btn.config(state=tk.NORMAL, text="Push to device (live)")
+        self.push_btn.config(state=tk.NORMAL, text="Save to device")
         if ok:
-            self._live_push = True
-            self.stop_btn.config(state=tk.NORMAL)
-            self.live_status.config(text="LIVE - streaming values to device", fg="#00ff88")
+            self.live_status.config(text="Pushed to device - layout applied", fg="#00ff88")
         else:
             self.live_status.config(text=f"Push failed: {str(detail)[:40]}", fg="#ff6666")
 
-    def _on_stop_push(self):
-        self._live_push = False
-        self.stop_btn.config(state=tk.DISABLED)
-        self.live_status.config(text="Live stopped", fg="#888888")
+    def _on_pull(self):
+        """Pull the device's current (working) config and load it for editing, so
+        the user can correct a layout that already lives on the device."""
+        if self.device_session is None:
+            return
+        ip = self.device_session_ip
+        metrics = list(self.metrics)
+        self.pull_btn.config(state=tk.DISABLED, text="Pulling...")
+        self.live_status.config(text="Pulling config from device...", fg="#ffb454")
+
+        def worker():
+            try:
+                data = fetch_device_export(ip)
+                parsed = parse_device_layout(data, metrics)
+                err = None
+            except Exception as e:
+                parsed, err = None, str(e)
+            self.win.after(0, lambda: self._pull_done(parsed, err))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _pull_done(self, parsed, err):
+        self.pull_btn.config(state=tk.NORMAL, text="Pull from device")
+        if parsed is None:
+            self.live_status.config(text=f"Pull failed: {str(err)[:40]}", fg="#ff6666")
+            return
+        self._apply_parsed(parsed)
+        self.live_status.config(text="Pulled config from device - editing it now", fg="#00ff88")
+
+    def _apply_parsed(self, parsed):
+        """Adopt a parsed layout (from Pull or an imported file) and sync controls."""
+        self.row_mode = parsed["row_mode"]
+        self.layout = parsed["layout"]
+        self.show_clock = parsed["show_clock"]
+        self.clock_position = parsed["clock_position"]
+        self.clock_offset = parsed["clock_offset"]
+        self.rm_var.set(self._rm_label_by_mode.get(self.row_mode, self._rm_labels[0]))
+        self.clock_var.set(1 if self.show_clock else 0)
+        pos = self.clock_position if 0 <= self.clock_position < len(self._CLK_POS_LABELS) else 0
+        self.clk_pos_var.set(self._CLK_POS_LABELS[pos])
+        self.clk_pos_combo.config(state="readonly" if self.show_clock else tk.DISABLED)
+        self.clk_off_var.set(str(self.clock_offset))
+        self.clk_off_spin.config(state=tk.NORMAL if self.show_clock else tk.DISABLED)
+        self.rpm_k_var.set(1 if parsed["rpm_k"] else 0)
+        self.net_mb_var.set(1 if parsed["net_mb"] else 0)
+        self.selected_id = None
+        self._redraw()
+
+    def _on_export_file(self):
+        """Save the current layout to a JSON file (device /api/import format, with
+        names) so it can be restored later regardless of selection order."""
+        path = filedialog.asksaveasfilename(
+            parent=self.win, title="Save layout to file", defaultextension=".json",
+            filetypes=[("Layout JSON", "*.json"), ("All files", "*.*")],
+            initialfile="oled_layout.json")
+        if not path:
+            return
+        self._flush_bar_edits()
+        names = {m["id"]: (m.get("label") or m.get("name") or "") for m in self.metrics}
+        data = build_device_layout_json(
+            self.row_mode, self.layout, self.show_clock, self.clock_position,
+            rpm_k=bool(self.rpm_k_var.get()), net_mb=bool(self.net_mb_var.get()),
+            clock_offset=self.clock_offset, metric_names=names)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            self.live_status.config(text="Layout saved to file", fg="#00ff88")
+        except Exception as e:
+            self.live_status.config(text=f"Save failed: {str(e)[:40]}", fg="#ff6666")
+
+    def _on_import_file(self):
+        """Load a layout from a JSON file and bind it to the current metrics by
+        name (so it survives a different selection order)."""
+        path = filedialog.askopenfilename(
+            parent=self.win, title="Import layout from file",
+            filetypes=[("Layout JSON", "*.json"), ("All files", "*.*")])
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            parsed = parse_device_layout(data, list(self.metrics))
+        except Exception as e:
+            self.live_status.config(text=f"Import failed: {str(e)[:40]}", fg="#ff6666")
+            return
+        self._apply_parsed(parsed)
+        self.live_status.config(text="Layout imported - Save to device to apply", fg="#00ff88")
 
     # ---- helpers for session host/port ----
 
@@ -1055,20 +1304,19 @@ class LayoutEditorDialog:
     def _flush_bar_edits(self):
         if self.selected_id and self.selected_id in self.layout:
             e = self.layout[self.selected_id]
-            try:
-                e["barMin"] = int(self.bar_min_var.get())
-            except ValueError:
-                pass
-            try:
-                e["barMax"] = int(self.bar_max_var.get())
-            except ValueError:
-                pass
+            for var, key in ((self.bar_min_var, "barMin"), (self.bar_max_var, "barMax"),
+                             (self.bar_width_var, "barWidth"), (self.bar_off_var, "barOffsetX")):
+                try:
+                    e[key] = int(var.get())
+                except ValueError:
+                    pass
 
     # ---- finish ----
 
-    def _on_ok(self):
+    def _commit_result(self):
+        """Snapshot the current layout into self.result so the caller keeps it.
+        Called by both OK (apply) and Close, so the app never loses the edits."""
         self._flush_bar_edits()
-        self._stop_worker()
         self.result = {
             "row_mode": self.row_mode,
             "layout": self.layout,
@@ -1078,9 +1326,33 @@ class LayoutEditorDialog:
             "net_mb": bool(self.net_mb_var.get()),
             "clock_offset": self.clock_offset,
         }
-        self.win.destroy()
 
-    def _on_cancel(self):
+    def _toggle_help(self):
+        """Show/hide the short how-to text under the 'How to use' button."""
+        self._help_visible = not self._help_visible
+        if self._help_visible:
+            self._help_label.pack(fill=tk.X, padx=4, pady=(2, 2), before=self.canvas.master)
+            self._help_btn.config(text="How to use ▴")
+        else:
+            self._help_label.pack_forget()
+            self._help_btn.config(text="How to use ▾")
+
+    def _on_save(self):
+        """Persist the layout to the app's config (survives a restart)."""
+        self._commit_result()
+        if self._on_save_cb is None:
+            self.live_status.config(text="Save unavailable", fg="#ffb454")
+            return
+        try:
+            ok = bool(self._on_save_cb(self.result))
+        except Exception as e:
+            ok, _ = False, e
+        if ok:
+            self.live_status.config(text="Settings saved", fg="#00ff88")
+        else:
+            self.live_status.config(text="Save failed", fg="#ff6666")
+
+    def _on_close(self):
+        self._commit_result()
         self._stop_worker()
-        self.result = None
         self.win.destroy()
