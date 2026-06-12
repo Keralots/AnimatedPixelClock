@@ -58,6 +58,11 @@ bool isAnimationActive() {
     return tetrisIsAnimating();
   }
 
+  // Asteroids clock (clockStyle == 10) - ship and rocks always drifting
+  if (settings.clockStyle == 10) {
+    return true;
+  }
+
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;
 }

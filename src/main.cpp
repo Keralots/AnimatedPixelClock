@@ -150,7 +150,8 @@ int getOptimalRefreshRate() {
         (settings.clockStyle == 0 || settings.clockStyle == 3 ||
          settings.clockStyle == 4 || settings.clockStyle == 5 ||
          settings.clockStyle == 6 || settings.clockStyle == 7 ||
-         settings.clockStyle == 8 || settings.clockStyle == 9)) {
+         settings.clockStyle == 8 || settings.clockStyle == 9 ||
+         settings.clockStyle == 10)) {
       return 60; // Instant boost for smooth manual clock mode
     }
 #endif
@@ -164,8 +165,9 @@ int getOptimalRefreshRate() {
     if (settings.clockStyle == 0 || settings.clockStyle == 3 ||
         settings.clockStyle == 4 || settings.clockStyle == 5 ||
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
-        settings.clockStyle == 8 || settings.clockStyle == 9) {
-      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle)
+        settings.clockStyle == 8 || settings.clockStyle == 9 ||
+        settings.clockStyle == 10) {
+      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids)
       return 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
@@ -201,7 +203,7 @@ void cycleClockScreens() {
         // After that, normal cycling
         if (minuteBlock != lastMinuteBlock) {
             lastMinuteBlock = minuteBlock;
-            currentScreen = (currentScreen + 1) % 8; // Cycle through all 8 clock styles
+            currentScreen = (currentScreen + 1) % 9; // Cycle through all 9 clock styles
             resetClockAnimationState(); // Reset animation state when changing screens
         }
     }
@@ -216,6 +218,7 @@ void cycleClockScreens() {
         case 5: displayClockWithPacman(); break;
         case 6: displayClockWithSnake(); break;
         case 7: displayClockWithTetris(); break;
+        case 8: displayClockWithAsteroids(); break;
     }
 }
 
@@ -359,7 +362,7 @@ void loop() {
           Serial.println("Touch button: Exiting manual clock mode (PC is online)");
         } else {
           // PC is offline (timeout triggered) - cycle through clock styles
-          settings.clockStyle = (settings.clockStyle + 1) % 10;
+          settings.clockStyle = (settings.clockStyle + 1) % 11;
           // Skip reserved clock style 4
           if (settings.clockStyle == 4) settings.clockStyle = 5;
           resetClockAnimationState();
@@ -372,7 +375,7 @@ void loop() {
         Serial.println("Touch button: Entering manual clock mode (PC is online)");
       } else {
         // PC is offline - cycle through clock styles
-        settings.clockStyle = (settings.clockStyle + 1) % 10;
+        settings.clockStyle = (settings.clockStyle + 1) % 11;
         // Skip reserved clock style 4
         if (settings.clockStyle == 4) settings.clockStyle = 5;
         resetClockAnimationState();
@@ -485,6 +488,9 @@ void loop() {
         break;
       case 9:
         cycleClockScreens();
+        break;
+      case 10:
+        displayClockWithAsteroids();
         break;
       default:
         displayStandardClock();

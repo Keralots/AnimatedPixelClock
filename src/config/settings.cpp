@@ -324,6 +324,16 @@ void loadSettings() {
       preferences.getBool("tetBounce", true); // Default: bounce on
   settings.tetrisSmoothGame =
       preferences.getBool("tetSmooth", false); // Default: real-game (off)
+  settings.asteroidsShipSpeed =
+      preferences.getUChar("astShipSpd", 12); // Default: 1.2
+  settings.asteroidsRockCount =
+      preferences.getUChar("astRocks", 2); // Default: 2 rocks
+  settings.asteroidsRockSpeed =
+      preferences.getUChar("astRockSpd", 8); // Default: 0.8
+  settings.asteroidsShowDate =
+      preferences.getBool("astDate", false); // Default: hidden (centred clock)
+  settings.asteroidsTransparent =
+      preferences.getBool("astTransp", true); // Default: transparent digits
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -539,6 +549,11 @@ void saveSettings() {
   preferences.putUChar("tetDotOrd", settings.tetrisDotOrder);
   preferences.putBool("tetBounce", settings.tetrisDigitBounce);
   preferences.putBool("tetSmooth", settings.tetrisSmoothGame);
+  preferences.putUChar("astShipSpd", settings.asteroidsShipSpeed);
+  preferences.putUChar("astRocks", settings.asteroidsRockCount);
+  preferences.putUChar("astRockSpd", settings.asteroidsRockSpeed);
+  preferences.putBool("astDate", settings.asteroidsShowDate);
+  preferences.putBool("astTransp", settings.asteroidsTransparent);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);

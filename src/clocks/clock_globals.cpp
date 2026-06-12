@@ -156,9 +156,10 @@ void resetClockAnimationState() {
   }
   generatePellets();
 
-  // Snake + Tetris (state is file-local in their .cpp files)
+  // Snake + Tetris + Asteroids (state is file-local in their .cpp files)
   resetSnakeAnimation();
   resetTetrisAnimation();
+  resetAsteroidsAnimation();
 
   // Cross-cutting override + queue residue (leftover Pac-Man eat-queue
   // state can survive an aborted animation; clear so the next minute

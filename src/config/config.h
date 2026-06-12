@@ -55,7 +55,7 @@ struct MetricData {
 // ========== Settings Structure ========== 
 struct Settings {
   // Clock settings
-  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All
+  uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All, 10=Asteroids
   int16_t gmtOffset;        // GMT offset in minutes (deprecated, kept for migration)
   bool daylightSaving;      // DST enabled (deprecated, kept for migration)
   char timezoneString[64];  // POSIX TZ string (e.g., "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00")
@@ -150,6 +150,13 @@ struct Settings {
   uint8_t tetrisDotOrder;       // 0=Bottom-up, 1=Random
   bool tetrisDigitBounce;       // Bounce the new digit after it rebuilds
   bool tetrisSmoothGame;        // Block Game plays near-perfectly (smart piece pick, avoids holes)
+
+  // Asteroids clock settings
+  uint8_t asteroidsShipSpeed;   // Ship thrust/drift scale, tenths (12 = 1.2)
+  uint8_t asteroidsRockCount;   // Rocks kept in play (1-4)
+  uint8_t asteroidsRockSpeed;   // Rock drift speed, tenths (8 = 0.8)
+  bool asteroidsShowDate;       // Show date row (off = centred clock)
+  bool asteroidsTransparent;    // No mask behind digits, ship flies through (default: true)
 
   // Metric configuration arrays
   char metricLabels[MAX_METRICS][METRIC_NAME_LEN];

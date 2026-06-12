@@ -116,4 +116,8 @@ void displayClockWithTetris();
 void resetTetrisAnimation();
 bool tetrisIsAnimating();
 
+// ========== Asteroids Clock ==========
+void displayClockWithAsteroids();
+void resetAsteroidsAnimation();
+
 #endif // CLOCKS_H
