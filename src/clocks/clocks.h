@@ -120,4 +120,8 @@ bool tetrisIsAnimating();
 void displayClockWithAsteroids();
 void resetAsteroidsAnimation();
 
+// ========== Dino Runner Clock ==========
+void displayClockWithDino();
+void resetDinoAnimation();
+
 #endif // CLOCKS_H

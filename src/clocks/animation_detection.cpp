@@ -63,6 +63,11 @@ bool isAnimationActive() {
     return true;
   }
 
+  // Dino Runner clock (clockStyle == 11) - world always scrolling
+  if (settings.clockStyle == 11) {
+    return true;
+  }
+
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;
 }

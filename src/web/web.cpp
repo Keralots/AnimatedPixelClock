@@ -197,16 +197,16 @@ void handleModeAuto() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
 }
 
-// GET /api/clock/style?id=0-10 - switch the active clock animation
+// GET /api/clock/style?id=0-11 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
-   server.send(400, "application/json", "{\"error\":\"Missing id (0-10)\"}");
+   server.send(400, "application/json", "{\"error\":\"Missing id (0-11)\"}");
    return;
  }
  int id = server.arg("id").toInt();
- if (id < 0 || id > 10) {
-   server.send(400, "application/json", "{\"error\":\"id must be 0-10\"}");
+ if (id < 0 || id > 11) {
+   server.send(400, "application/json", "{\"error\":\"id must be 0-11\"}");
    return;
  }
  settings.clockStyle = (uint8_t)id;
@@ -337,6 +337,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_8")) { out = String(settings.clockStyle == 8 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_9")) { out = String(settings.clockStyle == 9 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
   if (!strcmp(n, "F_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight / 10.0, 1); return true; }
@@ -414,6 +415,14 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "F_ASTEROIDSROCKSPEED")) { out = String(settings.asteroidsRockSpeed / 10.0, 1); return true; }
   if (!strcmp(n, "CHK_ASTEROIDSSHOWDATE")) { out = String(settings.asteroidsShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_ASTEROIDSTRANSPARENT")) { out = String(settings.asteroidsTransparent ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_DINOSPEED")) { out = String(settings.dinoSpeed); return true; }
+  if (!strcmp(n, "F_DINOSPEED")) { out = String(settings.dinoSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "SEL_DINOCACTUSFREQ_0")) { out = String(settings.dinoCactusFreq == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DINOCACTUSFREQ_1")) { out = String(settings.dinoCactusFreq == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DINOCACTUSFREQ_2")) { out = String(settings.dinoCactusFreq == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_DINOSHOWCLOUDS")) { out = String(settings.dinoShowClouds ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_DINOSHOWDATE")) { out = String(settings.dinoShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
@@ -794,6 +803,16 @@ void handleSave() {
  settings.asteroidsShowDate = server.hasArg("asteroidsShowDate");
  settings.asteroidsTransparent = server.hasArg("asteroidsTransparent");
 
+ // Save Dino Runner settings
+ if (server.hasArg("dinoSpeed")) {
+ settings.dinoSpeed = server.arg("dinoSpeed").toInt();
+ }
+ if (server.hasArg("dinoCactusFreq")) {
+ settings.dinoCactusFreq = server.arg("dinoCactusFreq").toInt();
+ }
+ settings.dinoShowClouds = server.hasArg("dinoShowClouds");
+ settings.dinoShowDate = server.hasArg("dinoShowDate");
+
  // Save network configuration
  if (server.hasArg("deviceName")) {
    String name = server.arg("deviceName");
@@ -987,7 +1006,7 @@ void handleSave() {
  }
 
  // Validate settings bounds before saving
- assertBounds(settings.clockStyle, 0, 10, "clockStyle");
+ assertBounds(settings.clockStyle, 0, 11, "clockStyle");
  assertBounds(settings.gmtOffset, -720, 840, "gmtOffset"); // -12h to +14h in minutes
  assertBounds(settings.clockPosition, 0, 2, "clockPosition");
  assertBounds(settings.displayRowMode, 0, 3, "displayRowMode");
@@ -1022,6 +1041,8 @@ void handleSave() {
  assertBounds(settings.asteroidsShipSpeed, 5, 25, "asteroidsShipSpeed");
  assertBounds(settings.asteroidsRockCount, 1, 4, "asteroidsRockCount");
  assertBounds(settings.asteroidsRockSpeed, 3, 20, "asteroidsRockSpeed");
+ assertBounds(settings.dinoSpeed, 5, 30, "dinoSpeed");
+ assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
 
  saveSettings();
  applyTimezone();

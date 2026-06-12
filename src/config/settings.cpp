@@ -334,6 +334,14 @@ void loadSettings() {
       preferences.getBool("astDate", false); // Default: hidden (centred clock)
   settings.asteroidsTransparent =
       preferences.getBool("astTransp", true); // Default: transparent digits
+  settings.dinoSpeed =
+      preferences.getUChar("dinoSpeed", 12); // Default: 1.2
+  settings.dinoCactusFreq =
+      preferences.getUChar("dinoCactus", 1); // Default: normal
+  settings.dinoShowClouds =
+      preferences.getBool("dinoClouds", true); // Default: clouds on
+  settings.dinoShowDate =
+      preferences.getBool("dinoDate", false); // Default: hidden (centred clock)
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -554,6 +562,10 @@ void saveSettings() {
   preferences.putUChar("astRockSpd", settings.asteroidsRockSpeed);
   preferences.putBool("astDate", settings.asteroidsShowDate);
   preferences.putBool("astTransp", settings.asteroidsTransparent);
+  preferences.putUChar("dinoSpeed", settings.dinoSpeed);
+  preferences.putUChar("dinoCactus", settings.dinoCactusFreq);
+  preferences.putBool("dinoClouds", settings.dinoShowClouds);
+  preferences.putBool("dinoDate", settings.dinoShowDate);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);
