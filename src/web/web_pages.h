@@ -723,18 +723,17 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="ttl">preview</span>
                 <span class="meta" id="oledMeta">128x64</span>
               </div>
-              <div class="oled-screen" id="oledScreen"></div>
+              <div class="oled-stage" id="oledStage">
+                <canvas id="oledCanvas" width="128" height="64"></canvas>
+                <div class="drop-cells" id="dropCells"></div>
+              </div>
             </div>
 
             <div id="metricsList"><p class="field-hint">Loading metrics...</p></div>
 
             <div class="note">
               <span class="note-k">tip</span>
-              <div>Use <code>^</code> in a label for spacing - <code>CPU^^</code> renders as <code>CPU:&nbsp;&nbsp;45C</code>. Metrics themselves are chosen in the companion app (up to 20).</div>
-            </div>
-            <div class="note plain">
-              <span class="note-k">later</span>
-              <div>This preview is approximate. <strong>Planned (not yet built):</strong> pixel-accurate 1:1 OLED fonts, drag-and-drop positioning, and a live metrics preview streamed from the device.</div>
+              <div><strong>Drag a metric onto the screen</strong> to place it; drag it back to the list below to hide it. The preview is a pixel-exact 1:1 render of the device and updates live from it. Use <code>^</code> in a label for spacing - <code>CPU^^</code> renders as <code>CPU:&nbsp;&nbsp;45C</code>. Metrics themselves are chosen in the companion app (up to 20).</div>
             </div>
           </div>
         </section>
@@ -882,338 +881,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 // ============================================================================
 //  PORTAL_CSS - served verbatim from /portal.css (no %TOKEN% substitution).
 // ============================================================================
-static const char PORTAL_CSS[] PROGMEM = R"CSS(
-:root {
-  --paper:      #f4f0e7;
-  --paper-2:    #efe9db;
-  --sidebar:    #f1ece0;
-  --card:       #fcfaf4;
-  --card-2:     #f6f1e6;
-  --inset:      #eee7d6;
-  --ink:        #24221c;
-  --ink-soft:   #3a382f;
-  --mute:       #6c675b;
-  --dim:        #8a8472;
-  --faint:      #a39c89;
-  --line:       #e4ddcc;
-  --line-soft:  #ece6d7;
-  --line-2:     #d4cbb5;
-  --accent:     #1f8a5b;
-  --accent-d:   #176c47;
-  --accent-l:   #2ba169;
-  --accent-soft: rgba(31, 138, 91, 0.12);
-  --accent-line: rgba(31, 138, 91, 0.32);
-  --on-accent:  #ffffff;
-  --ok:   #1f8a5b;
-  --warn: #b8740d;
-  --err:  #c0392b;
-  --crt-bg:   #131e18;
-  --crt-fg:   #84f3ad;
-  --crt-dim:  #4d8a67;
-  --crt-line: #0c140f;
-  --crt-glow: rgba(132, 243, 173, 0.35);
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --r-sm: 6px;
-  --r-md: 9px;
-  --r-lg: 14px;
-  --sidebar-w: 248px;
-  --topbar-h:  58px;
-  --shadow-card: 0 1px 2px rgba(80,65,35,0.05);
-  --shadow-pop:  0 14px 40px rgba(40,33,18,0.16);
-}
-[data-accent="amber"] {
-  --accent: #b97512; --accent-d: #97600d; --accent-l: #cf8a1f;
-  --accent-soft: rgba(185,117,18,0.13); --accent-line: rgba(185,117,18,0.34);
-  --ok: #1f8a5b;
-  --crt-bg: #1a1209; --crt-fg: #ffcf7a; --crt-dim: #9c7636; --crt-line: #0d0903; --crt-glow: rgba(255,207,122,0.38);
-}
-[data-mode="dark"] {
-  --paper:   #161512;
-  --paper-2: #1e1c17;
-  --sidebar: #131210;
-  --card:    #201e18;
-  --card-2:  #1a1813;
-  --inset:   #14130e;
-  --ink:      #ece7d8;
-  --ink-soft: #d8d2c0;
-  --mute:     #aaa28c;
-  --dim:      #847c66;
-  --faint:    #5f5847;
-  --line:      #2c2920;
-  --line-soft: #24211a;
-  --line-2:    #403b2c;
-  --accent: #36b478; --accent-d: #44c98a; --accent-l: #2ba169;
-  --accent-soft: rgba(54,180,120,0.16); --accent-line: rgba(54,180,120,0.40);
-  --ok: #36b478;
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
-}
-[data-mode="dark"][data-accent="amber"] {
-  --accent: #e0a23f; --accent-d: #f0b556; --accent-l: #c98c2f;
-  --accent-soft: rgba(224,162,63,0.16); --accent-line: rgba(224,162,63,0.40);
-  --crt-bg: #1a1209; --crt-fg: #ffcf7a; --crt-dim: #9c7636; --crt-line: #0d0903; --crt-glow: rgba(255,207,122,0.38);
-}
-* { box-sizing: border-box; }
-html, body {
-  margin: 0; padding: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--sans); font-size: 15px; line-height: 1.55;
-  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; min-height: 100vh;
-}
-body { transition: background 200ms ease, color 200ms ease; }
-a { color: var(--accent-d); text-decoration: none; transition: color 120ms ease; }
-a:hover { color: var(--accent); }
-::selection { background: var(--accent-soft); }
-.app { background: var(--paper); min-height: 100vh; }
-.topbar {
-  position: sticky; top: 0; z-index: 50; height: var(--topbar-h);
-  display: flex; align-items: center; gap: 14px; padding: 0 24px;
-  background: color-mix(in oklab, var(--paper) 90%, transparent);
-  backdrop-filter: blur(10px) saturate(1.05);
-  border-bottom: 1px solid var(--line);
-}
-.tb-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand-mark {
-  width: 28px; height: 28px; border-radius: 7px; background: var(--accent);
-  display: grid; place-items: center; flex: none; box-shadow: 0 0 0 3px var(--accent-soft);
-}
-.brand-mark::after {
-  content: ""; width: 13px; height: 13px;
-  background:
-    linear-gradient(#fff 0 0) 0 0 / 5.5px 5.5px no-repeat,
-    linear-gradient(#fff 0 0) 7.5px 7.5px / 5.5px 5.5px no-repeat,
-    linear-gradient(rgba(255,255,255,.55) 0 0) 7.5px 0 / 5.5px 5.5px no-repeat,
-    linear-gradient(rgba(255,255,255,.55) 0 0) 0 7.5px / 5.5px 5.5px no-repeat;
-}
-.tb-name { font-weight: 600; color: var(--ink); letter-spacing: -0.01em; font-size: 15px; }
-.tb-ver { font-family: var(--mono); font-size: 11px; color: var(--mute); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
-.tb-sep { width: 1px; height: 22px; background: var(--line-2); margin: 0 4px; }
-.tb-crumb { font-size: 14px; color: var(--mute); font-weight: 500; }
-.tb-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-.hamburger { display: none; width: 34px; height: 34px; flex: none; padding: 0; cursor: pointer; align-items: center; justify-content: center; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; transition: background 120ms ease, border-color 120ms ease; }
-.hamburger:hover { background: var(--card); border-color: var(--line-2); }
-.hamburger > span, .hamburger > span::before, .hamburger > span::after { content: ""; display: block; width: 16px; height: 1.6px; border-radius: 2px; background: var(--ink); transition: transform 180ms ease, opacity 120ms ease; }
-.hamburger > span { position: relative; }
-.hamburger > span::before { position: absolute; left: 0; top: -5px; }
-.hamburger > span::after { position: absolute; left: 0; top: 5px; }
-html.nav-open .hamburger > span { background: transparent; }
-html.nav-open .hamburger > span::before { transform: translateY(5px) rotate(45deg); }
-html.nav-open .hamburger > span::after { transform: translateY(-5px) rotate(-45deg); }
-.nav-scrim { display: none; }
-.acc-pick { display: flex; align-items: center; gap: 6px; }
-.acc-pick .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
-.acc-sw { width: 22px; height: 22px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; padding: 0; background: var(--paper-2); display: grid; place-items: center; transition: border-color 120ms ease, transform 80ms ease; }
-.acc-sw:hover { transform: scale(1.08); }
-.acc-sw i { width: 13px; height: 13px; border-radius: 999px; display: block; }
-.acc-sw[data-acc="green"] i { background: #1f8a5b; }
-.acc-sw[data-acc="amber"] i { background: #b97512; }
-.acc-sw.on { border-color: var(--accent); }
-.mode-toggle { display: inline-flex; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
-.mode-toggle button { font: inherit; font-family: var(--mono); font-size: 11.5px; cursor: pointer; border: 0; background: transparent; color: var(--mute); padding: 5px 11px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; transition: background 120ms ease, color 120ms ease; }
-.mode-toggle button:hover { color: var(--ink); }
-.mode-toggle button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow-card); }
-.mode-toggle .ic { width: 11px; height: 11px; border-radius: 999px; }
-.mode-toggle button[data-mode="light"] .ic { background: #e0a23f; box-shadow: 0 0 0 2px color-mix(in oklab, #e0a23f 30%, transparent); }
-.mode-toggle button[data-mode="dark"] .ic { background: transparent; box-shadow: inset -3px -1px 0 0 var(--mute); }
-.workspace { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); align-items: start; background: var(--paper); min-height: calc(100vh - var(--topbar-h)); }
-.sidebar {
-  position: sticky; top: var(--topbar-h); align-self: start;
-  height: calc(100vh - var(--topbar-h)); overflow-y: auto;
-  border-right: 1px solid var(--line); background: var(--sidebar);
-  padding: 22px 16px 26px; display: flex; flex-direction: column; gap: 22px;
-  scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
-}
-.sidebar::-webkit-scrollbar { width: 6px; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
-.nav-group { display: flex; flex-direction: column; gap: 2px; }
-.nav-group + .nav-group { margin-top: 14px; }
-.nav-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); padding: 0 10px; margin-bottom: 6px; }
-.nav-item {
-  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
-  padding: 9px 11px; border-radius: 8px; border: 0; background: transparent; cursor: pointer;
-  font: inherit; font-size: 14px; color: var(--mute); position: relative;
-  transition: background 120ms ease, color 120ms ease;
-}
-.nav-item:hover { background: var(--paper-2); color: var(--ink); }
-.nav-item.active { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-card); }
-.nav-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--accent); }
-.nav-item .nv-tag { margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; font-weight: 500; }
-.nav-item.active .nv-tag { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-d); }
-.sidebar-spacer { flex: 1 1 auto; min-height: 8px; }
-.rail-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px 2px; }
-.status-readout { background: var(--crt-bg); border: 1px solid var(--crt-line); border-radius: var(--r-md); padding: 12px 13px; position: relative; overflow: hidden; box-shadow: inset 0 0 24px rgba(0,0,0,.55), inset 0 0 3px var(--crt-glow); font-family: var(--mono); }
-.status-readout::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
-.sr-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; position: relative; z-index: 1; }
-.sr-led { width: 8px; height: 8px; border-radius: 999px; flex: none; background: var(--crt-fg); box-shadow: 0 0 7px var(--crt-glow); }
-.sr-led.online { animation: led-pulse 2.4s ease-in-out infinite; }
-.sr-led.offline { background: var(--crt-dim); box-shadow: none; animation: none; }
-@keyframes led-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) { .sr-led.online { animation: none; } }
-.sr-title { font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--crt-dim); }
-.sr-rows { display: flex; flex-direction: column; gap: 5px; position: relative; z-index: 1; margin: 0; }
-.sr-row { display: grid; grid-template-columns: 50px 1fr; gap: 9px; align-items: baseline; font-size: 11.5px; }
-.sr-row dt { color: var(--crt-dim); }
-.sr-row dd { margin: 0; color: var(--crt-fg); text-shadow: 0 0 6px var(--crt-glow); word-break: break-word; }
-.about { font-family: var(--mono); font-size: 11px; color: var(--faint); display: flex; flex-direction: column; gap: 5px; padding: 0 2px; }
-.about .line b { color: var(--ink-soft); font-weight: 600; }
-.about a { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-d); }
-.about a:hover { color: var(--accent); }
-.about a .gh { width: 11px; height: 11px; border-radius: 3px; background: var(--accent); flex: none; }
-.content { padding: 34px 40px 130px; min-width: 0; }
-.content-inner { max-width: 860px; }
-.page { display: none; }
-.page.active { display: block; }
-.page-header { margin-bottom: 24px; }
-.page-h1 { margin: 0; font-size: 25px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
-.page-lede { margin: 7px 0 0; color: var(--mute); font-size: 14.5px; max-width: 64ch; text-wrap: pretty; }
-.page-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 22px 24px; margin-bottom: 18px; box-shadow: var(--shadow-card); }
-.card-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 18px; letter-spacing: -0.01em; }
-.card-title .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-weight: 500; }
-.field { margin-bottom: 18px; }
-.field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
-.field-hint { color: var(--dim); font-size: 12.5px; margin: 7px 0 0; max-width: 70ch; text-wrap: pretty; }
-.field-hint code, .note code, .field-label code { font-family: var(--mono); font-size: 0.9em; background: var(--inset); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; color: var(--ink-soft); }
-.select-wrap { position: relative; max-width: 520px; }
-.select-wrap::after { content: ""; position: absolute; right: 14px; top: 50%; width: 8px; height: 8px; border-right: 1.5px solid var(--mute); border-bottom: 1.5px solid var(--mute); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
-select, input[type="text"], input[type="number"] { appearance: none; -webkit-appearance: none; width: 100%; max-width: 520px; background: var(--card); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 11px 14px; font: inherit; font-size: 14px; box-shadow: var(--shadow-card); transition: border-color 120ms ease, box-shadow 120ms ease; }
-select { padding-right: 36px; cursor: pointer; }
-select:hover, input[type="text"]:hover, input[type="number"]:hover { border-color: var(--line-2); }
-select:focus, input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
-input::placeholder { color: var(--faint); }
-.range-row { display: flex; align-items: center; gap: 14px; max-width: 520px; }
-input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; height: 4px; border-radius: 999px; background: var(--line-2); cursor: pointer; margin: 12px 0; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; transition: transform 80ms ease; }
-input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
-input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid var(--card); cursor: pointer; }
-.range-val { font-family: var(--mono); font-size: 13px; color: var(--accent-d); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 6px; padding: 3px 9px; min-width: 56px; text-align: center; flex: none; }
-.check-list { display: flex; flex-direction: column; }
-.check-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 13px 0; border-top: 1px solid var(--line-soft); }
-.check-row:first-child { border-top: 0; padding-top: 4px; }
-.check-row.standalone { border-top: 0; padding: 0; }
-.check-row input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
-.check-box { flex: none; width: 20px; height: 20px; margin-top: 0; border-radius: 5px; border: 1.5px solid var(--line-2); background: var(--card); display: grid; place-items: center; transition: background 120ms ease, border-color 120ms ease; }
-.check-box::after { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--on-accent); transform: scale(0); transition: transform 130ms cubic-bezier(.3,1.4,.5,1); clip-path: polygon(0 40%,38% 40%,38% 0,62% 0,62% 40%,100% 40%,100% 64%,62% 64%,62% 100%,38% 100%,38% 64%,0 64%); }
-.check-row input:checked + .check-box { border-color: var(--accent); background: var(--accent); }
-.check-row input:checked + .check-box::after { transform: scale(1); }
-.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 3px var(--accent-soft); }
-.check-text { font-size: 14px; color: var(--ink-soft); }
-.check-text strong { color: var(--ink); font-weight: 600; }
-.check-text .ct-hint { display: block; color: var(--dim); font-size: 12.5px; margin-top: 2px; }
-.subcard { margin-top: 16px; padding: 16px 18px; border-radius: var(--r-md); background: var(--card-2); border: 1px solid var(--line); }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
-.divider { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
-.note { display: flex; gap: 11px; align-items: flex-start; max-width: 72ch; margin: 16px 0 0; padding: 12px 14px; background: var(--card-2); border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: var(--r-sm); font-size: 13.5px; color: var(--mute); text-wrap: pretty; }
-.note.warn { border-left-color: var(--warn); }
-.note.plain { border-left-color: var(--line-2); }
-.note .note-k { flex: none; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent-d); margin-top: 3px; }
-.note.warn .note-k { color: var(--warn); }
-.note.plain .note-k { color: var(--dim); }
-.note strong { color: var(--ink); font-weight: 600; }
-.btn { font: inherit; font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: var(--r-md); cursor: pointer; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); transition: background 120ms ease, border-color 120ms ease, filter 120ms ease, transform 80ms ease; }
-.btn:hover { background: var(--card-2); }
-.btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: .6; cursor: default; }
-.btn .gl { width: 12px; height: 12px; flex: none; border-radius: 2px; background: var(--accent); }
-.btn-accent { background: var(--accent); border-color: var(--accent-d); color: var(--on-accent); }
-.btn-accent .gl { background: var(--on-accent); }
-.btn-accent:hover { filter: brightness(1.05); background: var(--accent); }
-.btn-danger { color: var(--err); border-color: color-mix(in oklab, var(--err) 36%, var(--line-2)); }
-.btn-danger:hover { background: color-mix(in oklab, var(--err) 8%, var(--card)); }
-.btn-lg { padding: 11px 20px; font-size: 14px; }
-.crt { background: var(--crt-bg); border: 1px solid var(--crt-line); border-radius: var(--r-md); position: relative; overflow: hidden; font-family: var(--mono); box-shadow: inset 0 0 24px rgba(0,0,0,.55), inset 0 0 3px var(--crt-glow); }
-.crt::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
-.oled-preview { max-width: 100%; margin-bottom: 18px; padding: 14px 15px; }
-.oled-pv-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1; }
-.oled-pv-head .ttl { color: var(--crt-fg); font-size: 12.5px; text-shadow: 0 0 6px var(--crt-glow); }
-.oled-pv-head .meta { color: var(--crt-dim); font-size: 11px; }
-.oled-screen { position: relative; z-index: 1; aspect-ratio: 128 / 64; width: 100%; max-width: 420px; margin: 0 auto; background: #060d09; border: 1px solid var(--crt-line); border-radius: 4px; overflow: hidden; display: grid; gap: 1px; padding: 5px; }
-[data-accent="amber"] .oled-screen { background: #0c0803; }
-.oled-cell { display: flex; align-items: center; padding: 0 6px; font-size: 11px; letter-spacing: 0.5px; color: var(--crt-fg); text-shadow: 0 0 5px var(--crt-glow); border-radius: 2px; min-width: 0; }
-.oled-cell.empty { color: var(--crt-dim); opacity: .5; }
-.oled-cell .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.oled-cell .val { margin-left: auto; padding-left: 8px; color: var(--crt-fg); }
-.oled-clock { grid-column: 1 / -1; justify-content: center; font-size: 15px; letter-spacing: 2px; color: var(--crt-fg); }
-.metric-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card-2); margin-bottom: 8px; }
-.metric-row:hover { border-color: var(--line-2); }
-.metric-id { min-width: 0; }
-.metric-id .nm { font-weight: 600; font-size: 14px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
-.metric-id .grip { color: var(--faint); font-family: var(--mono); font-size: 13px; cursor: grab; letter-spacing: -1px; }
-.metric-id .sub { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 2px; }
-.metric-id .pair { color: var(--accent-d); }
-.metric-pos .select-wrap { max-width: 150px; }
-.metric-pos select { padding: 8px 32px 8px 11px; font-size: 13px; background: var(--card); }
-.metric-adv { grid-column: 1 / -1; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
-.metric-adv .field-label { margin-bottom: 5px; }
-.metric-adv input, .metric-adv select { font-size: 13px; padding: 8px 11px; }
-.metric-adv select { padding-right: 32px; }
-.metric-adv .full { grid-column: 1 / -1; }
-.ota-drop { border: 1.5px dashed var(--line-2); border-radius: var(--r-md); padding: 26px 20px; text-align: center; background: var(--card-2); transition: border-color 120ms ease, background 120ms ease; }
-.ota-drop.drag { border-color: var(--accent); background: var(--accent-soft); }
-.ota-drop .px { width: 22px; height: 22px; margin: 0 auto 10px; background: var(--accent); }
-.ota-drop .big { font-weight: 600; color: var(--ink); font-size: 15px; }
-.ota-drop .small { color: var(--dim); font-size: 13px; margin-top: 4px; }
-.ota-drop .browse { color: var(--accent-d); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; border: 0; background: 0; font: inherit; }
-.ota-progress { margin-top: 16px; display: none; }
-.ota-progress.show { display: block; }
-.ota-bar { height: 10px; border-radius: 999px; background: var(--inset); border: 1px solid var(--line); overflow: hidden; }
-.ota-bar > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width 240ms ease; }
-.ota-pct { font-family: var(--mono); font-size: 12px; color: var(--mute); margin-top: 7px; }
-.save-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: color-mix(in oklab, var(--paper) 88%, transparent); backdrop-filter: blur(10px) saturate(1.1); border-top: 1px solid var(--line); }
-.save-bar-inner { padding: 12px 40px 12px calc(var(--sidebar-w) + 40px); display: flex; align-items: center; gap: 14px; max-width: 100%; }
-.save-meta { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-right: auto; display: flex; align-items: center; gap: 8px; }
-.save-meta .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--warn); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warn) 18%, transparent); }
-.save-meta.clean .dot { background: var(--ok); box-shadow: 0 0 0 3px var(--accent-soft); }
-@media (max-width: 880px) {
-  .topbar { padding: 0 12px; gap: 10px; }
-  .hamburger { display: inline-flex; }
-  .tb-ver, .tb-sep, .tb-crumb { display: none; }
-  .acc-pick .lab { display: none; }
-  .workspace { grid-template-columns: 1fr; }
-  /* sidebar becomes a slide-in drawer toggled by the hamburger */
-  .sidebar {
-    position: fixed; top: var(--topbar-h); left: 0;
-    width: min(280px, 84vw);
-    height: calc(100vh - var(--topbar-h));
-    height: calc(100dvh - var(--topbar-h));
-    overflow-y: auto; z-index: 46;
-    border-right: 1px solid var(--line); border-bottom: 0;
-    box-shadow: var(--shadow-pop);
-    transform: translateX(-102%); transition: transform 220ms ease;
-  }
-  html.nav-open .sidebar { transform: none; }
-  .nav-scrim {
-    display: block; position: fixed; left: 0; right: 0; top: var(--topbar-h); bottom: 0;
-    z-index: 45; background: rgba(20, 16, 8, 0.42);
-    opacity: 0; visibility: hidden; transition: opacity 200ms ease, visibility 200ms ease;
-  }
-  html.nav-open .nav-scrim { opacity: 1; visibility: visible; }
-  .content { padding: 24px 18px 130px; }
-  .save-bar-inner { padding: 11px 16px; }
-  .save-meta .txt { display: none; }
-}
-@media (max-width: 560px) {
-  .page-h1 { font-size: 22px; }
-  .card { padding: 18px 16px; }
-  .page-actions .btn { flex: 1; justify-content: center; }
-  .metric-adv { grid-template-columns: 1fr; }
-}
-/* ultra-narrow (e.g. foldable cover screens): keep the top bar from overflowing */
-@media (max-width: 410px) {
-  .topbar { gap: 8px; padding: 0 10px; }
-  .tb-brand { gap: 7px; }
-  .tb-right { gap: 8px; }
-  .mode-toggle button { padding: 5px 9px; font-size: 11px; }
-  .acc-sw { width: 20px; height: 20px; }
-}
-@media (max-width: 360px) {
-  .tb-name { display: none; }
-  .acc-pick { gap: 4px; }
-  /* icon-only light/dark toggle: font-size:0 hides the label, the .ic dot keeps its fixed size */
-  .mode-toggle button { font-size: 0; gap: 0; padding: 6px 8px; }
-}
-)CSS";
+static const char PORTAL_CSS[] PROGMEM = R"CSS(:root{--paper:#f4f0e7;--paper-2:#efe9db;--sidebar:#f1ece0;--card:#fcfaf4;--card-2:#f6f1e6;--inset:#eee7d6;--ink:#24221c;--ink-soft:#3a382f;--mute:#6c675b;--dim:#8a8472;--faint:#a39c89;--line:#e4ddcc;--line-soft:#ece6d7;--line-2:#d4cbb5;--accent:#1f8a5b;--accent-d:#176c47;--accent-l:#2ba169;--accent-soft:rgba(31,138,91,0.12);--accent-line:rgba(31,138,91,0.32);--on-accent:#ffffff;--ok:#1f8a5b;--warn:#b8740d;--err:#c0392b;--crt-bg:#131e18;--crt-fg:#84f3ad;--crt-dim:#4d8a67;--crt-line:#0c140f;--crt-glow:rgba(132,243,173,0.35);--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;--r-sm:6px;--r-md:9px;--r-lg:14px;--sidebar-w:248px;--topbar-h:58px;--shadow-card:0 1px 2px rgba(80,65,35,0.05);--shadow-pop:0 14px 40px rgba(40,33,18,0.16)}[data-accent="amber"]{--accent:#b97512;--accent-d:#97600d;--accent-l:#cf8a1f;--accent-soft:rgba(185,117,18,0.13);--accent-line:rgba(185,117,18,0.34);--ok:#1f8a5b;--crt-bg:#1a1209;--crt-fg:#ffcf7a;--crt-dim:#9c7636;--crt-line:#0d0903;--crt-glow:rgba(255,207,122,0.38)}[data-mode="dark"]{--paper:#161512;--paper-2:#1e1c17;--sidebar:#131210;--card:#201e18;--card-2:#1a1813;--inset:#14130e;--ink:#ece7d8;--ink-soft:#d8d2c0;--mute:#aaa28c;--dim:#847c66;--faint:#5f5847;--line:#2c2920;--line-soft:#24211a;--line-2:#403b2c;--accent:#36b478;--accent-d:#44c98a;--accent-l:#2ba169;--accent-soft:rgba(54,180,120,0.16);--accent-line:rgba(54,180,120,0.40);--ok:#36b478;--shadow-card:0 1px 2px rgba(0,0,0,0.35)}[data-mode="dark"][data-accent="amber"]{--accent:#e0a23f;--accent-d:#f0b556;--accent-l:#c98c2f;--accent-soft:rgba(224,162,63,0.16);--accent-line:rgba(224,162,63,0.40);--crt-bg:#1a1209;--crt-fg:#ffcf7a;--crt-dim:#9c7636;--crt-line:#0d0903;--crt-glow:rgba(255,207,122,0.38)}*{box-sizing:border-box}html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;min-height:100vh}body{transition:background 200ms ease,color 200ms ease}a{color:var(--accent-d);text-decoration:none;transition:color 120ms ease}a:hover{color:var(--accent)}::selection{background:var(--accent-soft)}.app{background:var(--paper);min-height:100vh}.topbar{position:sticky;top:0;z-index:50;height:var(--topbar-h);display:flex;align-items:center;gap:14px;padding:0 24px;background:color-mix(in oklab,var(--paper) 90%,transparent);backdrop-filter:blur(10px) saturate(1.05);border-bottom:1px solid var(--line)}.tb-brand{display:flex;align-items:center;gap:10px;min-width:0}.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);display:grid;place-items:center;flex:none;box-shadow:0 0 0 3px var(--accent-soft)}.brand-mark::after{content:"";width:13px;height:13px;background:linear-gradient(#fff 0 0) 0 0 / 5.5px 5.5px no-repeat,linear-gradient(#fff 0 0) 7.5px 7.5px / 5.5px 5.5px no-repeat,linear-gradient(rgba(255,255,255,.55) 0 0) 7.5px 0 / 5.5px 5.5px no-repeat,linear-gradient(rgba(255,255,255,.55) 0 0) 0 7.5px / 5.5px 5.5px no-repeat}.tb-name{font-weight:600;color:var(--ink);letter-spacing:-0.01em;font-size:15px}.tb-ver{font-family:var(--mono);font-size:11px;color:var(--mute);background:var(--paper-2);border:1px solid var(--line);border-radius:999px;padding:2px 8px}.tb-sep{width:1px;height:22px;background:var(--line-2);margin:0 4px}.tb-crumb{font-size:14px;color:var(--mute);font-weight:500}.tb-right{margin-left:auto;display:flex;align-items:center;gap:12px}.hamburger{display:none;width:34px;height:34px;flex:none;padding:0;cursor:pointer;align-items:center;justify-content:center;background:var(--paper-2);border:1px solid var(--line);border-radius:8px;transition:background 120ms ease,border-color 120ms ease}.hamburger:hover{background:var(--card);border-color:var(--line-2)}.hamburger>span,.hamburger>span::before,.hamburger>span::after{content:"";display:block;width:16px;height:1.6px;border-radius:2px;background:var(--ink);transition:transform 180ms ease,opacity 120ms ease}.hamburger>span{position:relative}.hamburger>span::before{position:absolute;left:0;top:-5px}.hamburger>span::after{position:absolute;left:0;top:5px}html.nav-open .hamburger>span{background:transparent}html.nav-open .hamburger>span::before{transform:translateY(5px) rotate(45deg)}html.nav-open .hamburger>span::after{transform:translateY(-5px) rotate(-45deg)}.nav-scrim{display:none}.acc-pick{display:flex;align-items:center;gap:6px}.acc-pick .lab{font-family:var(--mono);font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:var(--faint);margin-right:2px}.acc-sw{width:22px;height:22px;border-radius:999px;border:2px solid transparent;cursor:pointer;padding:0;background:var(--paper-2);display:grid;place-items:center;transition:border-color 120ms ease,transform 80ms ease}.acc-sw:hover{transform:scale(1.08)}.acc-sw i{width:13px;height:13px;border-radius:999px;display:block}.acc-sw[data-acc="green"] i{background:#1f8a5b}.acc-sw[data-acc="amber"] i{background:#b97512}.acc-sw.on{border-color:var(--accent)}.mode-toggle{display:inline-flex;background:var(--paper-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.mode-toggle button{font:inherit;font-family:var(--mono);font-size:11.5px;cursor:pointer;border:0;background:transparent;color:var(--mute);padding:5px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;transition:background 120ms ease,color 120ms ease}.mode-toggle button:hover{color:var(--ink)}.mode-toggle button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow-card)}.mode-toggle .ic{width:11px;height:11px;border-radius:999px}.mode-toggle button[data-mode="light"] .ic{background:#e0a23f;box-shadow:0 0 0 2px color-mix(in oklab,#e0a23f 30%,transparent)}.mode-toggle button[data-mode="dark"] .ic{background:transparent;box-shadow:inset -3px -1px 0 0 var(--mute)}.workspace{display:grid;grid-template-columns:var(--sidebar-w) minmax(0,1fr);align-items:start;background:var(--paper);min-height:calc(100vh - var(--topbar-h))}.sidebar{position:sticky;top:var(--topbar-h);align-self:start;height:calc(100vh - var(--topbar-h));overflow-y:auto;border-right:1px solid var(--line);background:var(--sidebar);padding:22px 16px 26px;display:flex;flex-direction:column;gap:22px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}.sidebar::-webkit-scrollbar{width:6px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:999px}.nav-group{display:flex;flex-direction:column;gap:2px}.nav-group + .nav-group{margin-top:14px}.nav-label{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--faint);padding:0 10px;margin-bottom:6px}.nav-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:9px 11px;border-radius:8px;border:0;background:transparent;cursor:pointer;font:inherit;font-size:14px;color:var(--mute);position:relative;transition:background 120ms ease,color 120ms ease}.nav-item:hover{background:var(--paper-2);color:var(--ink)}.nav-item.active{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow-card)}.nav-item.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--accent)}.nav-item .nv-tag{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:0.04em;text-transform:uppercase;color:var(--dim);background:var(--paper-2);border:1px solid var(--line);border-radius:999px;padding:1px 6px;font-weight:500}.nav-item.active .nv-tag{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-d)}.sidebar-spacer{flex:1 1 auto;min-height:8px}.rail-label{font-family:var(--mono);font-size:10px;letter-spacing:0.09em;text-transform:uppercase;color:var(--faint);margin:0 0 8px 2px}.status-readout{background:var(--crt-bg);border:1px solid var(--crt-line);border-radius:var(--r-md);padding:12px 13px;position:relative;overflow:hidden;box-shadow:inset 0 0 24px rgba(0,0,0,.55),inset 0 0 3px var(--crt-glow);font-family:var(--mono)}.status-readout::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)}.sr-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;position:relative;z-index:1}.sr-led{width:8px;height:8px;border-radius:999px;flex:none;background:var(--crt-fg);box-shadow:0 0 7px var(--crt-glow)}.sr-led.online{animation:led-pulse 2.4s ease-in-out infinite}.sr-led.offline{background:var(--crt-dim);box-shadow:none;animation:none}@keyframes led-pulse{0%,100%{opacity:1}50%{opacity:.45}}@media (prefers-reduced-motion:reduce){.sr-led.online{animation:none}}.sr-title{font-size:10.5px;letter-spacing:0.05em;text-transform:uppercase;color:var(--crt-dim)}.sr-rows{display:flex;flex-direction:column;gap:5px;position:relative;z-index:1;margin:0}.sr-row{display:grid;grid-template-columns:50px 1fr;gap:9px;align-items:baseline;font-size:11.5px}.sr-row dt{color:var(--crt-dim)}.sr-row dd{margin:0;color:var(--crt-fg);text-shadow:0 0 6px var(--crt-glow);word-break:break-word}.about{font-family:var(--mono);font-size:11px;color:var(--faint);display:flex;flex-direction:column;gap:5px;padding:0 2px}.about .line b{color:var(--ink-soft);font-weight:600}.about a{display:inline-flex;align-items:center;gap:6px;color:var(--accent-d)}.about a:hover{color:var(--accent)}.about a .gh{width:11px;height:11px;border-radius:3px;background:var(--accent);flex:none}.content{padding:34px 40px 130px;min-width:0}.content-inner{max-width:860px}.page{display:none}.page.active{display:block}.page-header{margin-bottom:24px}.page-h1{margin:0;font-size:25px;font-weight:600;letter-spacing:-0.02em;color:var(--ink)}.page-lede{margin:7px 0 0;color:var(--mute);font-size:14.5px;max-width:64ch;text-wrap:pretty}.page-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow-card)}.card-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--ink);margin:0 0 18px;letter-spacing:-0.01em}.card-title .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:0.05em;text-transform:uppercase;color:var(--dim);background:var(--paper-2);border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-weight:500}.field{margin-bottom:18px}.field:last-child{margin-bottom:0}.field-label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:0.05em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}.field-hint{color:var(--dim);font-size:12.5px;margin:7px 0 0;max-width:70ch;text-wrap:pretty}.field-hint code,.note code,.field-label code{font-family:var(--mono);font-size:0.9em;background:var(--inset);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink-soft)}.select-wrap{position:relative;max-width:520px}.select-wrap::after{content:"";position:absolute;right:14px;top:50%;width:8px;height:8px;border-right:1.5px solid var(--mute);border-bottom:1.5px solid var(--mute);transform:translateY(-70%) rotate(45deg);pointer-events:none}select,input[type="text"],input[type="number"]{appearance:none;-webkit-appearance:none;width:100%;max-width:520px;background:var(--card);color:var(--ink);border:1px solid var(--line-2);border-radius:var(--r-md);padding:11px 14px;font:inherit;font-size:14px;box-shadow:var(--shadow-card);transition:border-color 120ms ease,box-shadow 120ms ease}select{padding-right:36px;cursor:pointer}select:hover,input[type="text"]:hover,input[type="number"]:hover{border-color:var(--line-2)}select:focus,input:focus{outline:none;border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft)}input::placeholder{color:var(--faint)}.range-row{display:flex;align-items:center;gap:14px;max-width:520px}input[type="range"]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:999px;background:var(--line-2);cursor:pointer;margin:12px 0}input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid var(--card);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer;transition:transform 80ms ease}input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.12)}input[type="range"]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);border:3px solid var(--card);cursor:pointer}.range-val{font-family:var(--mono);font-size:13px;color:var(--accent-d);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:6px;padding:3px 9px;min-width:56px;text-align:center;flex:none}.check-list{display:flex;flex-direction:column}.check-row{display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:13px 0;border-top:1px solid var(--line-soft)}.check-row:first-child{border-top:0;padding-top:4px}.check-row.standalone{border-top:0;padding:0}.check-row input[type="checkbox"]{position:absolute;opacity:0;width:0;height:0}.check-box{flex:none;width:20px;height:20px;margin-top:0;border-radius:5px;border:1.5px solid var(--line-2);background:var(--card);display:grid;place-items:center;transition:background 120ms ease,border-color 120ms ease}.check-box::after{content:"";width:9px;height:9px;border-radius:2px;background:var(--on-accent);transform:scale(0);transition:transform 130ms cubic-bezier(.3,1.4,.5,1);clip-path:polygon(0 40%,38% 40%,38% 0,62% 0,62% 40%,100% 40%,100% 64%,62% 64%,62% 100%,38% 100%,38% 64%,0 64%)}.check-row input:checked + .check-box{border-color:var(--accent);background:var(--accent)}.check-row input:checked + .check-box::after{transform:scale(1)}.check-row input:focus-visible + .check-box{box-shadow:0 0 0 3px var(--accent-soft)}.check-text{font-size:14px;color:var(--ink-soft)}.check-text strong{color:var(--ink);font-weight:600}.check-text .ct-hint{display:block;color:var(--dim);font-size:12.5px;margin-top:2px}.subcard{margin-top:16px;padding:16px 18px;border-radius:var(--r-md);background:var(--card-2);border:1px solid var(--line)}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media (max-width:560px){.grid-2{grid-template-columns:1fr}}.divider{border:0;border-top:1px solid var(--line);margin:20px 0}.note{display:flex;gap:11px;align-items:flex-start;max-width:72ch;margin:16px 0 0;padding:12px 14px;background:var(--card-2);border:1px solid var(--line);border-left:2px solid var(--accent);border-radius:var(--r-sm);font-size:13.5px;color:var(--mute);text-wrap:pretty}.note.warn{border-left-color:var(--warn)}.note.plain{border-left-color:var(--line-2)}.note .note-k{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:0.05em;text-transform:uppercase;color:var(--accent-d);margin-top:3px}.note.warn .note-k{color:var(--warn)}.note.plain .note-k{color:var(--dim)}.note strong{color:var(--ink);font-weight:600}.btn{font:inherit;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--line-2);background:var(--card);color:var(--ink);transition:background 120ms ease,border-color 120ms ease,filter 120ms ease,transform 80ms ease}.btn:hover{background:var(--card-2)}.btn:active{transform:translateY(1px)}.btn:disabled{opacity:.6;cursor:default}.btn .gl{width:12px;height:12px;flex:none;border-radius:2px;background:var(--accent)}.btn-accent{background:var(--accent);border-color:var(--accent-d);color:var(--on-accent)}.btn-accent .gl{background:var(--on-accent)}.btn-accent:hover{filter:brightness(1.05);background:var(--accent)}.btn-danger{color:var(--err);border-color:color-mix(in oklab,var(--err) 36%,var(--line-2))}.btn-danger:hover{background:color-mix(in oklab,var(--err) 8%,var(--card))}.btn-lg{padding:11px 20px;font-size:14px}.crt{background:var(--crt-bg);border:1px solid var(--crt-line);border-radius:var(--r-md);position:relative;overflow:hidden;font-family:var(--mono);box-shadow:inset 0 0 24px rgba(0,0,0,.55),inset 0 0 3px var(--crt-glow)}.crt::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)}.oled-preview{max-width:100%;margin-bottom:18px;padding:14px 15px}.oled-pv-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;position:relative;z-index:1}.oled-pv-head .ttl{color:var(--crt-fg);font-size:12.5px;text-shadow:0 0 6px var(--crt-glow)}.oled-pv-head .meta{color:var(--crt-dim);font-size:11px}.oled-stage{position:relative;z-index:1;width:100%;max-width:384px;margin:0 auto;aspect-ratio:128 / 64}.oled-stage canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#060d09;border:1px solid var(--crt-line);border-radius:4px}[data-accent="amber"] .oled-stage canvas{background:#0c0803}.drop-cells{position:absolute;inset:0;pointer-events:none}.drop-cell{position:absolute;box-sizing:border-box;border:1px dashed transparent;border-radius:2px;pointer-events:auto;transition:background 100ms ease,border-color 100ms ease}.oled-stage.dragging .drop-cell{border-color:var(--crt-dim)}.drop-cell.over{border-color:var(--crt-fg);border-style:solid;background:rgba(132,243,173,0.16)}.metric-row[draggable="true"]{cursor:grab}.metric-row.drag-src{opacity:0.45}.metric-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card-2);margin-bottom:8px}.metric-row:hover{border-color:var(--line-2)}.metric-id{min-width:0}.metric-id .nm{font-weight:600;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:8px}.metric-id .grip{color:var(--faint);font-family:var(--mono);font-size:13px;cursor:grab;letter-spacing:-1px}.metric-id .sub{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:2px}.metric-id .pair{color:var(--accent-d)}.metric-pos .select-wrap{max-width:150px}.metric-pos select{padding:8px 32px 8px 11px;font-size:13px;background:var(--card)}.metric-adv{grid-column:1 / -1;margin-top:4px;padding-top:12px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.metric-adv .field-label{margin-bottom:5px}.metric-adv input,.metric-adv select{font-size:13px;padding:8px 11px}.metric-adv select{padding-right:32px}.metric-adv .full{grid-column:1 / -1}.ota-drop{border:1.5px dashed var(--line-2);border-radius:var(--r-md);padding:26px 20px;text-align:center;background:var(--card-2);transition:border-color 120ms ease,background 120ms ease}.ota-drop.drag{border-color:var(--accent);background:var(--accent-soft)}.ota-drop .px{width:22px;height:22px;margin:0 auto 10px;background:var(--accent)}.ota-drop .big{font-weight:600;color:var(--ink);font-size:15px}.ota-drop .small{color:var(--dim);font-size:13px;margin-top:4px}.ota-drop .browse{color:var(--accent-d);text-decoration:underline;text-underline-offset:2px;cursor:pointer;border:0;background:0;font:inherit}.ota-progress{margin-top:16px;display:none}.ota-progress.show{display:block}.ota-bar{height:10px;border-radius:999px;background:var(--inset);border:1px solid var(--line);overflow:hidden}.ota-bar>i{display:block;height:100%;width:0%;background:var(--accent);transition:width 240ms ease}.ota-pct{font-family:var(--mono);font-size:12px;color:var(--mute);margin-top:7px}.save-bar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:color-mix(in oklab,var(--paper) 88%,transparent);backdrop-filter:blur(10px) saturate(1.1);border-top:1px solid var(--line)}.save-bar-inner{padding:12px 40px 12px calc(var(--sidebar-w) + 40px);display:flex;align-items:center;gap:14px;max-width:100%}.save-meta{font-family:var(--mono);font-size:12px;color:var(--dim);margin-right:auto;display:flex;align-items:center;gap:8px}.save-meta .dot{width:7px;height:7px;border-radius:999px;background:var(--warn);box-shadow:0 0 0 3px color-mix(in oklab,var(--warn) 18%,transparent)}.save-meta.clean .dot{background:var(--ok);box-shadow:0 0 0 3px var(--accent-soft)}@media (max-width:880px){.topbar{padding:0 12px;gap:10px}.hamburger{display:inline-flex}.tb-ver,.tb-sep,.tb-crumb{display:none}.acc-pick .lab{display:none}.workspace{grid-template-columns:1fr}.sidebar{position:fixed;top:var(--topbar-h);left:0;width:min(280px,84vw);height:calc(100vh - var(--topbar-h));height:calc(100dvh - var(--topbar-h));overflow-y:auto;z-index:46;border-right:1px solid var(--line);border-bottom:0;box-shadow:var(--shadow-pop);transform:translateX(-102%);transition:transform 220ms ease}html.nav-open .sidebar{transform:none}.nav-scrim{display:block;position:fixed;left:0;right:0;top:var(--topbar-h);bottom:0;z-index:45;background:rgba(20,16,8,0.42);opacity:0;visibility:hidden;transition:opacity 200ms ease,visibility 200ms ease}html.nav-open .nav-scrim{opacity:1;visibility:visible}.content{padding:24px 18px 130px}.save-bar-inner{padding:11px 16px}.save-meta .txt{display:none}}@media (max-width:560px){.page-h1{font-size:22px}.card{padding:18px 16px}.page-actions .btn{flex:1;justify-content:center}.metric-adv{grid-template-columns:1fr}}@media (max-width:410px){.topbar{gap:8px;padding:0 10px}.tb-brand{gap:7px}.tb-right{gap:8px}.mode-toggle button{padding:5px 9px;font-size:11px}.acc-sw{width:20px;height:20px}}@media (max-width:360px){.tb-name{display:none}.acc-pick{gap:4px}.mode-toggle button{font-size:0;gap:0;padding:6px 8px}})CSS";
 
 // ============================================================================
 //  PORTAL_JS - served verbatim from /portal.js (no %TOKEN% substitution).
@@ -1221,357 +889,495 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 // ============================================================================
 static const char PORTAL_JS[] PROGMEM = R"JS(
 (function () {
-  'use strict';
-  var $  = function (s, r) { return (r || document).querySelector(s); };
-  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var CFG = window.SOLED || {};
-
-  /* ---- mobile nav drawer (hamburger) ---- */
-  var navToggle = $('#navToggle'), navScrim = $('#navScrim');
-  function setNav(open) {
-    document.documentElement.classList.toggle('nav-open', open);
-    if (navToggle) navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-  function closeNav() { setNav(false); }
-  if (navToggle) navToggle.addEventListener('click', function () { setNav(!document.documentElement.classList.contains('nav-open')); });
-  if (navScrim) navScrim.addEventListener('click', closeNav);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNav(); });
-
-  /* ---- section nav (master-detail) ---- */
-  var navItems = $$('.nav-item');
-  var pages = $$('.page');
-  var crumb = $('#crumb');
-  function showPage(key) {
-    pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === key); });
-    navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.nav === key); });
-    var active = navItems.filter(function (n) { return n.dataset.nav === key; })[0];
-    if (active && crumb) crumb.textContent = active.textContent.replace(/PC$/, '').trim();
-    window.scrollTo(0, 0);
-    closeNav();
-    try { localStorage.setItem('soled_section', key); } catch (e) {}
-  }
-  navItems.forEach(function (n) { n.addEventListener('click', function () { showPage(n.dataset.nav); }); });
-  try { var s = localStorage.getItem('soled_section'); if (s && $('[data-page="' + s + '"]')) showPage(s); } catch (e) {}
-
-  /* ---- accent picker ---- */
-  var accSw = $$('.acc-sw');
-  function setAccent(acc) {
-    document.documentElement.setAttribute('data-accent', acc);
-    accSw.forEach(function (b) { b.classList.toggle('on', b.dataset.acc === acc); });
-    try { localStorage.setItem('soled_accent', acc); } catch (e) {}
-  }
-  accSw.forEach(function (b) { b.addEventListener('click', function () { setAccent(b.dataset.acc); }); });
-  try { var a = localStorage.getItem('soled_accent'); if (a) setAccent(a); } catch (e) {}
-
-  /* ---- light / dark mode ---- */
-  var modeBtns = $$('.mode-toggle button');
-  function setMode(mode) {
-    document.documentElement.setAttribute('data-mode', mode);
-    modeBtns.forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
-    var meta = $('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', mode === 'dark' ? '#161512' : '#f4f0e7');
-    try { localStorage.setItem('soled_mode', mode); } catch (e) {}
-  }
-  modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode); }); });
-  try { var m = localStorage.getItem('soled_mode'); if (m) setMode(m); } catch (e) {}
-
-  /* ---- dirty indicator ---- */
-  var saveMeta = $('#saveMeta');
-  function markDirty() { if (saveMeta) { saveMeta.classList.remove('clean'); $('.txt', saveMeta).textContent = 'Unsaved changes'; } }
-  function markClean(txt) { if (saveMeta) { saveMeta.classList.add('clean'); $('.txt', saveMeta).textContent = txt || 'All saved'; } }
-  var form = $('#cfgForm');
-  form.addEventListener('input', markDirty);
-  form.addEventListener('change', markDirty);
-
-  /* ---- range value bubbles ---- */
-  function fmtRange(inp) {
-    var span = $('.range-val[data-for="' + inp.id + '"]');
-    if (!span) return;
-    var suf = inp.dataset.suffix || '';
-    if (inp.dataset.pct) { span.textContent = Math.round((inp.value / 255) * 100) + '%'; return; }
-    var div = parseFloat(inp.dataset.div || '1');
-    var fixed = parseInt(inp.dataset.fixed || '0', 10);
-    span.textContent = (inp.value / div).toFixed(fixed) + suf;
-  }
-  $$('input[type="range"]').forEach(function (inp) { fmtRange(inp); inp.addEventListener('input', function () { fmtRange(inp); }); });
-
-  /* ---- conditional reveals ---- */
-  function toggle(el, on) { if (el) el.style.display = on ? '' : 'none'; }
-  var nightChk = $('#enableScheduledDimming');
-  if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
-  var staticSel = $('#useStaticIP');
-  if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
-  var refSel = $('#refreshRateMode');
-  if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
-  var marioEnc = $('#marioIdleEncounters');
-  if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
-
-  /* ---- per-style settings panels ---- */
-  var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings' };
-  var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings'];
-  var clockStyle = $('#clockStyle');
-  function syncClockPanels() {
-    ALL_PANELS.forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
-    var show = STYLE_PANELS[clockStyle.value];
-    if (show) { var e = document.getElementById(show); if (e) e.style.display = ''; }
-  }
-  if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
-
-  /* ---- device name -> host preview ---- */
-  var dn = $('#deviceName');
-  if (dn) dn.addEventListener('input', function () {
-    var v = dn.value.toLowerCase() || 'smalloled';
-    var hp = $('#hostPreview'); if (hp) hp.textContent = v;
-    var sh = $('#srHost'); if (sh) sh.textContent = v;
-  });
-
-  /* ============================================================
-     VISIBLE METRICS - full per-metric config, fetched from /metrics.
-     Every form field name preserved for handleSave().
-     ============================================================ */
-  var metricsData = [];
-  var MAX_ROWS = CFG.maxRows || 5;
-  var IS_LARGE = !!CFG.isLarge;
-
-  function rowGeom() {
-    var rm = parseInt($('#rowMode').value, 10);
-    IS_LARGE = (rm >= 2);
-    MAX_ROWS = (rm === 0) ? 5 : (rm === 1) ? 6 : (rm === 2) ? 2 : 3;
-    return { rows: MAX_ROWS, cols: IS_LARGE ? 1 : 2, large: IS_LARGE };
-  }
-
-  function saveFormState() {
-    metricsData.forEach(function (mt) {
-      var lbl = document.querySelector('input[name="label_' + mt.id + '"]'); if (lbl) mt.label = lbl.value;
-      var pos = document.getElementById('pos_' + mt.id); if (pos) mt.position = parseInt(pos.value, 10);
-      var comp = document.getElementById('comp_' + mt.id); if (comp) mt.companionId = parseInt(comp.value, 10);
-      var bp = document.getElementById('barPos_' + mt.id); if (bp) mt.barPosition = parseInt(bp.value, 10);
-      var bmin = document.querySelector('input[name="barMin_' + mt.id + '"]'); if (bmin) mt.barMin = parseInt(bmin.value, 10) || 0;
-      var bmax = document.querySelector('input[name="barMax_' + mt.id + '"]'); if (bmax) mt.barMax = parseInt(bmax.value, 10) || 100;
-      var bw = document.querySelector('input[name="barWidth_' + mt.id + '"]'); if (bw) mt.barWidth = parseInt(bw.value, 10) || 60;
-      var bo = document.querySelector('input[name="barOffset_' + mt.id + '"]'); if (bo) mt.barOffsetX = parseInt(bo.value, 10) || 0;
-    });
-  }
-
-  function onRowMode() {
-    saveFormState();
-    var g = rowGeom();
-    var maxPos = g.large ? g.rows : g.rows * 2;
-    var hidden = metricsData.filter(function (mt) {
-      return (mt.position !== 255 && mt.position >= maxPos) || (mt.barPosition !== 255 && mt.barPosition >= maxPos);
-    });
-    if (hidden.length > 0) {
-      var names = hidden.map(function (mt) { return mt.name; }).join(', ');
-      if (!confirm('Warning: ' + hidden.length + ' metric(s) (' + names + ') will be hidden in this row mode. Continue?')) { return; }
-      metricsData.forEach(function (mt) {
-        if (mt.position !== 255 && mt.position >= maxPos) mt.position = 255;
-        if (mt.barPosition !== 255 && mt.barPosition >= maxPos) mt.barPosition = 255;
-      });
-    }
-    renderMetrics();
-    renderOLED();
-  }
-
-  function posOptionsHtml(cur, g, includeNoneLabel) {
-    var html = '<option value="255">' + (includeNoneLabel || 'None (hidden)') + '</option>';
-    for (var r = 0; r < g.rows; r++) {
-      if (g.large) {
-        html += '<option value="' + r + '"' + (cur === r ? ' selected' : '') + '>Row ' + (r + 1) + '</option>';
-      } else {
-        var lp = r * 2, rp = r * 2 + 1;
-        html += '<option value="' + lp + '"' + (cur === lp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Left</option>';
-        html += '<option value="' + rp + '"' + (cur === rp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Right</option>';
-      }
-    }
-    return html;
-  }
-
-  function renderOLED() {
-    var g = rowGeom();
-    var screen = $('#oledScreen');
-    var showClock = $('#showClock').checked;
-    $('#oledMeta').textContent = '128x64 · ' + g.rows + ' rows · ' + (g.cols === 1 ? 'single column' : '2 columns') + (g.large ? ' · large' : '');
-    screen.style.gridTemplateRows = 'repeat(' + g.rows + ', 1fr)';
-    screen.style.gridTemplateColumns = 'repeat(' + g.cols + ', 1fr)';
-    screen.innerHTML = '';
-    var total = g.rows * g.cols;
-    var byPos = {};
-    metricsData.forEach(function (mt) { if (mt.position !== 255) byPos[mt.position] = mt; });
-    var startCell = 0;
-    if (showClock) {
-      var cc = document.createElement('div'); cc.className = 'oled-cell oled-clock'; cc.textContent = '14:30';
-      screen.appendChild(cc); startCell = g.cols;
-    }
-    for (var p = startCell; p < total; p++) {
-      var mt = byPos[p];
-      var cell = document.createElement('div');
-      if (mt) {
-        cell.className = 'oled-cell';
-        var lbl = (mt.label || mt.name).replace(/\^/g, ' ').trim();
-        cell.innerHTML = '<span class="lbl">' + lbl + '</span><span class="val">' + (mt.unit === '%' ? '00%' : '--') + '</span>';
-      } else { cell.className = 'oled-cell empty'; cell.textContent = '—'; }
-      screen.appendChild(cell);
-    }
-  }
-
-  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-  function renderMetrics() {
-    var g = rowGeom();
-    var list = $('#metricsList');
-    list.innerHTML = '';
-    if (!metricsData.length) { list.innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; return; }
-    var sorted = metricsData.slice().sort(function (a, b) { return a.displayOrder - b.displayOrder; });
-    sorted.forEach(function (mt) {
-      var compName = mt.companionId > 0 ? (metricsData.filter(function (x){return x.id===mt.companionId;})[0] || {}).name : null;
-      var compOpts = '<option value="0">None</option>';
-      metricsData.forEach(function (x) {
-        if (x.id !== mt.id) compOpts += '<option value="' + x.id + '"' + (mt.companionId === x.id ? ' selected' : '') + '>' + esc(x.name) + ' (' + esc(x.unit) + ')</option>';
-      });
-      var row = document.createElement('div');
-      row.className = 'metric-row';
-      row.innerHTML =
-        '<div class="metric-id">' +
-          '<div class="nm"><span class="grip" title="Display order ' + mt.displayOrder + '">⠿</span>' + esc(mt.name) + '</div>' +
-          '<div class="sub">' + esc(mt.unit) + (compName ? ' · <span class="pair">+ ' + esc(compName) + '</span>' : '') + '</div>' +
-        '</div>' +
-        '<div class="metric-pos"><div class="select-wrap"><select id="pos_' + mt.id + '" name="position_' + mt.id + '" aria-label="Position">' + posOptionsHtml(mt.position, g, 'Hidden') + '</select></div></div>' +
-        '<div class="metric-adv">' +
-          '<div><label class="field-label">Custom label (10 max)</label><input type="text" name="label_' + mt.id + '" value="' + esc(mt.label) + '" maxlength="10" placeholder="' + esc(mt.name) + '"></div>' +
-          '<div><label class="field-label">Pair with</label><div class="select-wrap"><select id="comp_' + mt.id + '" name="companion_' + mt.id + '">' + compOpts + '</select></div></div>' +
-          '<div class="full"><label class="field-label">Progress bar position</label><div class="select-wrap"><select id="barPos_' + mt.id + '" name="barPosition_' + mt.id + '">' + posOptionsHtml(mt.barPosition, g, 'None') + '</select></div></div>' +
-          '<div><label class="field-label">Bar min</label><input type="number" name="barMin_' + mt.id + '" value="' + (mt.barMin || 0) + '"></div>' +
-          '<div><label class="field-label">Bar max</label><input type="number" name="barMax_' + mt.id + '" value="' + (mt.barMax || 100) + '"></div>' +
-          '<div><label class="field-label">Bar width (px)</label><input type="number" name="barWidth_' + mt.id + '" value="' + (mt.barWidth || 60) + '" min="10" max="64"></div>' +
-          '<div><label class="field-label">Bar offset X (px)</label><input type="number" name="barOffset_' + mt.id + '" value="' + (mt.barOffsetX || 0) + '" min="0" max="54"></div>' +
-        '</div>' +
-        '<input type="hidden" name="order_' + mt.id + '" value="' + mt.displayOrder + '">';
-      list.appendChild(row);
-      var posSel = $('#pos_' + mt.id, row);
-      posSel.addEventListener('change', function () { saveFormState(); renderMetrics(); renderOLED(); markDirty(); });
-      var compSel = $('#comp_' + mt.id, row);
-      compSel.addEventListener('change', function () { saveFormState(); renderMetrics(); markDirty(); });
-    });
-  }
-
-  var rowModeSel = $('#rowMode');
-  if (rowModeSel) rowModeSel.addEventListener('change', onRowMode);
-  var showClockChk = $('#showClock');
-  if (showClockChk) showClockChk.addEventListener('change', renderOLED);
-
-  fetch('/metrics').then(function (r) { return r.json(); }).then(function (data) {
-    if (data.metrics && data.metrics.length) { metricsData = data.metrics; renderMetrics(); renderOLED(); }
-    else { $('#metricsList').innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; renderOLED(); }
-  }).catch(function () { $('#metricsList').innerHTML = '<p class="field-hint">Could not load metrics from the device.</p>'; });
-
-  /* ============================================================
-     SAVE  (real POST /save, JSON response, handles networkChanged)
-     ============================================================ */
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    saveFormState();
-    var btn = $('#saveBtn'); var orig = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Saving...';
-    var body = new URLSearchParams(new FormData(form));
-    fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        btn.disabled = false; btn.textContent = orig;
-        if (d.success) {
-          markClean('Saved');
-          if (d.networkChanged) {
-            alert('Network settings changed. The device is restarting - you may need to reconnect at the new IP address.');
-            setTimeout(function () { window.location.href = '/'; }, 3000);
-          }
-        } else { alert('Error saving settings.'); }
-      })
-      .catch(function (err) { btn.disabled = false; btn.textContent = orig; alert('Error saving settings: ' + err); });
-  });
-
-  /* ---- factory reset ---- */
-  $('#resetBtn').addEventListener('click', function () {
-    if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
-    if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Metric labels & layout\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
-    window.location.href = '/reset';
-  });
-
-  /* ============================================================
-     IMPORT / EXPORT  (real /api/export, /api/import)
-     ============================================================ */
-  $('#exportBtn').addEventListener('click', function () {
-    fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
-      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a'); a.href = url; a.download = 'smalloled-config.json';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-    }).catch(function (err) { alert('Error exporting configuration: ' + err); });
-  });
-  $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
-  $('#importFile').addEventListener('change', function (ev) {
-    var file = ev.target.files[0]; if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      var cfg;
-      try { cfg = JSON.parse(e.target.result); } catch (err) { alert('Invalid configuration file: ' + err); return; }
-      fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          if (d.success) { alert('Configuration imported. Reloading...'); location.reload(); }
-          else { alert('Error importing configuration: ' + d.message); }
-        })
-        .catch(function (err) { alert('Error importing configuration: ' + err); });
-    };
-    reader.readAsText(file);
-  });
-
-  /* ============================================================
-     OTA  (real multipart POST /update with progress)
-     ============================================================ */
-  var drop = $('#otaDrop'), otaFile = $('#otaFile');
-  $('#otaBrowse').addEventListener('click', function () { otaFile.click(); });
-  otaFile.addEventListener('change', function () { if (otaFile.files[0]) doUpload(otaFile.files[0]); });
-  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('drag'); }); });
-  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('drag'); }); });
-  drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) doUpload(f); });
-  function doUpload(file) {
-    if (!file.name || file.name.slice(-4) !== '.bin') { alert('Please select a valid .bin firmware file.'); return; }
-    var prog = $('#otaProgress'), fill = $('#otaFill'), pct = $('#otaPct');
-    prog.classList.add('show'); fill.style.width = '0%'; pct.textContent = 'Uploading ' + file.name + '... 0%';
-    var xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener('progress', function (e) {
-      if (e.lengthComputable) { var p = Math.round((e.loaded / e.total) * 100); fill.style.width = p + '%'; pct.textContent = 'Uploading ' + file.name + '... ' + p + '%'; }
-    });
-    xhr.addEventListener('load', function () {
-      if (xhr.status === 200) { fill.style.width = '100%'; pct.textContent = '✓ Written - rebooting device...'; setTimeout(function () { window.location.href = '/'; }, 8000); }
-      else { pct.textContent = 'Upload failed - please try again.'; }
-    });
-    xhr.addEventListener('error', function () { pct.textContent = 'Upload error - please try again.'; });
-    var fd = new FormData(); fd.append('firmware', file);
-    xhr.open('POST', '/update'); xhr.send(fd);
-  }
-
-  /* ============================================================
-     LIVE DEVICE STATUS  (/api/info + /api/status)
-     ============================================================ */
-  function fmtUptime(sec) {
-    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-    function p2(n) { return (n < 10 ? '0' : '') + n; }
-    return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
-  }
-  function refreshStatus() {
-    fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
-      if (d.ip) { var e = $('#srIp'); if (e) e.textContent = d.ip; }
-      if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname).replace(/\.local$/, ''); }
-      if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }
-      if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
-      if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
-    }).catch(function () {});
-    fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
-      var led = $('#srLed'), title = $('#srTitle');
-      if (led) { led.classList.toggle('online', !!d.pcOnline); led.classList.toggle('offline', !d.pcOnline); }
-      if (title) title.textContent = (d.pcOnline ? 'PC online' : 'PC offline') + ' · ' + (d.mode || 'clock');
-    }).catch(function () {});
-  }
-  refreshStatus();
-  setInterval(refreshStatus, 5000);
+'use strict';
+var $  = function (s, r) { return (r || document).querySelector(s); };
+var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+var CFG = window.SOLED || {};
+var navToggle = $('#navToggle'), navScrim = $('#navScrim');
+function setNav(open) {
+document.documentElement.classList.toggle('nav-open', open);
+if (navToggle) navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeNav() { setNav(false); }
+if (navToggle) navToggle.addEventListener('click', function () { setNav(!document.documentElement.classList.contains('nav-open')); });
+if (navScrim) navScrim.addEventListener('click', closeNav);
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNav(); });
+var navItems = $$('.nav-item');
+var pages = $$('.page');
+var crumb = $('#crumb');
+function showPage(key) {
+pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === key); });
+navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.nav === key); });
+var active = navItems.filter(function (n) { return n.dataset.nav === key; })[0];
+if (active && crumb) crumb.textContent = active.textContent.replace(/PC$/, '').trim();
+window.scrollTo(0, 0);
+closeNav();
+try { localStorage.setItem('soled_section', key); } catch (e) {}
+}
+navItems.forEach(function (n) { n.addEventListener('click', function () { showPage(n.dataset.nav); }); });
+try { var s = localStorage.getItem('soled_section'); if (s && $('[data-page="' + s + '"]')) showPage(s); } catch (e) {}
+var accSw = $$('.acc-sw');
+function setAccent(acc) {
+document.documentElement.setAttribute('data-accent', acc);
+accSw.forEach(function (b) { b.classList.toggle('on', b.dataset.acc === acc); });
+try { localStorage.setItem('soled_accent', acc); } catch (e) {}
+}
+accSw.forEach(function (b) { b.addEventListener('click', function () { setAccent(b.dataset.acc); }); });
+try { var a = localStorage.getItem('soled_accent'); if (a) setAccent(a); } catch (e) {}
+var modeBtns = $$('.mode-toggle button');
+function setMode(mode) {
+document.documentElement.setAttribute('data-mode', mode);
+modeBtns.forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
+var meta = $('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', mode === 'dark' ? '#161512' : '#f4f0e7');
+try { localStorage.setItem('soled_mode', mode); } catch (e) {}
+}
+modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode); }); });
+try { var m = localStorage.getItem('soled_mode'); if (m) setMode(m); } catch (e) {}
+var saveMeta = $('#saveMeta');
+function markDirty() { if (saveMeta) { saveMeta.classList.remove('clean'); $('.txt', saveMeta).textContent = 'Unsaved changes'; } }
+function markClean(txt) { if (saveMeta) { saveMeta.classList.add('clean'); $('.txt', saveMeta).textContent = txt || 'All saved'; } }
+var form = $('#cfgForm');
+form.addEventListener('input', markDirty);
+form.addEventListener('change', markDirty);
+function fmtRange(inp) {
+var span = $('.range-val[data-for="' + inp.id + '"]');
+if (!span) return;
+var suf = inp.dataset.suffix || '';
+if (inp.dataset.pct) { span.textContent = Math.round((inp.value / 255) * 100) + '%'; return; }
+var div = parseFloat(inp.dataset.div || '1');
+var fixed = parseInt(inp.dataset.fixed || '0', 10);
+span.textContent = (inp.value / div).toFixed(fixed) + suf;
+}
+$$('input[type="range"]').forEach(function (inp) { fmtRange(inp); inp.addEventListener('input', function () { fmtRange(inp); }); });
+function toggle(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+var nightChk = $('#enableScheduledDimming');
+if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
+var staticSel = $('#useStaticIP');
+if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
+var refSel = $('#refreshRateMode');
+if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
+var marioEnc = $('#marioIdleEncounters');
+if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings' };
+var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings'];
+var clockStyle = $('#clockStyle');
+function syncClockPanels() {
+ALL_PANELS.forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+var show = STYLE_PANELS[clockStyle.value];
+if (show) { var e = document.getElementById(show); if (e) e.style.display = ''; }
+}
+if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
+var dn = $('#deviceName');
+if (dn) dn.addEventListener('input', function () {
+var v = dn.value.toLowerCase() || 'smalloled';
+var hp = $('#hostPreview'); if (hp) hp.textContent = v;
+var sh = $('#srHost'); if (sh) sh.textContent = v;
+});
+var metricsData = [];
+var DEVTIME = '12:34';
+var MAX_ROWS = CFG.maxRows || 5;
+var IS_LARGE = !!CFG.isLarge;
+function rowGeom() {
+var rm = parseInt($('#rowMode').value, 10);
+IS_LARGE = (rm >= 2);
+MAX_ROWS = (rm === 0) ? 5 : (rm === 1) ? 6 : (rm === 2) ? 2 : 3;
+return { rows: MAX_ROWS, cols: IS_LARGE ? 1 : 2, large: IS_LARGE };
+}
+function byId(id) { for (var i = 0; i < metricsData.length; i++) if (metricsData[i].id === id) return metricsData[i]; return null; }
+var FONT = (function () {
+var h = "00000000003e5b4f5b3e3e6b4f6b3e1c3e7c3e1c183c7e3c181c577d571c1c5e7f5e1c00183c1800ffe7c3e7ff0018241800ffe7dbe7ff30483a060e2629792926407f050507407f05253f5a3ce73c5a7f3e1c1c08081c1c3e7f14227f22145f5f005f5f06097f017f006689956a606060606094a2ffa29408047e040810207e201008082a1c08081c2a08081e101010100c1e0c1e0c30383e3830060e3e0e06000000000000005f00000007000700147f147f14242a7f2a12231308646236495620500008070300001c2241000041221c002a1c7f1c2a08083e080800807030000808080808000060600020100804023e5149453e00427f400072494949462141494d331814127f1027454545393c4a49493141211109073649494936464949291e0000140000004034000000081422411414141414004122140802015909063e415d594e7c1211127c7f494949363e414141227f4141413e7f494949417f090909013e414151737f0808087f00417f41002040413f017f081422417f404040407f021c027f7f0408107f3e4141413e7f090909063e4151215e7f09192946264949493203017f01033f4040403f1f2040201f3f4038403f631408146303047804036159494d43007f4141410204081020004141417f04020102044040404040000307080020545478407f284444383844444428384444287f385454541800087e090218a4a49c787f0804047800447d40002040403d007f1028440000417f40007c047804787c080404783844444438fc1824241818242418fc7c08040408485454542404043f44243c4040207c1c2040201c3c4030403c44281028444c9090907c4464544c4400083641000000770000004136080002010204023c2623263c1ea1a161123a4040207a385454555921555579412254547842215554784020545579400c1e5272123955555559395454545939555454580000457c410002457d420001457c407d1211127df0282528f07c545545002054547c547c0a097f4932494949323a4444443a324a4848303a4141217a3a42402078009da0a07d3d4242423d3d4040403d3c24ff2424487e4943662b2ffc2f2bff0929f620c0887e090320545479410000447d413048484a32384040227a007a0a0a727d0d19317d2629292f28262929292630484d4020380808080808080808382f10c8acba2f102834fa00007b000008142a142222142a14085500550055aa55aa55aaff55ff55ff000000ff00101010ff00141414ff001010ff00ff1010f010f0141414fc001414f700ff0000ff00ff1414f404fc141417101f10101f101f1414141f00101010f0000000001f101010101f10101010f010000000ff101010101010101010ff10000000ff140000ff00ff00001f10170000fc04f414141710171414f404f40000ff00f714141414141414f700f7141414171410101f101f141414f4141010f010f000001f101f0000001f14000000fc140000f010f01010ff10ff141414ff141010101f00000000f010fffffffffff0f0f0f0f0ffffff0000000000ffff0f0f0f0f0f3844443844fc4a4a4a347e02020606027e027e0263554941633844443c04407e201e2006027e020299a5e7a5991c2a492a1c4c7201724c304a4d4d303048784830bc625a463d3e494949007e0101017e2a2a2a2a2a44445f444440514a444040444a51400000ff0103e080ff000008086b6b083612362436060f090f06000018180000001010003040ff0101001f01011e00191d1712003c3c3c3c0000000000";
+var a = new Uint8Array(1280);
+for (var i = 0; i < 1280; i++) a[i] = parseInt(h.substr(i * 2, 2), 16);
+return a;
+})();
+function FB() { this.buf = new Uint8Array(128 * 64); }
+FB.prototype.px = function (x, y, v) { x |= 0; y |= 0; if (x >= 0 && x < 128 && y >= 0 && y < 64) this.buf[y * 128 + x] = v; };
+FB.prototype.fillRect = function (x, y, w, h, v) { for (var yy = y; yy < y + h; yy++) for (var xx = x; xx < x + w; xx++) this.px(xx, yy, v); };
+FB.prototype.drawRect = function (x, y, w, h, v) { var xx, yy; for (xx = x; xx < x + w; xx++) { this.px(xx, y, v); this.px(xx, y + h - 1, v); } for (yy = y; yy < y + h; yy++) { this.px(x, yy, v); this.px(x + w - 1, yy, v); } };
+function drawChar(fb, x, y, ch, size) {
+var o = ch.charCodeAt(0); if (o > 255) o = 63;
+if (x >= 128 || y >= 64 || (x + 6 * size - 1) < 0 || (y + 8 * size - 1) < 0) return;
+var base = o * 5;
+for (var col = 0; col < 5; col++) {
+var line = FONT[base + col];
+for (var row = 0; row < 8; row++) {
+if ((line >> row) & 1) {
+if (size === 1) fb.px(x + col, y + row, 255);
+else fb.fillRect(x + col * size, y + row * size, size, size, 255);
+}
+}
+}
+}
+function write(fb, x, y, text, size, wrap) {
+var cx = x, cy = y;
+for (var i = 0; i < text.length; i++) {
+var ch = text.charAt(i);
+if (ch === '\n') { cx = 0; cy += size * 8; continue; }
+if (ch === '\r') continue;
+if (wrap && (cx + size * 6) > 128) { cx = 0; cy += size * 8; }
+drawChar(fb, cx, cy, ch, size); cx += size * 6;
+}
+return [cx, cy];
+}
+function buildMetricText(label, unit, value, rpmK, netMB) {
+var dl = (label || '').replace(/\^/g, ' ');
+var stripped = dl.replace(/ +$/, '');
+var trailing = dl.length - stripped.length; dl = stripped;
+if (dl.charAt(dl.length - 1) === '%') dl = dl.slice(0, -1);
+var spaces = new Array(Math.min(trailing, 10) + 1).join(' ');
+if (rpmK && unit === 'RPM' && value >= 1000) return dl + ':' + spaces + (value / 1000).toFixed(1) + 'K';
+if (unit === 'KB/s') { var a = value / 10; if (netMB) return dl + ':' + spaces + (a / 1000).toFixed(1) + 'M'; return dl + ':' + spaces + a.toFixed(1) + unit; }
+return dl + ':' + spaces + value + unit;
+}
+function buildCompanionText(unit, value, netMB) {
+if (unit === 'KB/s') { var cv = value / 10; if (netMB) return ' ' + (cv / 1000).toFixed(1) + 'M'; return ' ' + cv.toFixed(1) + unit; }
+return ' ' + value + unit;
+}
+function renderFrame() {
+saveFormState();
+var fb = new FB();
+var rm = parseInt($('#rowMode').value, 10);
+var showClock = $('#showClock').checked;
+var clockPos = parseInt(($('#clockPosition') || {}).value || '0', 10);
+var clockOffset = parseInt(($('#clockOffset') || {}).value || '0', 10) || 0;
+var rpmK = $('#rpmKFormat') ? $('#rpmKFormat').checked : false;
+var netMB = $('#netMBFormat') ? $('#netMBFormat').checked : false;
+var ts = DEVTIME || '12:34';
+var isLarge = rm >= 2, textH = isLarge ? 16 : 8;
+function slotText(pos) { for (var i = 0; i < metricsData.length; i++) if (metricsData[i].position === pos) return metricsData[i]; return null; }
+function slotBar(pos) { for (var i = 0; i < metricsData.length; i++) if (metricsData[i].barPosition === pos) return metricsData[i]; return null; }
+function lblOf(mt) { return (mt.label && mt.label.length) ? mt.label : mt.name; }
+function drawBar(x, y, mt, large) {
+var ax = x + (mt.barOffsetX || 0), aw = (mt.barWidth || 60);
+if (ax >= 128 || ax < 0) return;
+if (ax + aw > 128) aw = 128 - ax;
+if (aw <= 0) return;
+var bmin = mt.barMin | 0, bmax = (mt.barMax == null ? 100 : mt.barMax);
+var rng = bmax - bmin; if (rng <= 0) rng = 100;
+var dv = (mt.unit === 'KB/s') ? Math.floor(mt.value / 10) : mt.value;
+var vir = Math.max(bmin, Math.min(dv, bmax)) - bmin;
+var fillW = Math.floor(vir * (aw - 2) / rng);
+var barH = large ? 16 : 8;
+fb.drawRect(ax, y, aw, barH, 255);
+if (fillW > 0) fb.fillRect(ax + 1, y + 1, fillW, barH - 2, 255);
+}
+function drawText(x, y, mt, size, wrap, large) {
+var text = buildMetricText(lblOf(mt), mt.unit, mt.value | 0, rpmK, netMB);
+var comp = (mt.companionId > 0) ? byId(mt.companionId) : null;
+if (comp && !large) text += buildCompanionText(comp.unit, comp.value | 0, netMB);
+var cc = write(fb, x, y, text, size, wrap);
+if (comp && large) {
+var ct = buildCompanionText(comp.unit, comp.value | 0, netMB).slice(1);
+var cxp = 128 - ct.length * 12; if (cxp < cc[0] + 4) cxp = cc[0] + 4;
+write(fb, cxp, y, ct, size, wrap);
+}
+}
+if (isLarge) {
+var maxRows = (rm === 2) ? 2 : 3;
+var startY = (rm === 2) ? 8 : 4;
+if (showClock) { write(fb, 48 + clockOffset, 0, ts, 1, false); startY = (rm === 2) ? 12 : 10; }
+var rowH = (rm === 2) ? 32 : (showClock ? 18 : 20);
+for (var r = 0; r < maxRows; r++) {
+var y = startY + r * rowH; if (y + textH > 64) break;
+var b = slotBar(r); if (b) { drawBar(0, y, b, true); continue; }
+var e = slotText(r); if (e) drawText(0, y, e, 2, false, true);
+}
+} else {
+var COL1 = 0, COL2 = 62, maxRowsN = (rm === 0) ? 5 : 6, sY, rH;
+if (rm === 0) { sY = 0; rH = (showClock && clockPos === 0) ? 11 : 13; } else { sY = 2; rH = 10; }
+if (showClock) {
+if (clockPos === 0) { write(fb, 48 + clockOffset, sY, ts, 1, true); sY += 10; }
+else if (clockPos === 1) write(fb, COL1 + clockOffset, sY, ts, 1, true);
+else if (clockPos === 2) write(fb, COL2 + clockOffset, sY, ts, 1, true);
+}
+for (var rr = 0; rr < maxRowsN; rr++) {
+var yy = sY + rr * rH; if (yy + 8 > 64) break;
+var cols = [[COL1, rr * 2, showClock && clockPos === 1 && rr === 0], [COL2, rr * 2 + 1, showClock && clockPos === 2 && rr === 0]];
+for (var ci = 0; ci < 2; ci++) {
+var cx = cols[ci][0], pos = cols[ci][1]; if (cols[ci][2]) continue;
+var bb = slotBar(pos); if (bb) { drawBar(cx, yy, bb, false); continue; }
+var ee = slotText(pos); if (ee) drawText(cx, yy, ee, 1, true, false);
+}
+}
+}
+blit(fb);
+var g = rowGeom();
+$('#oledMeta').textContent = '128x64 - ' + g.rows + ' rows - ' + (g.cols === 1 ? 'single column' : '2 columns');
+}
+function blit(fb) {
+var canvas = $('#oledCanvas'); if (!canvas) return;
+var ctx = canvas.getContext('2d');
+var amber = document.documentElement.getAttribute('data-accent') === 'amber';
+var on = amber ? [255, 207, 122] : [132, 243, 173];
+var off = amber ? [12, 8, 3] : [6, 13, 9];
+var img = ctx.createImageData(128, 64), d = img.data;
+for (var i = 0; i < fb.buf.length; i++) {
+var c = fb.buf[i] ? on : off, o = i * 4;
+d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+}
+ctx.putImageData(img, 0, 0);
+}
+function rowMaxSlots(rm) { return rm === 0 ? 10 : rm === 1 ? 12 : rm === 2 ? 2 : 3; }
+function slotGeom(rm, slot, showClock, clockPos) {
+if (slot < 0 || slot >= rowMaxSlots(rm)) return null;
+if (rm >= 2) {
+var sy, rh;
+if (showClock) { if (rm === 2) { sy = 12; rh = 32; } else { sy = 10; rh = 18; } }
+else { if (rm === 2) { sy = 8; rh = 32; } else { sy = 4; rh = 20; } }
+return { x: 0, y: sy + slot * rh, w: 128, h: rh };
+}
+var sy2, rh2;
+if (rm === 0) { sy2 = 0; rh2 = (showClock && clockPos === 0) ? 11 : 13; } else { sy2 = 2; rh2 = 10; }
+if (showClock && clockPos === 0) sy2 += 10;
+var row = Math.floor(slot / 2), col = slot % 2;
+return { x: col === 0 ? 0 : 62, y: sy2 + row * rh2, w: col === 0 ? 60 : 64, h: rh2 };
+}
+function clockBlockedSlot(rm, clockPos, showClock) { if (!showClock || rm >= 2 || clockPos === 0) return -1; return clockPos === 1 ? 0 : 1; }
+function buildDropCells() {
+var host = $('#dropCells'); if (!host) return;
+var rm = parseInt($('#rowMode').value, 10);
+var showClock = $('#showClock').checked;
+var clockPos = parseInt(($('#clockPosition') || {}).value || '0', 10);
+host.innerHTML = '';
+var n = rowMaxSlots(rm), blocked = clockBlockedSlot(rm, clockPos, showClock);
+for (var s = 0; s < n; s++) {
+if (s === blocked) continue;
+var g = slotGeom(rm, s, showClock, clockPos); if (!g) continue;
+var h = Math.min(g.h, 64 - g.y); if (h <= 0) continue;
+var cell = document.createElement('div');
+cell.className = 'drop-cell'; cell.dataset.slot = s;
+cell.style.left = (g.x / 128 * 100) + '%'; cell.style.top = (g.y / 64 * 100) + '%';
+cell.style.width = (g.w / 128 * 100) + '%'; cell.style.height = (h / 64 * 100) + '%';
+attachDrop(cell, s);
+host.appendChild(cell);
+}
+}
+var DRAG_ID = null;
+function setPositions(targetSlot) {
+saveFormState();
+if (targetSlot !== 255) metricsData.forEach(function (x) { if (x.id !== DRAG_ID && x.position === targetSlot) x.position = 255; });
+var mt = byId(DRAG_ID); if (mt) mt.position = targetSlot;
+renderMetrics(); renderFrame(); buildDropCells(); markDirty();
+}
+function attachDrop(cell, slot) {
+cell.addEventListener('dragover', function (e) { if (DRAG_ID != null) { e.preventDefault(); cell.classList.add('over'); } });
+cell.addEventListener('dragleave', function () { cell.classList.remove('over'); });
+cell.addEventListener('drop', function (e) { e.preventDefault(); cell.classList.remove('over'); if (DRAG_ID != null) setPositions(slot); });
+}
+function makeRowDraggable(row, id) {
+row.setAttribute('draggable', 'true');
+row.addEventListener('dragstart', function (e) {
+DRAG_ID = id; row.classList.add('drag-src');
+var st = $('#oledStage'); if (st) st.classList.add('dragging');
+try { e.dataTransfer.setData('text/plain', String(id)); e.dataTransfer.effectAllowed = 'move'; } catch (_) {}
+});
+row.addEventListener('dragend', function () {
+DRAG_ID = null; row.classList.remove('drag-src');
+var st = $('#oledStage'); if (st) st.classList.remove('dragging');
+});
+}
+function setupListDrop() {
+var list = $('#metricsList'); if (!list) return;
+list.addEventListener('dragover', function (e) { if (DRAG_ID != null) e.preventDefault(); });
+list.addEventListener('drop', function (e) { if (DRAG_ID != null) { e.preventDefault(); setPositions(255); } });
+}
+function saveFormState() {
+metricsData.forEach(function (mt) {
+var lbl = document.querySelector('input[name="label_' + mt.id + '"]'); if (lbl) mt.label = lbl.value;
+var pos = document.getElementById('pos_' + mt.id); if (pos) mt.position = parseInt(pos.value, 10);
+var comp = document.getElementById('comp_' + mt.id); if (comp) mt.companionId = parseInt(comp.value, 10);
+var bp = document.getElementById('barPos_' + mt.id); if (bp) mt.barPosition = parseInt(bp.value, 10);
+var bmin = document.querySelector('input[name="barMin_' + mt.id + '"]'); if (bmin) mt.barMin = parseInt(bmin.value, 10) || 0;
+var bmax = document.querySelector('input[name="barMax_' + mt.id + '"]'); if (bmax) mt.barMax = parseInt(bmax.value, 10) || 100;
+var bw = document.querySelector('input[name="barWidth_' + mt.id + '"]'); if (bw) mt.barWidth = parseInt(bw.value, 10) || 60;
+var bo = document.querySelector('input[name="barOffset_' + mt.id + '"]'); if (bo) mt.barOffsetX = parseInt(bo.value, 10) || 0;
+});
+}
+function onRowMode() {
+saveFormState();
+var g = rowGeom();
+var maxPos = g.large ? g.rows : g.rows * 2;
+var hidden = metricsData.filter(function (mt) {
+return (mt.position !== 255 && mt.position >= maxPos) || (mt.barPosition !== 255 && mt.barPosition >= maxPos);
+});
+if (hidden.length > 0) {
+var names = hidden.map(function (mt) { return mt.name; }).join(', ');
+if (!confirm('Warning: ' + hidden.length + ' metric(s) (' + names + ') will be hidden in this row mode. Continue?')) { return; }
+metricsData.forEach(function (mt) {
+if (mt.position !== 255 && mt.position >= maxPos) mt.position = 255;
+if (mt.barPosition !== 255 && mt.barPosition >= maxPos) mt.barPosition = 255;
+});
+}
+renderMetrics(); buildDropCells(); renderFrame();
+}
+function posOptionsHtml(cur, g, includeNoneLabel) {
+var html = '<option value="255">' + (includeNoneLabel || 'None (hidden)') + '</option>';
+for (var r = 0; r < g.rows; r++) {
+if (g.large) {
+html += '<option value="' + r + '"' + (cur === r ? ' selected' : '') + '>Row ' + (r + 1) + '</option>';
+} else {
+var lp = r * 2, rp = r * 2 + 1;
+html += '<option value="' + lp + '"' + (cur === lp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Left</option>';
+html += '<option value="' + rp + '"' + (cur === rp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Right</option>';
+}
+}
+return html;
+}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function renderMetrics() {
+var g = rowGeom();
+var list = $('#metricsList');
+list.innerHTML = '';
+if (!metricsData.length) { list.innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; return; }
+var sorted = metricsData.slice().sort(function (a, b) { return a.displayOrder - b.displayOrder; });
+sorted.forEach(function (mt) {
+var compName = mt.companionId > 0 ? (metricsData.filter(function (x) { return x.id === mt.companionId; })[0] || {}).name : null;
+var compOpts = '<option value="0">None</option>';
+metricsData.forEach(function (x) {
+if (x.id !== mt.id) compOpts += '<option value="' + x.id + '"' + (mt.companionId === x.id ? ' selected' : '') + '>' + esc(x.name) + ' (' + esc(x.unit) + ')</option>';
+});
+var row = document.createElement('div');
+row.className = 'metric-row';
+row.innerHTML =
+'<div class="metric-id">' +
+'<div class="nm"><span class="grip" title="Drag to place on the screen">⠿</span>' + esc(mt.name) + '</div>' +
+'<div class="sub">' + esc(mt.unit) + (compName ? ' - <span class="pair">+ ' + esc(compName) + '</span>' : '') + '</div>' +
+'</div>' +
+'<div class="metric-pos"><div class="select-wrap"><select id="pos_' + mt.id + '" name="position_' + mt.id + '" aria-label="Position">' + posOptionsHtml(mt.position, g, 'Hidden') + '</select></div></div>' +
+'<div class="metric-adv">' +
+'<div><label class="field-label">Custom label (10 max)</label><input type="text" name="label_' + mt.id + '" value="' + esc(mt.label) + '" maxlength="10" placeholder="' + esc(mt.name) + '"></div>' +
+'<div><label class="field-label">Pair with</label><div class="select-wrap"><select id="comp_' + mt.id + '" name="companion_' + mt.id + '">' + compOpts + '</select></div></div>' +
+'<div class="full"><label class="field-label">Progress bar position</label><div class="select-wrap"><select id="barPos_' + mt.id + '" name="barPosition_' + mt.id + '">' + posOptionsHtml(mt.barPosition, g, 'None') + '</select></div></div>' +
+'<div><label class="field-label">Bar min</label><input type="number" name="barMin_' + mt.id + '" value="' + (mt.barMin || 0) + '"></div>' +
+'<div><label class="field-label">Bar max</label><input type="number" name="barMax_' + mt.id + '" value="' + (mt.barMax || 100) + '"></div>' +
+'<div><label class="field-label">Bar width (px)</label><input type="number" name="barWidth_' + mt.id + '" value="' + (mt.barWidth || 60) + '" min="10" max="64"></div>' +
+'<div><label class="field-label">Bar offset X (px)</label><input type="number" name="barOffset_' + mt.id + '" value="' + (mt.barOffsetX || 0) + '" min="0" max="54"></div>' +
+'</div>' +
+'<input type="hidden" name="order_' + mt.id + '" value="' + mt.displayOrder + '">';
+list.appendChild(row);
+makeRowDraggable(row, mt.id);
+$('#pos_' + mt.id, row).addEventListener('change', function () { saveFormState(); renderMetrics(); buildDropCells(); renderFrame(); markDirty(); });
+$('#comp_' + mt.id, row).addEventListener('change', function () { saveFormState(); renderMetrics(); renderFrame(); markDirty(); });
+$('#barPos_' + mt.id, row).addEventListener('change', function () { saveFormState(); renderFrame(); markDirty(); });
+row.addEventListener('input', function () { saveFormState(); renderFrame(); });
+});
+}
+var rowModeSel = $('#rowMode');
+if (rowModeSel) rowModeSel.addEventListener('change', onRowMode);
+var showClockChk = $('#showClock');
+if (showClockChk) showClockChk.addEventListener('change', function () { buildDropCells(); renderFrame(); });
+var clockPosSel = $('#clockPosition');
+if (clockPosSel) clockPosSel.addEventListener('change', function () { buildDropCells(); renderFrame(); });
+['clockOffset', 'rpmKFormat', 'netMBFormat'].forEach(function (id) {
+var el = document.getElementById(id); if (!el) return;
+el.addEventListener('input', renderFrame); el.addEventListener('change', renderFrame);
+});
+setupListDrop();
+function pollMetrics() {
+fetch('/metrics').then(function (r) { return r.json(); }).then(function (data) {
+if (data.time) DEVTIME = data.time;
+if (data.metrics) data.metrics.forEach(function (d) { var m = byId(d.id); if (m) m.value = d.value; });
+renderFrame();
+}).catch(function () {});
+}
+fetch('/metrics').then(function (r) { return r.json(); }).then(function (data) {
+if (data.time) DEVTIME = data.time;
+if (data.metrics && data.metrics.length) { metricsData = data.metrics; renderMetrics(); buildDropCells(); renderFrame(); }
+else { $('#metricsList').innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; buildDropCells(); renderFrame(); }
+setInterval(pollMetrics, 1500);
+}).catch(function () { $('#metricsList').innerHTML = '<p class="field-hint">Could not load metrics from the device.</p>'; });
+form.addEventListener('submit', function (e) {
+e.preventDefault();
+saveFormState();
+var btn = $('#saveBtn'); var orig = btn.textContent;
+btn.disabled = true; btn.textContent = 'Saving...';
+var body = new URLSearchParams(new FormData(form));
+fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+.then(function (r) { return r.json(); })
+.then(function (d) {
+btn.disabled = false; btn.textContent = orig;
+if (d.success) {
+markClean('Saved');
+if (d.networkChanged) {
+alert('Network settings changed. The device is restarting - you may need to reconnect at the new IP address.');
+setTimeout(function () { window.location.href = '/'; }, 3000);
+}
+} else { alert('Error saving settings.'); }
+})
+.catch(function (err) { btn.disabled = false; btn.textContent = orig; alert('Error saving settings: ' + err); });
+});
+$('#resetBtn').addEventListener('click', function () {
+if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
+if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Metric labels & layout\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
+window.location.href = '/reset';
+});
+$('#exportBtn').addEventListener('click', function () {
+fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
+var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+var url = URL.createObjectURL(blob);
+var a = document.createElement('a'); a.href = url; a.download = 'smalloled-config.json';
+document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}).catch(function (err) { alert('Error exporting configuration: ' + err); });
+});
+$('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
+$('#importFile').addEventListener('change', function (ev) {
+var file = ev.target.files[0]; if (!file) return;
+var reader = new FileReader();
+reader.onload = function (e) {
+var cfg;
+try { cfg = JSON.parse(e.target.result); } catch (err) { alert('Invalid configuration file: ' + err); return; }
+fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
+.then(function (r) { return r.json(); })
+.then(function (d) {
+if (d.success) { alert('Configuration imported. Reloading...'); location.reload(); }
+else { alert('Error importing configuration: ' + d.message); }
+})
+.catch(function (err) { alert('Error importing configuration: ' + err); });
+};
+reader.readAsText(file);
+});
+var drop = $('#otaDrop'), otaFile = $('#otaFile');
+$('#otaBrowse').addEventListener('click', function () { otaFile.click(); });
+otaFile.addEventListener('change', function () { if (otaFile.files[0]) doUpload(otaFile.files[0]); });
+['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('drag'); }); });
+['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('drag'); }); });
+drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) doUpload(f); });
+function doUpload(file) {
+if (!file.name || file.name.slice(-4) !== '.bin') { alert('Please select a valid .bin firmware file.'); return; }
+var prog = $('#otaProgress'), fill = $('#otaFill'), pct = $('#otaPct');
+prog.classList.add('show'); fill.style.width = '0%'; pct.textContent = 'Uploading ' + file.name + '... 0%';
+var xhr = new XMLHttpRequest();
+xhr.upload.addEventListener('progress', function (e) {
+if (e.lengthComputable) { var p = Math.round((e.loaded / e.total) * 100); fill.style.width = p + '%'; pct.textContent = 'Uploading ' + file.name + '... ' + p + '%'; }
+});
+xhr.addEventListener('load', function () {
+if (xhr.status === 200) { fill.style.width = '100%'; pct.textContent = '✓ Written - rebooting device...'; setTimeout(function () { window.location.href = '/'; }, 8000); }
+else { pct.textContent = (xhr.responseText || 'Upload failed - please try again.'); }
+});
+xhr.addEventListener('error', function () { pct.textContent = 'Upload error - please try again.'; });
+var fd = new FormData(); fd.append('firmware', file);
+xhr.open('POST', '/update'); xhr.send(fd);
+}
+function fmtUptime(sec) {
+var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+function p2(n) { return (n < 10 ? '0' : '') + n; }
+return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
+}
+function refreshStatus() {
+fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
+if (d.ip) { var e = $('#srIp'); if (e) e.textContent = d.ip; }
+if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname).replace(/\.local$/, ''); }
+if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }
+if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
+if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
+}).catch(function () {});
+fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
+var led = $('#srLed'), title = $('#srTitle');
+if (led) { led.classList.toggle('online', !!d.pcOnline); led.classList.toggle('offline', !d.pcOnline); }
+if (title) title.textContent = (d.pcOnline ? 'PC online' : 'PC offline') + ' · ' + (d.mode || 'clock');
+}).catch(function () {});
+}
+refreshStatus();
+setInterval(refreshStatus, 5000);
 })();
 )JS";

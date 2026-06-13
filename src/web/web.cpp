@@ -53,7 +53,18 @@ void setupWebServer() {
 
  // OTA Firmware Update handlers
  server.on("/update", HTTP_POST, []() {
- server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+ if (Update.hasError()) {
+   // Surface the real reason (non-200 so the UI knows it failed). The common
+   // case once the firmware outgrows an older default partition table is a
+   // space error - point the user at the browser flasher, which writes the
+   // partition table (full flash) and so repartitions to the larger slots.
+   String msg = String("Update failed: ") + Update.errorString() +
+                ". If this is a size/space error the firmware no longer fits this "
+                "device's OTA partition - re-flash once via the browser flasher to repartition.";
+   server.send(500, "text/plain", msg);
+   return; // keep running the current firmware
+ }
+ server.send(200, "text/plain", "OK");
  delay(1000);
  ESP.restart();
  }, []() {
@@ -92,6 +103,7 @@ void handleMetricsAPI() {
    obj["name"] = m.name;
    obj["label"] = m.label;
    obj["unit"] = m.unit;
+   obj["value"] = m.value;           // live value (for the 1:1 preview)
    obj["displayOrder"] = m.displayOrder;
    obj["companionId"] = m.companionId;
    obj["position"] = m.position;
@@ -101,6 +113,13 @@ void handleMetricsAPI() {
    obj["barWidth"] = m.barWidth;
    obj["barOffsetX"] = m.barOffsetX;
  }
+
+ // Device-side context for the live preview: connection state + current time.
+ doc["online"] = metricData.online;
+ struct tm ti;
+ char ts[6] = "--:--";
+ if (getLocalTime(&ti, 0)) strftime(ts, sizeof(ts), "%H:%M", &ti);
+ doc["time"] = ts;
 
  String json;
  serializeJson(doc, json);
