@@ -1,159 +1,1524 @@
 // AUTO-GENERATED page template. See src/web/web.cpp (handleRoot/streamTemplate).
-// Full HTML config page stored in flash (PROGMEM). Dynamic values are
-// {TOKEN} placeholders resolved at stream time by resolvePlaceholder().
+// Redesigned "paper docs" config portal (master-detail layout).
+//
+// Three PROGMEM blobs:
+//   PAGE_HTML  - markup + %TOKEN% placeholders, streamed/substituted by handleRoot().
+//   PORTAL_CSS - styles, served verbatim from /portal.css (no tokens, long cache).
+//   PORTAL_JS  - interactions, served verbatim from /portal.js (no tokens, long cache).
+//
+// Keeping CSS/JS on their own cacheable routes leaves PAGE_HTML small so peak
+// heap during the token-substituted render stays low on the ESP32-C3.
 #pragma once
 #include <Arduino.h>
 
-static const char PAGE_HTML[] PROGMEM = R"PAGE(
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mini OLED Configurator v%VER%</title><style> *{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;margin:0;padding:20px;background:linear-gradient(135deg,#0f0c29 0%,#1a1a2e 50%,#24243e 100%);background-attachment:fixed;color:#e0e7ff;min-height:100vh}.container{max-width:420px;margin:0 auto;padding-bottom:100px}h1{color:#fff;text-align:center;font-size:28px;font-weight:700;margin:0 0 8px;text-shadow:0 2px 10px rgba(0,212,255,.3)}.card{background:rgba(22,33,62,.6);backdrop-filter:blur(10px);padding:20px;border-radius:12px;margin-bottom:15px;border:1px solid rgba(0,212,255,.15);box-shadow:0 4px 15px rgba(0,0,0,.2)}label{display:block;margin:15px 0 8px;color:#00d4ff;font-size:14px;font-weight:500;letter-spacing:.3px}select,input[type="number"],input[type="text"]{width:100%;padding:12px 14px;border:2px solid rgba(0,212,255,.2);border-radius:8px;background:rgba(15,52,96,.5);color:#fff;font-size:15px;transition:all .3s ease;cursor:pointer}select:hover,input[type="number"]:hover,input[type="text"]:hover{border-color:rgba(0,212,255,.4);background:rgba(15,52,96,.7)}select:focus,input:focus{outline:none;border-color:#00d4ff;background:rgba(15,52,96,.8);box-shadow:0 0 0 3px rgba(0,212,255,.1)}input[type="checkbox"]{appearance:none;width:20px;height:20px;border:2px solid rgba(0,212,255,.4);border-radius:5px;background:rgba(15,52,96,.5);cursor:pointer;position:relative;transition:all .3s ease;flex-shrink:0}input[type="checkbox"]:hover{border-color:#00d4ff;transform:scale(1.05)}input[type="checkbox"]:checked{background:linear-gradient(135deg,#00d4ff 0%,#0096ff 100%);border-color:#00d4ff}input[type="checkbox"]:checked::after{content:'✓';position:absolute;color:#0f0c29;font-size:14px;font-weight:bold;top:50%;left:50%;transform:translate(-50%,-50%)}button{width:100%;padding:14px;margin-top:20px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s ease;text-transform:uppercase;letter-spacing:.5px}.save-btn{background:linear-gradient(135deg,#00d4ff 0%,#0096ff 100%);color:#0f0c29;box-shadow:0 4px 15px rgba(0,212,255,.3)}.save-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,212,255,.4)}.save-btn:active{transform:translateY(0)}.reset-btn{background:linear-gradient(135deg,#ff6b6b 0%,#ee5a52 100%);color:#fff;box-shadow:0 4px 15px rgba(255,107,107,.2)}.reset-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,.3)}.reset-btn:active{transform:translateY(0)}.info{text-align:center;color:#94a3b8;font-size:12px;margin-top:20px}.status{background:rgba(15,52,96,.4);padding:12px;border-radius:10px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,212,255,.2);font-size:14px}.section-header{background:linear-gradient(135deg,rgba(15,52,96,.6) 0%,rgba(26,77,122,.4) 100%);padding:16px 18px;border-radius:10px;cursor:pointer;margin-bottom:10px;user-select:none;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(0,212,255,.15);transition:all .3s ease}.section-header:hover{background:linear-gradient(135deg,rgba(15,52,96,.8) 0%,rgba(26,77,122,.6) 100%);transform:translateX(4px);border-color:rgba(0,212,255,.3)}.section-header h3{margin:0;color:#00d4ff;font-size:16px;font-weight:600}.section-arrow{font-size:14px;transition:transform .3s ease;color:#00d4ff}.section-arrow.collapsed{transform:rotate(-90deg)}.section-content{max-height:10000px;overflow:visible;transition:max-height .3s ease,opacity .3s ease;opacity:1}.section-content.collapsed{max-height:0;overflow:hidden;opacity:0}.config-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}.export-btn{background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;padding:12px;font-size:14px;margin-top:0;border-radius:8px;font-weight:600;box-shadow:0 4px 12px rgba(16,185,129,.2);transition:all .3s ease}.export-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,185,129,.3)}.import-btn{background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:#fff;padding:12px;font-size:14px;margin-top:0;border-radius:8px;font-weight:600;box-shadow:0 4px 12px rgba(59,130,246,.2);transition:all .3s ease}.import-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(59,130,246,.3)}.sticky-save{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(15,12,41,.98) 0%,rgba(15,12,41,.95) 100%);backdrop-filter:blur(10px);padding:12px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.4);z-index:1000;border-top:1px solid rgba(0,212,255,.2)}.sticky-save .container{max-width:420px;margin:0 auto;padding-bottom:0}.sticky-save button{margin-top:0}#importFile{display:none}@media (max-width:480px){body{padding:12px}.container{padding-bottom:90px}h1{font-size:24px}.card{padding:16px}.section-header{padding:14px 16px}.section-header h3{font-size:15px}select,input[type="number"],input[type="text"]{font-size:16px;padding:11px 12px}button{padding:13px;font-size:15px}.sticky-save{padding:10px 12px}}@media (max-width:360px){h1{font-size:22px}.config-buttons{grid-template-columns:1fr;gap:8px}}</style></head><body><div class="container"><h1>&#128421; Mini OLED Configurator <span style="font-size: 0.5em; font-weight: normal;">v%VER%</span></h1><div class="status"><strong>IP:</strong> %IP% | <strong>UDP Port:</strong> 4210
- </div><!-- Config Management --><div class="config-buttons"><button type="button" class="export-btn" onclick="exportConfig()">&#128190; Export Config</button><button type="button" class="import-btn" onclick="document.getElementById('importFile').click()">&#128229; Import Config</button></div><input type="file" id="importFile" accept=".json" onchange="importConfig(event)"><form action="/save" method="POST"><!-- Clock Settings Section --><div class="section-header" onclick="toggleSection('clockSection')"><h3>&#128348; Clock Settings</h3><span class="section-arrow">&#9660;</span></div><div id="clockSection" class="section-content collapsed"><div class="card"><label for="clockStyle">Idle Clock Style</label><select name="clockStyle" id="clockStyle" onchange="toggleMarioSettings()"><option value="0" %SEL_CLOCKSTYLE_0%>Mario Animation</option><option value="1" %SEL_CLOCKSTYLE_1%>Standard Clock</option><option value="2" %SEL_CLOCKSTYLE_2%>Large Clock</option><option value="3" %SEL_CLOCKSTYLE_3%>Space Invaders</option><option value="5" %SEL_CLOCKSTYLE_5%>Arkanoid</option><option value="6" %SEL_CLOCKSTYLE_6%>Pac-Man Clock</option><option value="7" %SEL_CLOCKSTYLE_7%>Snake</option><option value="8" %SEL_CLOCKSTYLE_8%>Tetris</option><option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option><option value="10" %SEL_CLOCKSTYLE_10%>Asteroids</option><option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option></select><!-- Mario Clock Settings (only visible when Mario is selected) --><div id="marioSettings" style="display: %DSP_CLOCKSTYLE_0%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">&#127922; Mario Animation Settings</h4><label for="marioBounceHeight">Bounce Height</label><input type="range" name="marioBounceHeight" id="marioBounceHeight"
- min="10" max="50" step="5"
- value="%V_MARIOBOUNCEHEIGHT%"
- oninput="document.getElementById('bounceHeightValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceHeightValue">%F_MARIOBOUNCEHEIGHT%</span></span><p style="color: #888; font-size: 11px;">
- How high digits bounce when Mario hits them. Default: 3.5</p><label for="marioBounceSpeed" style="margin-top: 15px;">Fall Speed</label><input type="range" name="marioBounceSpeed" id="marioBounceSpeed"
- min="2" max="15" step="1"
- value="%V_MARIOBOUNCESPEED%"
- oninput="document.getElementById('bounceSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceSpeedValue">%F_MARIOBOUNCESPEED%</span></span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast digits fall back down. Higher = faster fall. Default: 0.6
- </p><label for="marioWalkSpeed" style="margin-top: 15px;">Walk Speed</label><input type="range" name="marioWalkSpeed" id="marioWalkSpeed"
- min="15" max="35" step="1"
- value="%V_MARIOWALKSPEED%"
- oninput="document.getElementById('walkSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="walkSpeedValue">%F_MARIOWALKSPEED%</span></span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast Mario walks. Higher = faster. Default: 2.0
- </p><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="marioSmoothAnimation" id="marioSmoothAnimation"
- %CHK_MARIOSMOOTHANIMATION%
- style="margin-right: 10px; width: 18px; height: 18px;"><span>Smooth Animation (4-frame walk cycle)</span></label><p style="color: #888; font-size: 11px;">
- Enable smoother 4-frame walking animation. Default: off</p></div><div style="margin-top: 15px; border-top: 1px solid rgba(59,130,246,0.3); padding-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="marioIdleEncounters" id="marioIdleEncounters"
- %CHK_MARIOIDLEENCOUNTERS%
- style="margin-right: 10px; width: 18px; height: 18px;" onchange="document.getElementById('encounterFreqDiv').style.display=this.checked?'block':'none'"><span>Idle Encounters</span></label><p style="color: #888; font-size: 11px;">
- Goombas and Spinies appear between minute changes for Mario to defeat. Default: off</p><div id="encounterFreqDiv" style="display: %DSP_MARIOIDLEENCOUNTERS%; margin-top: 10px;"><label for="marioEncounterFreq">Encounter Frequency</label><select name="marioEncounterFreq" id="marioEncounterFreq" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px; margin-top: 5px;"><option value="0" %SEL_MARIOENCOUNTERFREQ_0%>Rare (25-35s)</option><option value="1" %SEL_MARIOENCOUNTERFREQ_1%>Normal (15-25s)</option><option value="2" %SEL_MARIOENCOUNTERFREQ_2%>Frequent (8-15s)</option><option value="3" %SEL_MARIOENCOUNTERFREQ_3%>Chaotic (2-5s)</option></select><label for="marioEncounterSpeed" style="margin-top: 10px; display: block;">Encounter Speed</label><select name="marioEncounterSpeed" id="marioEncounterSpeed" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px; margin-top: 5px;"><option value="0" %SEL_MARIOENCOUNTERSPEED_0%>Slow</option><option value="1" %SEL_MARIOENCOUNTERSPEED_1%>Normal</option><option value="2" %SEL_MARIOENCOUNTERSPEED_2%>Fast</option></select></div></div></div><!-- Arkanoid Clock Settings (only visible when Arkanoid is selected) --><div id="pongSettings" style="display: %DSP_CLOCKSTYLE_5%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">🎮 Arkanoid Animation Settings</h4><label for="pongBallSpeed">Ball Speed</label><input type="range" name="pongBallSpeed" id="pongBallSpeed"
- min="16" max="30" step="1"
- value="%V_PONGBALLSPEED%"
- oninput="document.getElementById('ballSpeedValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="ballSpeedValue">%V_PONGBALLSPEED%</span></span><p style="color: #888; font-size: 11px;">
- How fast the ball moves. Default: 18</p><label for="pongBounceStrength" style="margin-top: 15px;">Bounce Strength</label><input type="range" name="pongBounceStrength" id="pongBounceStrength"
- min="1" max="8" step="1"
- value="%V_PONGBOUNCESTRENGTH%"
- oninput="document.getElementById('bounceStrengthValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceStrengthValue">%F_PONGBOUNCESTRENGTH%</span></span><p style="color: #888; font-size: 11px;">
- How much digits wobble when hit. Default: 0.3</p><label for="pongBounceDamping" style="margin-top: 15px;">Bounce Damping</label><input type="range" name="pongBounceDamping" id="pongBounceDamping"
- min="50" max="95" step="5"
- value="%V_PONGBOUNCEDAMPING%"
- oninput="document.getElementById('bounceDampingValue').textContent = (this.value / 100).toFixed(2)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="bounceDampingValue">%F2_PONGBOUNCEDAMPING%</span></span><p style="color: #888; font-size: 11px;">
- How quickly wobble stops. Default: 0.85</p><label for="pongPaddleWidth" style="margin-top: 15px;">Paddle Width</label><input type="range" name="pongPaddleWidth" id="pongPaddleWidth"
- min="10" max="40" step="2"
- value="%V_PONGPADDLEWIDTH%"
- oninput="document.getElementById('paddleWidthValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="paddleWidthValue">%V_PONGPADDLEWIDTH%</span> px
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Size of the paddle. Narrower = harder, Wider = easier. Default: 20px
- </p><label style="margin-top: 15px;"><input type="checkbox" name="pongHorizontalBounce"
- %CHK_PONGHORIZONTALBOUNCE%>
- Horizontal Digit Bounce
- </label><p style="color: #888; font-size: 11px;">
- When enabled, digits bounce sideways when hit from the side. Default: on</p></div><!-- Pac-Man Clock Settings (only visible when Pac-Man is selected) --><div id="pacmanSettings" style="display: %DSP_CLOCKSTYLE_6%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #f1c40f;"><h4 style="color: #f1c40f; margin-top: 0; font-size: 14px;">👾 Pac-Man Clock Settings</h4><label for="pacmanSpeed">Patrol Speed</label><input type="range" name="pacmanSpeed" id="pacmanSpeed"
- min="5" max="30" step="1"
- value="%V_PACMANSPEED%"
- oninput="document.getElementById('pacmanSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanSpeedValue">%F_PACMANSPEED%</span> px/frame
- </span><p style="color: #888; font-size: 11px;">
- How fast Pac-Man moves during patrol (at bottom). Default: 1.0 px/frame</p><label for="pacmanEatingSpeed" style="margin-top: 15px;">Digit Eating Speed</label><input type="range" name="pacmanEatingSpeed" id="pacmanEatingSpeed"
- min="10" max="50" step="1"
- value="%V_PACMANEATINGSPEED%"
- oninput="document.getElementById('pacmanEatingSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanEatingSpeedValue">%F_PACMANEATINGSPEED%</span> px/frame
- </span><p style="color: #888; font-size: 11px;">
- How fast Pac-Man eats digits. Default: 2.0 px/frame</p><label for="pacmanMouthSpeed" style="margin-top: 15px;">Mouth Animation Speed</label><input type="range" name="pacmanMouthSpeed" id="pacmanMouthSpeed"
- min="5" max="20" step="1"
- value="%V_PACMANMOUTHSPEED%"
- oninput="document.getElementById('pacmanMouthSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanMouthSpeedValue">%F_PACMANMOUTHSPEED%</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- How fast Pac-Man's mouth opens and closes (waka-waka). Default: 1.0 Hz
- </p><label for="pacmanPelletCount" style="margin-top: 15px;">Number of Pellets</label><input type="range" name="pacmanPelletCount" id="pacmanPelletCount"
- min="0" max="20" step="1"
- value="%V_PACMANPELLETCOUNT%"
- oninput="document.getElementById('pacmanPelletCountValue').textContent = this.value"><span style="color: #f1c40f; font-size: 14px; margin-left: 10px;"><span id="pacmanPelletCountValue">%V_PACMANPELLETCOUNT%</span></span><p style="color: #888; font-size: 11px;">
- How many pellets appear during patrol mode. Default: 8</p><label style="margin-top: 15px;"><input type="checkbox" name="pacmanPelletRandomSpacing"
- %CHK_PACMANPELLETRANDOMSPACING%>
- Randomize Pellet Spacing
- </label><p style="color: #888; font-size: 11px;">
- When enabled, pellets appear at random positions. Default: on</p><label style="margin-top: 15px;"><input type="checkbox" name="pacmanBounceEnabled"
- %CHK_PACMANBOUNCEENABLED%>
- Bounce Animation for New Digits
- </label><p style="color: #888; font-size: 11px;">
- When enabled, new digits bounce into place after being eaten. Default: on</p></div><!-- Space Clock Settings (visible when Invader or Ship is selected) --><div id="spaceSettings" style="display: %DSP_CLOCKSTYLE_34%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #3b82f6;"><h4 style="color: #3b82f6; margin-top: 0; font-size: 14px;">🚀 Space Clock Animation Settings</h4><label for="spaceCharacterType">Character Type</label><select name="spaceCharacterType" id="spaceCharacterType"><option value="0" %SEL_SPACECHARACTERTYPE_0%>Space Invader</option><option value="1" %SEL_SPACECHARACTERTYPE_1%>Space Ship (Default)</option></select><p style="color: #888; font-size: 11px;">
- Choose the character that patrols and attacks the time digits.</p><label for="spacePatrolSpeed" style="margin-top: 15px;">Patrol Speed</label><input type="range" name="spacePatrolSpeed" id="spacePatrolSpeed"
- min="2" max="15" step="1"
- value="%V_SPACEPATROLSPEED%"
- oninput="document.getElementById('patrolSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="patrolSpeedValue">%F_SPACEPATROLSPEED%</span></span><p style="color: #888; font-size: 11px;">
- How fast the character drifts during patrol. Default: 0.5</p><label for="spaceAttackSpeed" style="margin-top: 15px;">Attack Speed</label><input type="range" name="spaceAttackSpeed" id="spaceAttackSpeed"
- min="10" max="40" step="5"
- value="%V_SPACEATTACKSPEED%"
- oninput="document.getElementById('attackSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="attackSpeedValue">%F_SPACEATTACKSPEED%</span></span><p style="color: #888; font-size: 11px;">
- How fast the character slides to attack position. Default: 2.5</p><label for="spaceLaserSpeed" style="margin-top: 15px;">Laser Speed</label><input type="range" name="spaceLaserSpeed" id="spaceLaserSpeed"
- min="20" max="80" step="5"
- value="%V_SPACELASERSPEED%"
- oninput="document.getElementById('laserSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="laserSpeedValue">%F_SPACELASERSPEED%</span></span><p style="color: #888; font-size: 11px;">
- How fast the laser extends downward. Default: 4.0</p><label for="spaceExplosionGravity" style="margin-top: 15px;">Explosion Intensity</label><input type="range" name="spaceExplosionGravity" id="spaceExplosionGravity"
- min="3" max="10" step="1"
- value="%V_SPACEEXPLOSIONGRAVITY%"
- oninput="document.getElementById('explosionGravityValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="explosionGravityValue">%F_SPACEEXPLOSIONGRAVITY%</span></span><p style="color: #888; font-size: 11px;">
- Controls fragment gravity (how fast debris falls). Default: 0.5</p></div><!-- Snake Clock Settings (only visible when Snake is selected) --><div id="snakeSettings" style="display: %DSP_CLOCKSTYLE_7%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #2ecc71;"><h4 style="color: #2ecc71; margin-top: 0; font-size: 14px;">&#128013; Snake Clock Settings</h4><label for="snakeSpeed">Speed</label><input type="range" name="snakeSpeed" id="snakeSpeed" min="5" max="30" step="1" value="%V_SNAKESPEED%" oninput="document.getElementById('snakeSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #2ecc71; font-size: 14px; margin-left: 10px;"><span id="snakeSpeedValue">%F_SNAKESPEED%</span> px/frame</span><p style="color: #888; font-size: 11px;">How fast the snake slithers. Default: 1.2 px/frame</p><label for="snakeLength" style="margin-top: 15px;">Starting Length</label><input type="range" name="snakeLength" id="snakeLength" min="4" max="12" step="1" value="%V_SNAKELENGTH%" oninput="document.getElementById('snakeLengthValue').textContent = this.value"><span style="color: #2ecc71; font-size: 14px; margin-left: 10px;"><span id="snakeLengthValue">%V_SNAKELENGTH%</span> segments</span><p style="color: #888; font-size: 11px;">Body length at start; the snake grows as it eats. Default: 8 segments</p><label style="margin-top: 15px;"><input type="checkbox" name="snakeWallBorder" %CHK_SNAKEWALLBORDER%> Arena Border</label><p style="color: #888; font-size: 11px;">Draw a Nokia-style frame around the playfield. Default: off</p><label style="margin-top: 15px;"><input type="checkbox" name="snakeShowDate" %CHK_SNAKESHOWDATE%> Show Date</label><p style="color: #888; font-size: 11px;">Off gives the snake the whole screen and centres the clock. Default: off</p></div><!-- Tetris Clock Settings (only visible when Tetris is selected) --><div id="tetrisSettings" style="display: %DSP_CLOCKSTYLE_8%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #9b59b6;"><h4 style="color: #9b59b6; margin-top: 0; font-size: 14px;">&#129513; Tetris Clock Settings</h4><label for="tetrisFallSpeed">Slab Drop Speed</label><input type="range" name="tetrisFallSpeed" id="tetrisFallSpeed" min="5" max="30" step="1" value="%V_TETRISFALLSPEED%" oninput="document.getElementById('tetrisFallSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #9b59b6; font-size: 14px; margin-left: 10px;"><span id="tetrisFallSpeedValue">%F_TETRISFALLSPEED%</span></span><p style="color: #888; font-size: 11px;">How fast the slabs drop in (Drop-in Slabs style). Default: 1.2</p><label for="tetrisBlockStyle" style="margin-top: 15px;">Block Style</label><select name="tetrisBlockStyle" id="tetrisBlockStyle"><option value="0" %SEL_TETRISBLOCKSTYLE_0%>LCD Grid (gaps)</option><option value="1" %SEL_TETRISBLOCKSTYLE_1%>Solid Blocks</option></select><p style="color: #888; font-size: 11px;">Look of the digit blocks. Default: LCD Grid</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisIdleTumble" %CHK_TETRISIDLETUMBLE%> Block Game</label><p style="color: #888; font-size: 11px;">Auto-playing Tetris fills the bottom while idle (forces a centred, dateless clock). Default: on</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisSmoothGame" %CHK_TETRISSMOOTHGAME%> Smooth Play</label><p style="color: #888; font-size: 11px;">Block Game plays near-perfectly so rows stay flat and lines clear cleanly (with the odd human slip). Default: off</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisDigitBounce" %CHK_TETRISDIGITBOUNCE%> Digit Bounce</label><p style="color: #888; font-size: 11px;">New digit bounces after it rebuilds. Default: on</p><label for="tetrisAnimStyle" style="margin-top: 15px;">Change Animation</label><select name="tetrisAnimStyle" id="tetrisAnimStyle"><option value="0" %SEL_TETRISANIMSTYLE_0%>Drop-in Slabs</option><option value="1" %SEL_TETRISANIMSTYLE_1%>Falling Dots</option></select><p style="color: #888; font-size: 11px;">How a digit rebuilds on change. Digits always change one at a time. Default: Falling Dots</p><label for="tetrisDotSpeed" style="margin-top: 15px;">Dot Fall Speed</label><input type="range" name="tetrisDotSpeed" id="tetrisDotSpeed" min="5" max="30" step="1" value="%V_TETRISDOTSPEED%" oninput="document.getElementById('tetrisDotSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #9b59b6; font-size: 14px; margin-left: 10px;"><span id="tetrisDotSpeedValue">%F_TETRISDOTSPEED%</span></span><p style="color: #888; font-size: 11px;">Speed of the falling dots. Lower = slower, more separated. Default: 1.2</p><label for="tetrisDotOrder" style="margin-top: 15px;">Dot Build Order</label><select name="tetrisDotOrder" id="tetrisDotOrder"><option value="0" %SEL_TETRISDOTORDER_0%>Bottom-up</option><option value="1" %SEL_TETRISDOTORDER_1%>Random</option></select><p style="color: #888; font-size: 11px;">How the dots fill in to form the digit. Default: Bottom-up</p><label style="margin-top: 15px;"><input type="checkbox" name="tetrisShowDate" %CHK_TETRISSHOWDATE%> Show Date</label><p style="color: #888; font-size: 11px;">Uncheck for a cleaner screen. Default: on</p><label for="tetrisDatePosition" style="margin-top: 15px;">Date Position</label><select name="tetrisDatePosition" id="tetrisDatePosition"><option value="0" %SEL_TETRISDATEPOSITION_0%>Top</option><option value="1" %SEL_TETRISDATEPOSITION_1%>Bottom</option></select></div><!-- Asteroids Clock Settings (only visible when Asteroids is selected) --><div id="asteroidsSettings" style="display: %DSP_CLOCKSTYLE_10%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #e67e22;"><h4 style="color: #e67e22; margin-top: 0; font-size: 14px;">&#128640; Asteroids Clock Settings</h4><label for="asteroidsShipSpeed">Ship Speed</label><input type="range" name="asteroidsShipSpeed" id="asteroidsShipSpeed" min="5" max="25" step="1" value="%V_ASTEROIDSSHIPSPEED%" oninput="document.getElementById('asteroidsShipSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #e67e22; font-size: 14px; margin-left: 10px;"><span id="asteroidsShipSpeedValue">%F_ASTEROIDSSHIPSPEED%</span></span><p style="color: #888; font-size: 11px;">How hard the ship thrusts and how fast it drifts. Default: 1.2</p><label for="asteroidsRockCount" style="margin-top: 15px;">Asteroid Count</label><input type="range" name="asteroidsRockCount" id="asteroidsRockCount" min="1" max="4" step="1" value="%V_ASTEROIDSROCKCOUNT%" oninput="document.getElementById('asteroidsRockCountValue').textContent = this.value"><span style="color: #e67e22; font-size: 14px; margin-left: 10px;"><span id="asteroidsRockCountValue">%V_ASTEROIDSROCKCOUNT%</span> rocks</span><p style="color: #888; font-size: 11px;">How many wireframe rocks tumble across the screen. Default: 2</p><label for="asteroidsRockSpeed" style="margin-top: 15px;">Asteroid Speed</label><input type="range" name="asteroidsRockSpeed" id="asteroidsRockSpeed" min="3" max="20" step="1" value="%V_ASTEROIDSROCKSPEED%" oninput="document.getElementById('asteroidsRockSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #e67e22; font-size: 14px; margin-left: 10px;"><span id="asteroidsRockSpeedValue">%F_ASTEROIDSROCKSPEED%</span></span><p style="color: #888; font-size: 11px;">How fast the rocks drift. Default: 0.8</p><label style="margin-top: 15px;"><input type="checkbox" name="asteroidsShowDate" %CHK_ASTEROIDSSHOWDATE%> Show Date</label><p style="color: #888; font-size: 11px;">Off gives the ship the whole screen and centres the clock. Default: off</p><label style="margin-top: 15px;"><input type="checkbox" name="asteroidsTransparent" %CHK_ASTEROIDSTRANSPARENT%> Transparent Digits</label><p style="color: #888; font-size: 11px;">Rocks and ship fly through the digits instead of dodging solid time plates. Default: on</p></div><!-- Dino Runner Clock Settings (only visible when Dino Runner is selected) --><div id="dinoSettings" style="display: %DSP_CLOCKSTYLE_11%; margin-top: 20px; padding: 15px; background-color: #1a1a2e; border-radius: 8px; border: 1px solid #95a5a6;"><h4 style="color: #95a5a6; margin-top: 0; font-size: 14px;">&#129430; Dino Runner Clock Settings</h4><label for="dinoSpeed">Run Speed</label><input type="range" name="dinoSpeed" id="dinoSpeed" min="5" max="30" step="1" value="%V_DINOSPEED%" oninput="document.getElementById('dinoSpeedValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #95a5a6; font-size: 14px; margin-left: 10px;"><span id="dinoSpeedValue">%F_DINOSPEED%</span></span><p style="color: #888; font-size: 11px;">How fast the world scrolls past the dino. Default: 1.2</p><label for="dinoCactusFreq" style="margin-top: 15px;">Cactus Frequency</label><select name="dinoCactusFreq" id="dinoCactusFreq"><option value="0" %SEL_DINOCACTUSFREQ_0%>Rare</option><option value="1" %SEL_DINOCACTUSFREQ_1%>Normal</option><option value="2" %SEL_DINOCACTUSFREQ_2%>Frequent</option></select><p style="color: #888; font-size: 11px;">How often a cactus rolls in for the dino to jump. Default: Normal</p><label style="margin-top: 15px;"><input type="checkbox" name="dinoShowClouds" %CHK_DINOSHOWCLOUDS%> Clouds</label><p style="color: #888; font-size: 11px;">Parallax clouds drifting in the background. Default: on</p><label style="margin-top: 15px;"><input type="checkbox" name="dinoShowDate" %CHK_DINOSHOWDATE%> Show Date</label><p style="color: #888; font-size: 11px;">Off centres the clock above the runner. Default: off</p></div><label for="use24Hour">Time Format</label><select name="use24Hour" id="use24Hour"><option value="1" %SEL_USE24HOUR%>24-Hour (14:30)</option><option value="0" %SEL_USE24HOUR_NOT%>12-Hour (2:30 PM)</option></select><label for="dateFormat">Date Format</label><select name="dateFormat" id="dateFormat"><option value="0" %SEL_DATEFORMAT_0%>DD/MM/YYYY</option><option value="1" %SEL_DATEFORMAT_1%>MM/DD/YYYY</option><option value="2" %SEL_DATEFORMAT_2%>YYYY-MM-DD</option><option value="3" %SEL_DATEFORMAT_3%>DD.MM.YYYY</option></select></div></div><!-- Display Settings Section --><div class="section-header" onclick="toggleSection('displayPerfSection')"><h3>&#9889; Display Settings</h3><span class="section-arrow">&#9660;</span></div><div id="displayPerfSection" class="section-content collapsed"><div class="card"><label for="colonBlinkMode">Clock Colon Display</label><select name="colonBlinkMode" id="colonBlinkMode"><option value="0" %SEL_COLONBLINKMODE_0%>On</option><option value="1" %SEL_COLONBLINKMODE_1%>Blinking</option><option value="2" %SEL_COLONBLINKMODE_2%>Off</option></select><label for="colonBlinkRate">Blink Rate (Hz)</label><input type="range" name="colonBlinkRate" id="colonBlinkRate"
- min="5" max="50" step="5"
- value="%V_COLONBLINKRATE%"
- oninput="document.getElementById('blinkRateValue').textContent = (this.value / 10).toFixed(1)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="blinkRateValue">%F_COLONBLINKRATE%</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Blink speed. 1.0Hz = once/second.
- </p><label for="refreshRateMode" style="margin-top: 15px;">Refresh Rate Mode</label><select name="refreshRateMode" id="refreshRateMode" onchange="toggleRefreshRateFields()"><option value="0" %SEL_REFRESHRATEMODE_0%>Auto</option><option value="1" %SEL_REFRESHRATEMODE_1%>Manual</option></select><div id="refreshRateFields" style="display: %DSP_REFRESHRATEMODE_1%;"><label for="refreshRateHz">Manual Refresh Rate (Hz)</label><input type="range" name="refreshRateHz" id="refreshRateHz"
- min="1" max="60" step="1"
- value="%V_REFRESHRATEHZ%"
- oninput="document.getElementById('refreshRateValue').textContent = this.value"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="refreshRateValue">%V_REFRESHRATEHZ%</span> Hz
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Updates/second. Higher = smoother, more power.
- </p></div><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="boostAnim" id="boostAnim" style="margin-right: 10px;" %CHK_BOOSTANIMATIONREFRESH%><span style="font-size: 14px;"><strong>Enable Smooth Animations</strong> (Boost refresh during action)
- </span></label></div><label for="displayBrightness" style="margin-top: 15px;">Display Brightness</label><input type="range" name="displayBrightness" id="displayBrightness"
- min="%MINBRIGHT%" max="255" step="5"
- value="%V_DISPLAYBRIGHTNESS%"
- oninput="document.getElementById('brightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #3b82f6; font-size: 14px; margin-left: 10px;"><span id="brightnessValue">%PCT_DISPLAYBRIGHTNESS%</span>%
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- %HELP_DISPBRIGHT%
- </p><div style="margin-top: 15px;"><label style="display: flex; align-items: center; cursor: pointer;"><input type="checkbox" name="enableScheduledDimming" id="enableScheduledDimming" style="margin-right: 10px;" %CHK_ENABLESCHEDULEDDIMMING% onchange="toggleScheduledDimming()"><span style="font-size: 14px;">
- <strong>&#127749; Scheduled Night Mode</strong>
- </span></label></div><div id="scheduledDimmingFields" style="display: %DSP_ENABLESCHEDULEDDIMMING%; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b; margin-top: 10px;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;"><div><label for="dimStartHour" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">Start Dimming At</label><select name="dimStartHour" id="dimStartHour" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f1f5f9; font-size: 13px;">%OPT_DIMSTART%</select></div><div><label for="dimEndHour" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">End Dimming At</label><select name="dimEndHour" id="dimEndHour" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f1f5f9; font-size: 13px;">%OPT_DIMEND%</select></div></div><label for="dimBrightness" style="font-size: 13px; color: #e2e8f0; display: block; margin-bottom: 5px;">Dim Brightness Level</label><input type="range" name="dimBrightness" id="dimBrightness"
- min="%MINBRIGHT%" max="255" step="5"
- value="%V_DIMBRIGHTNESS%"
- oninput="document.getElementById('dimBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #818cf8; font-size: 14px; margin-left: 10px;"><span id="dimBrightnessValue">%PCT_DIMBRIGHTNESS%</span>%
- </span><p style="color: #94a3b8; font-size: 11px; margin-top: 5px;">
- %HELP_DIMBRIGHT%
- </p></div><script> function toggleScheduledDimming(){const enabled=document.getElementById('enableScheduledDimming').checked;document.getElementById('scheduledDimmingFields').style.display=enabled ? 'block':'none';}</script>%LED_SLIDER%<div style="margin-top: 15px; padding: 10px; background: #0f172a; border-radius: 5px; border-left: 3px solid #3b82f6;"><p style="color: #93c5fd; font-size: 12px; margin: 0;"><strong>&#128161; Refresh Rate Auto Mode:</strong> Adapts refresh rate based on content.<br>
- • Static Clocks: 2 Hz (saves power)<br>
- • Idle Animations: 20 Hz (character movement)<br>
- • Active Animations: 40 Hz (with boost enabled, during bounces/explosions)<br>
- • PC Metrics: 10 Hz (balanced)<br><br><strong>Benefits:</strong> Blinking colon extends OLED life 2×. Dynamic refresh rates balance smoothness with power efficiency.
- </p></div></div></div><!-- Timezone Section --><div class="section-header" onclick="toggleSection('timezoneSection')"><h3>&#127760; Timezone</h3><span class="section-arrow">&#9660;</span></div><div id="timezoneSection" class="section-content collapsed"><div class="card"><label for="timezoneRegion">Timezone Region</label><select name="timezoneRegion" id="timezoneRegion" style="width: 100%; padding: 8px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 3px;">
-%OPT_TZ%
- </select><p style="color: #888; font-size: 12px; margin-top: 10px;">
- Select your timezone region for automatic DST adjustment. The system will automatically switch between standard and daylight saving time.
- </p></div></div><!-- Network Configuration Section --><div class="section-header" onclick="toggleSection('networkSection')"><h3>&#127760; Network Configuration</h3><span class="section-arrow">&#9660;</span></div><div id="networkSection" class="section-content collapsed"><div class="card"><label for="deviceName">Device Name</label><input type="text" name="deviceName" id="deviceName" value="%V_DEVICENAME%" maxlength="31" pattern="^[a-zA-Z][a-zA-Z0-9-]*$" placeholder="smalloled" oninput="document.getElementById('deviceNamePreview').textContent=this.value.toLowerCase()"><p style="color: #888; font-size: 12px; margin-top: 5px;">Used for network discovery (<span id="deviceNamePreview">%V_DEVICENAME%</span>.local). Letters, numbers, and hyphens only.</p><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><label for="useStaticIP">IP Address Mode</label><select name="useStaticIP" id="useStaticIP" onchange="toggleStaticIPFields()"><option value="0" %SEL_USESTATICIP_NOT%>DHCP (Automatic)</option><option value="1" %SEL_USESTATICIP%>Static IP</option></select><div id="staticIPFields" style="display: %DSP_USESTATICIP%;"><label for="staticIP" style="margin-top: 15px;">Static IP Address</label><input type="text" name="staticIP" id="staticIP" value="%V_STATICIP%" placeholder="192.168.1.100" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="gateway">Gateway</label><input type="text" name="gateway" id="gateway" value="%V_GATEWAY%" placeholder="192.168.1.1" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="subnet">Subnet Mask</label><input type="text" name="subnet" id="subnet" value="%V_SUBNET%" placeholder="255.255.255.0" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="dns1">Primary DNS</label><input type="text" name="dns1" id="dns1" value="%V_DNS1%" placeholder="8.8.8.8" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"><label for="dns2">Secondary DNS</label><input type="text" name="dns2" id="dns2" value="%V_DNS2%" placeholder="8.8.4.4" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div><p style="color: #888; font-size: 12px; margin-top: 15px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #fbbf24;"><strong>&#9888; Warning:</strong> Changing to Static IP will require a device restart. Make sure the IP address does not conflict with other devices on your network.
- </p><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><div style="display: flex; align-items: center; margin-top: 15px;"><input type="checkbox" name="showIPAtBoot" id="showIPAtBoot" value="1" %CHK_SHOWIPATBOOT% style="width: 20px; margin: 0;"><label for="showIPAtBoot" style="margin: 0 0 0 10px; text-align: left; color: #00d4ff;">Show IP address on display at startup (5 seconds)</label></div></div></div><!-- Display Layout Section --><div class="section-header" onclick="toggleSection('layoutSection')"><h3>&#128202; Display Layout (PC Monitor only)</h3><span class="section-arrow">&#9660;</span></div><div id="layoutSection" class="section-content collapsed"><div class="card"><label for="clockPosition">Clock Position</label><select name="clockPosition" id="clockPosition"><option value="0" %SEL_CLOCKPOSITION_0%>Center (Top)</option><option value="1" %SEL_CLOCKPOSITION_1%>Left Column (Row 1)</option><option value="2" %SEL_CLOCKPOSITION_2%>Right Column (Row 1)</option></select><label for="clockOffset" style="margin-top: 15px; display: block;">Clock Offset (pixels)</label><input type="number" name="clockOffset" id="clockOffset" value="%V_CLOCKOFFSET%" min="-20" max="20" style="width: 100%; padding: 8px; box-sizing: border-box;"><p style="color: #888; font-size: 12px; margin-top: 10px;">
- Position clock to optimize space for metrics. Use offset to fine-tune horizontal position (-20 to +20 pixels).
- </p><div style="display: flex; align-items: center; margin-top: 15px;"><input type="checkbox" name="showClock" id="showClock" value="1" %CHK_SHOWCLOCK% style="width: 20px; margin: 0;"><label for="showClock" style="margin: 0 0 0 10px; text-align: left; color: #00d4ff;">Show Clock/Time in metrics display</label></div><hr style="margin: 20px 0; border: none; border-top: 1px solid #333;"><label for="rowMode">Display Row Mode</label><select name="rowMode" id="rowMode" onchange="updateRowMode()"><option value="0" %SEL_DISPLAYROWMODE_0%>5 Rows (13px spacing - optimized)</option><option value="1" %SEL_DISPLAYROWMODE_1%>6 Rows (10px spacing - compact)</option><option value="2" %SEL_DISPLAYROWMODE_2%>Large 2-Row (double size text)</option><option value="3" %SEL_DISPLAYROWMODE_3%>Large 3-Row (double size text)</option></select><p style="color: #888; font-size: 12px; margin-top: 10px;">
- 5-row and 6-row modes use small text in 2-column layout. Large modes use double-size text in single-column layout for better readability at a distance.
- </p><div style="margin-top: 20px;"><label><input type="checkbox" name="rpmKFormat" id="rpmKFormat" %CHK_USERPMKFORMAT%>
- Use K-format for RPM values (e.g., 1.8K instead of 1800RPM)
- </label><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Applies to all fan and pump speed metrics with RPM unit.
- </p></div><div style="margin-top: 20px;"><label><input type="checkbox" name="netMBFormat" id="netMBFormat" %CHK_USENETWORKMBFORMAT%>
- Use M-format for network speeds (e.g., 1.2M instead of 1200KB/s)
- </label><p style="color: #888; font-size: 12px; margin-top: 5px;">
- Applies to all network speed metrics with KB/s unit.
- </p></div></div></div><!-- Visible Metrics Section --><div class="section-header" onclick="toggleSection('metricsSection')"><h3>&#128195; Visible Metrics (PC Monitor only)</h3><span class="section-arrow">&#9660;</span></div><div id="metricsSection" class="section-content collapsed"><div class="card"><p style="color: #888; font-size: 14px; margin-top: 0; text-align: left;">
- Select which metrics to show on OLED
- </p><p style="color: #888; font-size: 12px; margin-top: 10px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #00d4ff;"><strong>&#128161; Tip:</strong> Use <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">^</code> character for spacing.<br>
- Example: <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">CPU^^</code> displays as <code style="background: #1e293b; padding: 2px 6px; border-radius: 3px;">CPU: 45C</code> (2 spaces after colon)
- </p><div id="metricsContainer"><p style="color: #888;">Loading metrics...</p></div><p style="color: #888; font-size: 12px; margin-top: 15px;"><strong>Note:</strong> Metrics are configured in Python script.<br>
- Select up to 20 in pc_stats_monitor_v2.py (use companion metrics to fit more)
- </p><script> let metricsData=[];let MAX_ROWS=%JS_MAXROWS%;let IS_LARGE_MODE=%JS_ISLARGE%;function saveFormState(){metricsData.forEach(metric=>{const labelInput=document.querySelector(`input[name="label_${metric.id}"]`);if(labelInput){metric.label=labelInput.value;}const posDropdown=document.getElementById('pos_'+metric.id);if(posDropdown){metric.position=parseInt(posDropdown.value);}const compDropdown=document.getElementById('comp_'+metric.id);if(compDropdown){metric.companionId=parseInt(compDropdown.value);}const barPosDropdown=document.getElementById('barPos_'+metric.id);if(barPosDropdown){metric.barPosition=parseInt(barPosDropdown.value);}const barMinInput=document.querySelector(`input[name="barMin_${metric.id}"]`);if(barMinInput){metric.barMin=parseInt(barMinInput.value)|| 0;}const barMaxInput=document.querySelector(`input[name="barMax_${metric.id}"]`);if(barMaxInput){metric.barMax=parseInt(barMaxInput.value)|| 100;}const barWidthInput=document.querySelector(`input[name="barWidth_${metric.id}"]`);if(barWidthInput){metric.barWidth=parseInt(barWidthInput.value)|| 60;}const barOffsetInput=document.querySelector(`input[name="barOffset_${metric.id}"]`);if(barOffsetInput){metric.barOffsetX=parseInt(barOffsetInput.value)|| 0;}});}function updatePosition(metricId){saveFormState();renderMetrics();}function updateCompanion(metricId){saveFormState();renderMetrics();}function updateRowMode(){const rowMode=parseInt(document.getElementById('rowMode').value);const oldMaxRows=MAX_ROWS;const oldLargeMode=IS_LARGE_MODE;IS_LARGE_MODE=(rowMode>=2);MAX_ROWS=(rowMode===0)?5:(rowMode===1)?6:(rowMode===2)?2:3;const maxPos=IS_LARGE_MODE?MAX_ROWS:MAX_ROWS*2;const oldMaxPos=oldLargeMode?oldMaxRows:oldMaxRows*2;if(maxPos<oldMaxPos){const hiddenMetrics=metricsData.filter(m=>(m.position!==255&&m.position>=maxPos)||(m.barPosition!==255&&m.barPosition>=maxPos));if(hiddenMetrics.length>0){const names=hiddenMetrics.map(m=>m.name).join(', ');if(!confirm(`Warning: ${hiddenMetrics.length} metric(s) (${names}) will be hidden. Continue?`)){IS_LARGE_MODE=oldLargeMode;MAX_ROWS=oldMaxRows;if(oldLargeMode){document.getElementById('rowMode').value=oldMaxRows===2?'2':'3';}else{document.getElementById('rowMode').value=oldMaxRows===5?'0':'1';}return;}}metricsData.forEach(metric=>{if(metric.position!==255&&metric.position>=maxPos){metric.position=255;}if(metric.barPosition!==255&&metric.barPosition>=maxPos){metric.barPosition=255;}});}renderMetrics();}function renderMetrics(){const container=document.getElementById('metricsContainer');container.innerHTML='';const sortedMetrics=[...metricsData].sort((a,b)=>a.displayOrder-b.displayOrder);const header=document.createElement('div');header.style.cssText='background:#1e293b;padding:12px;border-radius:6px;margin-bottom:15px;border:2px solid #00d4ff;';header.innerHTML=`<div style="color:#00d4ff;font-weight:bold;font-size:14px;margin-bottom:5px;">&#128247;OLED Display Preview (`+MAX_ROWS+` Rows${IS_LARGE_MODE?' - Large Text, Single Column':' - 2 Columns'})</div><div style="color:#888;font-size:12px;">Assign each metric to a specific position using the dropdown</div>`;container.appendChild(header);for(let rowIndex=0;rowIndex<MAX_ROWS;rowIndex++){const rowDiv=document.createElement('div');rowDiv.style.cssText='background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:10px;overflow:hidden;';const rowHeader=document.createElement('div');rowHeader.style.cssText='background:#1e293b;padding:6px 10px;color:#00d4ff;font-weight:bold;font-size:12px;border-bottom:1px solid #334155;';rowHeader.textContent=`Row ${rowIndex+1}`;rowDiv.appendChild(rowHeader);if(IS_LARGE_MODE){const metric=sortedMetrics.find(m=>m.position===rowIndex)||null;const rowContent=document.createElement('div');rowContent.style.cssText='background:#0f172a;padding:15px;min-height:60px;';if(metric){const companionName=metric.companionId>0?(metricsData.find(m=>m.id===metric.companionId)?.name||'Unknown'):'None';rowContent.innerHTML=`<div><div style="color:#00d4ff;font-weight:bold;font-size:15px;margin-bottom:2px;">${metric.name} (Large Text)</div><div style="color:#888;font-size:11px;">Label: ${metric.label||metric.name}</div>${metric.companionId>0?`<div style="color:#888;font-size:11px;">Paired with: ${companionName}</div>`:''}</div>`;}else{rowContent.innerHTML='<div style="color:#555;font-size:12px;text-align:center;padding:10px;">Empty<br><span style="font-size:10px;">No metric assigned</span></div>';}rowDiv.appendChild(rowContent);}else{const leftPos=rowIndex*2;const rightPos=rowIndex*2+1;const leftMetric=sortedMetrics.find(m=>m.position===leftPos)||null;const rightMetric=sortedMetrics.find(m=>m.position===rightPos)||null;const rowContent=document.createElement('div');rowContent.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#334155;';const leftSlot=createMetricSlot(leftMetric,'left',leftPos);rowContent.appendChild(leftSlot);const rightSlot=createMetricSlot(rightMetric,'right',rightPos);rowContent.appendChild(rightSlot);rowDiv.appendChild(rowContent);}container.appendChild(rowDiv);}const metricsListDiv=document.createElement('div');metricsListDiv.style.cssText='background:#1e293b;border:1px solid #334155;border-radius:6px;padding:15px;margin-top:20px;';metricsListDiv.innerHTML='<div style="color:#00d4ff;font-weight:bold;font-size:14px;margin-bottom:10px;">&#9881;All Metrics Configuration</div>';sortedMetrics.forEach(metric=>{const metricDiv=createMetricConfig(metric);metricsListDiv.appendChild(metricDiv);});container.appendChild(metricsListDiv);}function createMetricSlot(metric,side,position){const slot=document.createElement('div');slot.style.cssText='background:#0f172a;padding:15px;min-height:60px;';if(!metric){slot.innerHTML=`<div style="color:#555;font-size:12px;text-align:center;padding:10px;">${side==='left' ? '&#8592;':'&#8594;'}Empty<br><span style="font-size:10px;">No metric assigned</span></div>`;return slot;}const companionName=metric.companionId>0 ?(metricsData.find(m=>m.id===metric.companionId)?.name || 'Unknown'):'None';slot.innerHTML=`<div style="margin-bottom:4px;"><div style="color:#00d4ff;font-weight:bold;font-size:13px;margin-bottom:2px;">${metric.name}</div><div style="color:#888;font-size:10px;">Label:${metric.label || metric.name}</div>${metric.companionId>0 ? `<div style="color:#888;font-size:10px;">Paired with:${companionName}</div>`:''}</div>`;return slot;}function createMetricConfig(metric){const div=document.createElement('div');div.style.cssText='background:#0f172a;padding:12px;border-radius:6px;margin-bottom:8px;border:1px solid #334155;';let positionOptions='<option value="255">None(Hidden)</option>';if(IS_LARGE_MODE){for(let row=0;row<MAX_ROWS;row++){positionOptions+=`<option value="${row}" ${metric.position===row?'selected':''}>Row ${row+1}</option>`;}}else{for(let row=0;row<MAX_ROWS;row++){const leftPos=row*2;const rightPos=row*2+1;positionOptions+=`<option value="${leftPos}" ${metric.position===leftPos?'selected':''}>Row ${row+1}-&#8592;Left</option>`;positionOptions+=`<option value="${rightPos}" ${metric.position===rightPos?'selected':''}>Row ${row+1}-Right &#8594;</option>`;}}let barPositionOptions='<option value="255">None</option>';if(IS_LARGE_MODE){for(let row=0;row<MAX_ROWS;row++){barPositionOptions+=`<option value="${row}" ${metric.barPosition===row?'selected':''}>Row ${row+1}</option>`;}}else{for(let row=0;row<MAX_ROWS;row++){const leftPos=row*2;const rightPos=row*2+1;barPositionOptions+=`<option value="${leftPos}" ${metric.barPosition===leftPos?'selected':''}>Row ${row+1}-&#8592;Left</option>`;barPositionOptions+=`<option value="${rightPos}" ${metric.barPosition===rightPos?'selected':''}>Row ${row+1}-Right &#8594;</option>`;}}let companionOptions='<option value="0">None</option>';metricsData.forEach(m=>{if(m.id !==metric.id){const selected=(metric.companionId===m.id)? 'selected':'';companionOptions+=`<option value="${m.id}" ${selected}>${m.name}(${m.unit})</option>`;}});div.innerHTML=`<div style="margin-bottom:8px;"><div style="color:#00d4ff;font-weight:bold;font-size:13px;">${metric.name}(${metric.unit})</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Position:</label><select name="position_${metric.id}" id="pos_${metric.id}" onchange="updatePosition(${metric.id})" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;">${positionOptions}</select></div><div><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Pair with:</label><select name="companion_${metric.id}" id="comp_${metric.id}" onchange="updateCompanion(${metric.id})" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;">${companionOptions}</select></div></div><div style="margin-top:8px;"><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Custom Label(10 chars max):</label><input type="text" name="label_${metric.id}" value="${metric.label}" maxlength="10" placeholder="${metric.name}" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;box-sizing:border-box;"></div><div style="margin-top:10px;padding-top:8px;border-top:1px solid #334155;"><label style="color:#888;font-size:10px;display:block;margin-bottom:3px;">Progress Bar Position:</label><select name="barPosition_${metric.id}" id="barPos_${metric.id}" style="width:100%;padding:6px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:11px;margin-bottom:8px;">${barPositionOptions}</select><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Min Value:</label><input type="number" name="barMin_${metric.id}" value="${metric.barMin || 0}" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Max Value:</label><input type="number" name="barMax_${metric.id}" value="${metric.barMax || 100}" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;"><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Width(px):</label><input type="number" name="barWidth_${metric.id}" value="${metric.barWidth || 60}" min="10" max="64" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div><div><label style="color:#888;font-size:9px;display:block;margin-bottom:2px;">Offset X(px):</label><input type="number" name="barOffset_${metric.id}" value="${metric.barOffsetX || 0}" min="0" max="54" style="width:100%;padding:4px;background:#16213e;border:1px solid #334155;color:#eee;border-radius:3px;font-size:10px;box-sizing:border-box;"></div></div></div><input type="hidden" name="order_${metric.id}" value="${metric.displayOrder}">`;return div;}fetch('/metrics').then(res=>res.json()).then(data=>{if(data.metrics && data.metrics.length>0){metricsData=data.metrics;renderMetrics();}else{document.getElementById('metricsContainer').innerHTML='<p style="color:#ff6666;">No metrics received yet. Start Python script.</p>';}}).catch(err=>{document.getElementById('metricsContainer').innerHTML='<p style="color:#ff6666;">Error loading metrics</p>';});</script></div></div></form><!-- Firmware Update Section (Outside main form) --><div class="section-header" onclick="toggleSection('firmwareSection')"><h3>&#128190; Firmware Update</h3><span class="section-arrow">&#9660;</span></div><div id="firmwareSection" class="section-content collapsed"><div class="card"><p style="color: #888; font-size: 14px; margin-top: 0;">
- Upload new firmware (.bin file) to update the device
- </p><form id="uploadForm" method="POST" action="/update" enctype="multipart/form-data" style="margin-top: 15px;"><input type="file" id="firmwareFile" name="firmware" accept=".bin" style="width: 100%; padding: 10px; margin-bottom: 10px; background: #16213e; border: 1px solid #334155; color: #eee; border-radius: 5px;"><button type="submit" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;">
- &#128190; Upload & Update Firmware
- </button></form><div id="uploadProgress" style="display: none; margin-top: 15px;"><div style="background: #1e293b; border-radius: 8px; overflow: hidden; height: 30px; margin-bottom: 10px;"><div id="progressBar" style="background: linear-gradient(135deg, #00d4ff 0%, #0096ff 100%); height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #0f0c29; font-weight: bold; font-size: 14px;">
- 0%
- </div></div><p id="uploadStatus" style="text-align: center; color: #00d4ff; font-size: 14px;">Uploading...</p></div><p style="color: #888; font-size: 12px; margin-top: 15px; background: #0f172a; padding: 10px; border-radius: 5px; border-left: 3px solid #ef4444;"><strong>&#9888; Warning:</strong> Do not disconnect power during firmware update! Device will restart automatically after update completes.
- </p></div></div><form action="/reset" method="GET" onsubmit="return confirmFactoryReset();"><button type="submit" class="reset-btn">&#128260; Factory Reset</button></form></div><!-- Sticky Save Button --><div class="sticky-save"><div class="container"><button type="button" class="save-btn" onclick="saveSettings()">&#128190; Save Settings</button><span id="saveMessage" style="margin-left: 15px; color: #4CAF50; font-weight: bold; display: none;">&#10004; Settings Saved!</span></div></div><script> function confirmFactoryReset(){if(!confirm('Have you exported a backup of your settings?\n\nUse the \"Export Config\" button to save your configuration before proceeding.\n\nPress OK to continue with factory reset, or Cancel to go back.')){return false;}return confirm('ARE YOU SURE?\n\nThis will permanently erase ALL settings:\n- WiFi credentials\n- Display & clock configuration\n- Metric labels & layout\n- Animation settings\n- Network settings\n\nThe device will restart in AP setup mode.\nThis cannot be undone.');}function toggleSection(sectionId){const content=document.getElementById(sectionId);const arrow=event.currentTarget.querySelector('.section-arrow');content.classList.toggle('collapsed');arrow.classList.toggle('collapsed');const isCollapsed=content.classList.contains('collapsed');if(!isCollapsed){localStorage.setItem('lastExpandedSection',sectionId);}}function toggleStaticIPFields(){const useStaticIP=document.getElementById('useStaticIP').value==='1';const staticIPFields=document.getElementById('staticIPFields');staticIPFields.style.display=useStaticIP ? 'block':'none';}function toggleRefreshRateFields(){const refreshRateMode=document.getElementById('refreshRateMode').value==='1';const refreshRateFields=document.getElementById('refreshRateFields');refreshRateFields.style.display=refreshRateMode ? 'block':'none';}function toggleMarioSettings(){const clockStyle=document.getElementById('clockStyle').value;const marioSettings=document.getElementById('marioSettings');const pongSettings=document.getElementById('pongSettings');const pacmanSettings=document.getElementById('pacmanSettings');const spaceSettings=document.getElementById('spaceSettings');const snakeSettings=document.getElementById('snakeSettings');const tetrisSettings=document.getElementById('tetrisSettings');const asteroidsSettings=document.getElementById('asteroidsSettings');const dinoSettings=document.getElementById('dinoSettings');marioSettings.style.display=(clockStyle==='0')? 'block':'none';pongSettings.style.display=(clockStyle==='5')? 'block':'none';pacmanSettings.style.display=(clockStyle==='6')? 'block':'none';spaceSettings.style.display=(clockStyle==='3' || clockStyle==='4')? 'block':'none';snakeSettings.style.display=(clockStyle==='7')? 'block':'none';tetrisSettings.style.display=(clockStyle==='8')? 'block':'none';asteroidsSettings.style.display=(clockStyle==='10')? 'block':'none';dinoSettings.style.display=(clockStyle==='11')? 'block':'none';}function exportConfig(){fetch('/api/export').then(response=>response.json()).then(data=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pc-monitor-config.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);alert('Configuration exported successfully!');}).catch(err=>alert('Error exporting configuration:'+err));}function importConfig(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(e){try{const config=JSON.parse(e.target.result);fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)}).then(response=>response.json()).then(data=>{if(data.success){alert('Configuration imported successfully! Reloading page...');location.reload();}else{alert('Error importing configuration:'+data.message);}}).catch(err=>alert('Error importing configuration:'+err));}catch(err){alert('Invalid configuration file:'+err);}};reader.readAsText(file);}function saveSettings(){const form=document.querySelector('form[action="/save"]');const formData=new FormData(form);const saveMessage=document.getElementById('saveMessage');const saveBtn=document.querySelector('.save-btn');const urlEncoded=new URLSearchParams(formData);saveBtn.disabled=true;saveBtn.textContent='💾 Saving...';fetch('/save',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:urlEncoded}).then(response=>response.json()).then(data=>{if(data.success){saveMessage.style.display='inline';setTimeout(()=>{saveMessage.style.display='none';},3000);saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';if(data.networkChanged){alert('Network settings changed! Device is restarting. You may need to reconnect to the new IP address.');setTimeout(()=>{window.location.href='/';},3000);}}else{alert('Error saving settings');saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';}}).catch(err=>{alert('Error saving settings:'+err);saveBtn.disabled=false;saveBtn.textContent='💾 Save Settings';});}document.getElementById('uploadForm').addEventListener('submit',function(e){e.preventDefault();const fileInput=document.getElementById('firmwareFile');const file=fileInput.files[0];if(!file){alert('Please select a firmware file(.bin)');return;}if(!file.name.endsWith('.bin')){alert('Please select a valid .bin firmware file');return;}document.getElementById('uploadProgress').style.display='block';document.querySelector('#uploadForm button').disabled=true;const xhr=new XMLHttpRequest();xhr.upload.addEventListener('progress',function(e){if(e.lengthComputable){const percent=Math.round((e.loaded/e.total)*100);document.getElementById('progressBar').style.width=percent+'%';document.getElementById('progressBar').textContent=percent+'%';document.getElementById('uploadStatus').textContent='Uploading:'+percent+'%';}});xhr.addEventListener('load',function(){if(xhr.status===200){document.getElementById('progressBar').style.width='100%';document.getElementById('progressBar').textContent='100%';document.getElementById('uploadStatus').textContent='Update successful! Device is rebooting...';document.getElementById('uploadStatus').style.color='#10b981';setTimeout(function(){window.location.href='/';},8000);}else{document.getElementById('uploadStatus').textContent='Upload failed! Please try again.';document.getElementById('uploadStatus').style.color='#ef4444';document.querySelector('#uploadForm button').disabled=false;}});xhr.addEventListener('error',function(){document.getElementById('uploadStatus').textContent='Upload error! Please try again.';document.getElementById('uploadStatus').style.color='#ef4444';document.querySelector('#uploadForm button').disabled=false;});const formData=new FormData();formData.append('firmware',file);xhr.open('POST','/update');xhr.send(formData);});window.addEventListener('DOMContentLoaded',function(){toggleStaticIPFields();toggleRefreshRateFields();const lastExpandedSection=localStorage.getItem('lastExpandedSection');if(lastExpandedSection){const content=document.getElementById(lastExpandedSection);const headers=document.querySelectorAll('.section-header');if(content){for(let header of headers){if(header.getAttribute('onclick')&& header.getAttribute('onclick').includes(lastExpandedSection)){const arrow=header.querySelector('.section-arrow');content.classList.remove('collapsed');if(arrow)arrow.classList.remove('collapsed');break;}}}}});</script></body></html>
+// ============================================================================
+//  PAGE_HTML - the only document with %TOKEN% placeholders (resolvePlaceholder).
+// ============================================================================
+static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
+<html lang="en" data-accent="green" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SmallOLED - Config Portal v%VER%</title>
+<meta name="theme-color" content="#f4f0e7">
+<script>(function(){try{var a=localStorage.getItem('soled_accent');if(a)document.documentElement.setAttribute('data-accent',a);var m=localStorage.getItem('soled_mode');if(m){document.documentElement.setAttribute('data-mode',m);var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute('content',m==='dark'?'#161512':'#f4f0e7');}}catch(e){}})();</script>
+<link rel="stylesheet" href="/portal.css">
+</head>
+<body>
+<div class="app">
+
+<header class="topbar">
+  <div class="tb-brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="tb-name">SmallOLED</span>
+    <span class="tb-ver">v%VER%</span>
+  </div>
+  <span class="tb-sep" aria-hidden="true"></span>
+  <span class="tb-crumb" id="crumb">Clock</span>
+  <div class="tb-right">
+    <div class="acc-pick" role="group" aria-label="Accent colour">
+      <span class="lab">Accent</span>
+      <button type="button" class="acc-sw on" data-acc="green" title="Green" aria-label="Green accent"><i></i></button>
+      <button type="button" class="acc-sw" data-acc="amber" title="Amber" aria-label="Amber accent"><i></i></button>
+    </div>
+    <div class="mode-toggle" role="group" aria-label="Colour mode">
+      <button type="button" data-mode="light" class="on"><span class="ic"></span>Light</button>
+      <button type="button" data-mode="dark"><span class="ic"></span>Dark</button>
+    </div>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <aside class="sidebar">
+    <nav aria-label="Sections">
+      <div class="nav-group">
+        <div class="nav-label">Configuration</div>
+        <button type="button" class="nav-item active" data-nav="clock">Clock</button>
+        <button type="button" class="nav-item" data-nav="display">Display</button>
+        <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
+        <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">Network</div>
+        <button type="button" class="nav-item" data-nav="network">Network</button>
+        <button type="button" class="nav-item" data-nav="timezone">Timezone</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">System</div>
+        <button type="button" class="nav-item" data-nav="firmware">Firmware</button>
+      </div>
+    </nav>
+
+    <div class="sidebar-spacer"></div>
+
+    <div class="status-block">
+      <div class="rail-label">Device status</div>
+      <div class="status-readout" id="statusReadout">
+        <div class="sr-head">
+          <span class="sr-led online" id="srLed"></span>
+          <span class="sr-title" id="srTitle">connecting...</span>
+        </div>
+        <dl class="sr-rows">
+          <div class="sr-row"><dt>ip</dt><dd id="srIp">%IP%</dd></div>
+          <div class="sr-row"><dt>host</dt><dd><span id="srHost">%V_DEVICENAME%</span>.local</dd></div>
+          <div class="sr-row"><dt>uptime</dt><dd id="srUptime">--</dd></div>
+          <div class="sr-row"><dt>rssi</dt><dd id="srRssi">--</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="about">
+      <span class="line">SmallOLED PC-Monitor &middot; <b>v%VER%</b></span>
+      <a href="https://github.com/Keralots/SmallOLED-PCMonitor" target="_blank" rel="noopener"><span class="gh" aria-hidden="true"></span>github.com/Keralots</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="content-inner">
+      <form id="cfgForm" action="/save" method="POST">
+
+        <!-- CLOCK -->
+        <section class="page active" data-page="clock">
+          <div class="page-header">
+            <h1 class="page-h1">Clock</h1>
+            <p class="page-lede">Pick the idle animation shown when your PC is asleep, and how the time and date are formatted.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Idle clock</h2>
+            <div class="field">
+              <label class="field-label" for="clockStyle">Clock style</label>
+              <div class="select-wrap">
+                <select name="clockStyle" id="clockStyle">
+                  <option value="0" %SEL_CLOCKSTYLE_0%>Mario Animation</option>
+                  <option value="1" %SEL_CLOCKSTYLE_1%>Standard Clock</option>
+                  <option value="2" %SEL_CLOCKSTYLE_2%>Large Clock</option>
+                  <option value="3" %SEL_CLOCKSTYLE_3%>Space Invaders</option>
+                  <option value="5" %SEL_CLOCKSTYLE_5%>Arkanoid</option>
+                  <option value="6" %SEL_CLOCKSTYLE_6%>Pac-Man Clock</option>
+                  <option value="7" %SEL_CLOCKSTYLE_7%>Snake</option>
+                  <option value="8" %SEL_CLOCKSTYLE_8%>Tetris</option>
+                  <option value="10" %SEL_CLOCKSTYLE_10%>Asteroids</option>
+                  <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
+                  <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Mario -->
+            <div class="subcard" id="marioSettings" style="display:%DSP_CLOCKSTYLE_0%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="marioBounceHeight">Bounce height</label>
+                  <div class="range-row">
+                    <input type="range" name="marioBounceHeight" id="marioBounceHeight" min="10" max="50" step="5" value="%V_MARIOBOUNCEHEIGHT%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="marioBounceHeight">%F_MARIOBOUNCEHEIGHT%</span>
+                  </div>
+                  <p class="field-hint">How high digits bounce when Mario hits them. Default 3.5.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="marioBounceSpeed">Fall speed</label>
+                  <div class="range-row">
+                    <input type="range" name="marioBounceSpeed" id="marioBounceSpeed" min="2" max="15" step="1" value="%V_MARIOBOUNCESPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="marioBounceSpeed">%F_MARIOBOUNCESPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast digits fall back down. Higher is faster. Default 0.6.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="marioWalkSpeed">Walk speed</label>
+                  <div class="range-row">
+                    <input type="range" name="marioWalkSpeed" id="marioWalkSpeed" min="15" max="35" step="1" value="%V_MARIOWALKSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="marioWalkSpeed">%F_MARIOWALKSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast Mario walks. Higher is faster. Default 2.0.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="marioSmoothAnimation" id="marioSmoothAnimation" %CHK_MARIOSMOOTHANIMATION%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Smooth animation</strong><span class="ct-hint">4-frame walk cycle for a smoother stride. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="marioIdleEncounters" id="marioIdleEncounters" %CHK_MARIOIDLEENCOUNTERS%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Idle encounters</strong><span class="ct-hint">Goombas and Spinies appear between minute changes for Mario to defeat. Default off.</span></span>
+              </label>
+              <div id="marioEncFields" style="display:%DSP_MARIOIDLEENCOUNTERS%">
+                <div class="grid-2" style="margin-top:14px">
+                  <div class="field" style="margin-bottom:0">
+                    <label class="field-label" for="marioEncounterFreq">Encounter frequency</label>
+                    <div class="select-wrap">
+                      <select name="marioEncounterFreq" id="marioEncounterFreq">
+                        <option value="0" %SEL_MARIOENCOUNTERFREQ_0%>Rare (25-35s)</option>
+                        <option value="1" %SEL_MARIOENCOUNTERFREQ_1%>Normal (15-25s)</option>
+                        <option value="2" %SEL_MARIOENCOUNTERFREQ_2%>Frequent (8-15s)</option>
+                        <option value="3" %SEL_MARIOENCOUNTERFREQ_3%>Chaotic (2-5s)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field" style="margin-bottom:0">
+                    <label class="field-label" for="marioEncounterSpeed">Encounter speed</label>
+                    <div class="select-wrap">
+                      <select name="marioEncounterSpeed" id="marioEncounterSpeed">
+                        <option value="0" %SEL_MARIOENCOUNTERSPEED_0%>Slow</option>
+                        <option value="1" %SEL_MARIOENCOUNTERSPEED_1%>Normal</option>
+                        <option value="2" %SEL_MARIOENCOUNTERSPEED_2%>Fast</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Space Invaders / Ship (styles 3 + 4) -->
+            <div class="subcard" id="spaceSettings" style="display:%DSP_CLOCKSTYLE_34%">
+              <div class="field">
+                <label class="field-label" for="spaceCharacterType">Character type</label>
+                <div class="select-wrap">
+                  <select name="spaceCharacterType" id="spaceCharacterType">
+                    <option value="0" %SEL_SPACECHARACTERTYPE_0%>Space Invader</option>
+                    <option value="1" %SEL_SPACECHARACTERTYPE_1%>Space Ship (default)</option>
+                  </select>
+                </div>
+                  <p class="field-hint">The character that patrols and attacks the digits.</p>
+              </div>
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="spacePatrolSpeed">Patrol speed</label>
+                  <div class="range-row">
+                    <input type="range" name="spacePatrolSpeed" id="spacePatrolSpeed" min="2" max="15" step="1" value="%V_SPACEPATROLSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="spacePatrolSpeed">%F_SPACEPATROLSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the character drifts during patrol. Default 0.5.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="spaceAttackSpeed">Attack speed</label>
+                  <div class="range-row">
+                    <input type="range" name="spaceAttackSpeed" id="spaceAttackSpeed" min="10" max="40" step="5" value="%V_SPACEATTACKSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="spaceAttackSpeed">%F_SPACEATTACKSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast it slides to attack position. Default 2.5.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="spaceLaserSpeed">Laser speed</label>
+                  <div class="range-row">
+                    <input type="range" name="spaceLaserSpeed" id="spaceLaserSpeed" min="20" max="80" step="5" value="%V_SPACELASERSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="spaceLaserSpeed">%F_SPACELASERSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the laser extends downward. Default 4.0.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="spaceExplosionGravity">Explosion intensity</label>
+                  <div class="range-row">
+                    <input type="range" name="spaceExplosionGravity" id="spaceExplosionGravity" min="3" max="10" step="1" value="%V_SPACEEXPLOSIONGRAVITY%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="spaceExplosionGravity">%F_SPACEEXPLOSIONGRAVITY%</span>
+                  </div>
+                  <p class="field-hint">Fragment gravity - how fast debris falls. Default 0.5.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Arkanoid (style 5) -->
+            <div class="subcard" id="pongSettings" style="display:%DSP_CLOCKSTYLE_5%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pongBallSpeed">Ball speed</label>
+                  <div class="range-row">
+                    <input type="range" name="pongBallSpeed" id="pongBallSpeed" min="16" max="30" step="1" value="%V_PONGBALLSPEED%">
+                    <span class="range-val" data-for="pongBallSpeed">%V_PONGBALLSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the ball moves. Default 18.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pongBounceStrength">Bounce strength</label>
+                  <div class="range-row">
+                    <input type="range" name="pongBounceStrength" id="pongBounceStrength" min="1" max="8" step="1" value="%V_PONGBOUNCESTRENGTH%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="pongBounceStrength">%F_PONGBOUNCESTRENGTH%</span>
+                  </div>
+                  <p class="field-hint">How much digits wobble when hit. Default 0.3.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pongBounceDamping">Bounce damping</label>
+                  <div class="range-row">
+                    <input type="range" name="pongBounceDamping" id="pongBounceDamping" min="50" max="95" step="5" value="%V_PONGBOUNCEDAMPING%" data-div="100" data-fixed="2">
+                    <span class="range-val" data-for="pongBounceDamping">%F2_PONGBOUNCEDAMPING%</span>
+                  </div>
+                  <p class="field-hint">How quickly the wobble stops. Default 0.85.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pongPaddleWidth">Paddle width</label>
+                  <div class="range-row">
+                    <input type="range" name="pongPaddleWidth" id="pongPaddleWidth" min="10" max="40" step="2" value="%V_PONGPADDLEWIDTH%" data-suffix="px">
+                    <span class="range-val" data-for="pongPaddleWidth">%V_PONGPADDLEWIDTH%px</span>
+                  </div>
+                  <p class="field-hint">Paddle size. Narrower is harder. Default 20px.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="pongHorizontalBounce" id="pongHorizontalBounce" %CHK_PONGHORIZONTALBOUNCE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Horizontal digit bounce</strong><span class="ct-hint">Digits bounce sideways when hit from the side. Default on.</span></span>
+              </label>
+            </div>
+
+            <!-- Pac-Man (style 6) -->
+            <div class="subcard" id="pacmanSettings" style="display:%DSP_CLOCKSTYLE_6%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pacmanSpeed">Patrol speed</label>
+                  <div class="range-row">
+                    <input type="range" name="pacmanSpeed" id="pacmanSpeed" min="5" max="30" step="1" value="%V_PACMANSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="pacmanSpeed">%F_PACMANSPEED%</span>
+                  </div>
+                  <p class="field-hint">Patrol speed at the bottom. Default 1.0 px/frame.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pacmanEatingSpeed">Eating speed</label>
+                  <div class="range-row">
+                    <input type="range" name="pacmanEatingSpeed" id="pacmanEatingSpeed" min="10" max="50" step="1" value="%V_PACMANEATINGSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="pacmanEatingSpeed">%F_PACMANEATINGSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast Pac-Man eats digits. Default 2.0 px/frame.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pacmanMouthSpeed">Mouth speed</label>
+                  <div class="range-row">
+                    <input type="range" name="pacmanMouthSpeed" id="pacmanMouthSpeed" min="5" max="20" step="1" value="%V_PACMANMOUTHSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="pacmanMouthSpeed">%F_PACMANMOUTHSPEED%</span>
+                  </div>
+                  <p class="field-hint">Mouth open/close rate (waka-waka). Default 1.0 Hz.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="pacmanPelletCount">Pellets</label>
+                  <div class="range-row">
+                    <input type="range" name="pacmanPelletCount" id="pacmanPelletCount" min="0" max="20" step="1" value="%V_PACMANPELLETCOUNT%">
+                    <span class="range-val" data-for="pacmanPelletCount">%V_PACMANPELLETCOUNT%</span>
+                  </div>
+                  <p class="field-hint">Pellets shown during patrol. Default 8.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="pacmanPelletRandomSpacing" id="pacmanPelletRandomSpacing" %CHK_PACMANPELLETRANDOMSPACING%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Randomize pellet spacing</strong><span class="ct-hint">Pellets appear at random positions during patrol. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="pacmanBounceEnabled" id="pacmanBounceEnabled" %CHK_PACMANBOUNCEENABLED%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Digit bounce</strong><span class="ct-hint">New digits bounce into place after being eaten. Default on.</span></span>
+              </label>
+            </div>
+
+            <!-- Snake (style 7) -->
+            <div class="subcard" id="snakeSettings" style="display:%DSP_CLOCKSTYLE_7%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="snakeSpeed">Speed</label>
+                  <div class="range-row">
+                    <input type="range" name="snakeSpeed" id="snakeSpeed" min="5" max="30" step="1" value="%V_SNAKESPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="snakeSpeed">%F_SNAKESPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the snake slithers. Default 1.2 px/frame.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="snakeLength">Starting length</label>
+                  <div class="range-row">
+                    <input type="range" name="snakeLength" id="snakeLength" min="4" max="12" step="1" value="%V_SNAKELENGTH%">
+                    <span class="range-val" data-for="snakeLength">%V_SNAKELENGTH%</span>
+                  </div>
+                  <p class="field-hint">Body length at start; grows as it eats. Default 8.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="snakeWallBorder" id="snakeWallBorder" %CHK_SNAKEWALLBORDER%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Arena border</strong><span class="ct-hint">Draw a Nokia-style frame around the playfield. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="snakeShowDate" id="snakeShowDate" %CHK_SNAKESHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off gives the snake the whole screen and centres the clock. Default off.</span></span>
+              </label>
+            </div>
+
+            <!-- Tetris (style 8) -->
+            <div class="subcard" id="tetrisSettings" style="display:%DSP_CLOCKSTYLE_8%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisFallSpeed">Slab drop speed</label>
+                  <div class="range-row">
+                    <input type="range" name="tetrisFallSpeed" id="tetrisFallSpeed" min="5" max="30" step="1" value="%V_TETRISFALLSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="tetrisFallSpeed">%F_TETRISFALLSPEED%</span>
+                  </div>
+                  <p class="field-hint">Slab drop-in speed (Drop-in Slabs). Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisDotSpeed">Dot fall speed</label>
+                  <div class="range-row">
+                    <input type="range" name="tetrisDotSpeed" id="tetrisDotSpeed" min="5" max="30" step="1" value="%V_TETRISDOTSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="tetrisDotSpeed">%F_TETRISDOTSPEED%</span>
+                  </div>
+                  <p class="field-hint">Falling-dot speed. Lower is slower. Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisBlockStyle">Block style</label>
+                  <div class="select-wrap">
+                    <select name="tetrisBlockStyle" id="tetrisBlockStyle">
+                      <option value="0" %SEL_TETRISBLOCKSTYLE_0%>LCD Grid (gaps)</option>
+                      <option value="1" %SEL_TETRISBLOCKSTYLE_1%>Solid Blocks</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">Look of the digit blocks. Default LCD Grid.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisAnimStyle">Change animation</label>
+                  <div class="select-wrap">
+                    <select name="tetrisAnimStyle" id="tetrisAnimStyle">
+                      <option value="0" %SEL_TETRISANIMSTYLE_0%>Drop-in Slabs</option>
+                      <option value="1" %SEL_TETRISANIMSTYLE_1%>Falling Dots</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">How a digit rebuilds on change. Default Falling Dots.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisDotOrder">Dot build order</label>
+                  <div class="select-wrap">
+                    <select name="tetrisDotOrder" id="tetrisDotOrder">
+                      <option value="0" %SEL_TETRISDOTORDER_0%>Bottom-up</option>
+                      <option value="1" %SEL_TETRISDOTORDER_1%>Random</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">How dots fill in to form the digit. Default Bottom-up.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisDatePosition">Date position</label>
+                  <div class="select-wrap">
+                    <select name="tetrisDatePosition" id="tetrisDatePosition">
+                      <option value="0" %SEL_TETRISDATEPOSITION_0%>Top</option>
+                      <option value="1" %SEL_TETRISDATEPOSITION_1%>Bottom</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="tetrisIdleTumble" id="tetrisIdleTumble" %CHK_TETRISIDLETUMBLE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Block game</strong><span class="ct-hint">Auto-playing Tetris fills the bottom while idle (forces a centred, dateless clock). Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="tetrisSmoothGame" id="tetrisSmoothGame" %CHK_TETRISSMOOTHGAME%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Smooth play</strong><span class="ct-hint">Block game plays near-perfectly so rows stay flat and lines clear cleanly. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="tetrisDigitBounce" id="tetrisDigitBounce" %CHK_TETRISDIGITBOUNCE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Digit bounce</strong><span class="ct-hint">New digit bounces after it rebuilds. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="tetrisShowDate" id="tetrisShowDate" %CHK_TETRISSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Uncheck for a cleaner screen. Default on.</span></span>
+              </label>
+            </div>
+
+            <!-- Asteroids (style 10) -->
+            <div class="subcard" id="asteroidsSettings" style="display:%DSP_CLOCKSTYLE_10%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="asteroidsShipSpeed">Ship speed</label>
+                  <div class="range-row">
+                    <input type="range" name="asteroidsShipSpeed" id="asteroidsShipSpeed" min="5" max="25" step="1" value="%V_ASTEROIDSSHIPSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="asteroidsShipSpeed">%F_ASTEROIDSSHIPSPEED%</span>
+                  </div>
+                  <p class="field-hint">Thrust and drift speed of the ship. Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="asteroidsRockSpeed">Asteroid speed</label>
+                  <div class="range-row">
+                    <input type="range" name="asteroidsRockSpeed" id="asteroidsRockSpeed" min="3" max="20" step="1" value="%V_ASTEROIDSROCKSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="asteroidsRockSpeed">%F_ASTEROIDSROCKSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the rocks drift. Default 0.8.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="asteroidsRockCount">Asteroid count</label>
+                  <div class="range-row">
+                    <input type="range" name="asteroidsRockCount" id="asteroidsRockCount" min="1" max="4" step="1" value="%V_ASTEROIDSROCKCOUNT%">
+                    <span class="range-val" data-for="asteroidsRockCount">%V_ASTEROIDSROCKCOUNT%</span>
+                  </div>
+                  <p class="field-hint">Wireframe rocks on screen. Default 2.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="asteroidsShowDate" id="asteroidsShowDate" %CHK_ASTEROIDSSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off gives the ship the whole screen and centres the clock. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="asteroidsTransparent" id="asteroidsTransparent" %CHK_ASTEROIDSTRANSPARENT%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Transparent digits</strong><span class="ct-hint">Rocks and ship fly through the digits instead of dodging solid time plates. Default on.</span></span>
+              </label>
+            </div>
+
+            <!-- Dino Runner (style 11) -->
+            <div class="subcard" id="dinoSettings" style="display:%DSP_CLOCKSTYLE_11%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="dinoSpeed">Run speed</label>
+                  <div class="range-row">
+                    <input type="range" name="dinoSpeed" id="dinoSpeed" min="5" max="30" step="1" value="%V_DINOSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="dinoSpeed">%F_DINOSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the world scrolls past. Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="dinoCactusFreq">Cactus frequency</label>
+                  <div class="select-wrap">
+                    <select name="dinoCactusFreq" id="dinoCactusFreq">
+                      <option value="0" %SEL_DINOCACTUSFREQ_0%>Rare</option>
+                      <option value="1" %SEL_DINOCACTUSFREQ_1%>Normal</option>
+                      <option value="2" %SEL_DINOCACTUSFREQ_2%>Frequent</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">How often a cactus rolls in to jump. Default Normal.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="dinoShowClouds" id="dinoShowClouds" %CHK_DINOSHOWCLOUDS%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Clouds</strong><span class="ct-hint">Parallax clouds drifting in the background. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="dinoShowDate" id="dinoShowDate" %CHK_DINOSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock above the runner. Default off.</span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Time &amp; date</h2>
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="use24Hour">Time format</label>
+                <div class="select-wrap">
+                  <select name="use24Hour" id="use24Hour">
+                    <option value="1" %SEL_USE24HOUR%>24-hour &middot; 14:30</option>
+                    <option value="0" %SEL_USE24HOUR_NOT%>12-hour &middot; 2:30 PM</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="dateFormat">Date format</label>
+                <div class="select-wrap">
+                  <select name="dateFormat" id="dateFormat">
+                    <option value="0" %SEL_DATEFORMAT_0%>DD/MM/YYYY</option>
+                    <option value="1" %SEL_DATEFORMAT_1%>MM/DD/YYYY</option>
+                    <option value="2" %SEL_DATEFORMAT_2%>YYYY-MM-DD</option>
+                    <option value="3" %SEL_DATEFORMAT_3%>DD.MM.YYYY</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DISPLAY -->
+        <section class="page" data-page="display">
+          <div class="page-header">
+            <h1 class="page-h1">Display</h1>
+            <p class="page-lede">Tune brightness, the clock colon, refresh behaviour and scheduled night dimming.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Colon &amp; refresh</h2>
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="colonBlinkMode">Clock colon</label>
+                <div class="select-wrap">
+                  <select name="colonBlinkMode" id="colonBlinkMode">
+                    <option value="0" %SEL_COLONBLINKMODE_0%>Solid</option>
+                    <option value="1" %SEL_COLONBLINKMODE_1%>Blinking</option>
+                    <option value="2" %SEL_COLONBLINKMODE_2%>Off</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="colonBlinkRate">Blink rate</label>
+                <div class="range-row">
+                  <input type="range" name="colonBlinkRate" id="colonBlinkRate" min="5" max="50" step="5" value="%V_COLONBLINKRATE%" data-div="10" data-fixed="1" data-suffix="Hz">
+                  <span class="range-val" data-for="colonBlinkRate">%F_COLONBLINKRATE%Hz</span>
+                </div>
+                  <p class="field-hint">Blink speed. 1.0 Hz is once per second.</p>
+              </div>
+            </div>
+            <div class="field" style="margin:18px 0 0">
+              <label class="field-label" for="refreshRateMode">Refresh rate</label>
+              <div class="select-wrap">
+                <select name="refreshRateMode" id="refreshRateMode">
+                  <option value="0" %SEL_REFRESHRATEMODE_0%>Auto (adaptive)</option>
+                  <option value="1" %SEL_REFRESHRATEMODE_1%>Manual</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" id="refreshRateFields" style="display:%DSP_REFRESHRATEMODE_1%;margin:16px 0 0">
+              <label class="field-label" for="refreshRateHz">Manual refresh rate</label>
+              <div class="range-row">
+                <input type="range" name="refreshRateHz" id="refreshRateHz" min="1" max="60" step="1" value="%V_REFRESHRATEHZ%" data-suffix="Hz">
+                <span class="range-val" data-for="refreshRateHz">%V_REFRESHRATEHZ%Hz</span>
+              </div>
+              <p class="field-hint">Updates per second. Higher is smoother but uses more power.</p>
+            </div>
+            <div class="note">
+              <span class="note-k">auto</span>
+              <div>Adaptive mode runs static clocks at <strong>2&nbsp;Hz</strong>, idle animations at <strong>20&nbsp;Hz</strong>, and active scenes up to <strong>40&nbsp;Hz</strong> - a blinking colon roughly doubles OLED lifespan.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Brightness</h2>
+            <div class="field">
+              <label class="field-label" for="displayBrightness">Daytime brightness</label>
+              <div class="range-row">
+                <input type="range" name="displayBrightness" id="displayBrightness" min="%MINBRIGHT%" max="255" step="5" value="%V_DISPLAYBRIGHTNESS%" data-pct="1">
+                <span class="range-val" data-for="displayBrightness">%PCT_DISPLAYBRIGHTNESS%%</span>
+              </div>
+              <p class="field-hint">%HELP_DISPBRIGHT%</p>
+            </div>
+            <label class="check-row standalone" style="margin-top:6px">
+              <input type="checkbox" name="boostAnim" id="boostAnim" %CHK_BOOSTANIMATIONREFRESH%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Smooth animations</strong><span class="ct-hint">Boost the refresh rate during bounces and explosions, then settle back to save power.</span></span>
+            </label>
+            %LED_SLIDER%
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Night mode</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="enableScheduledDimming" id="enableScheduledDimming" %CHK_ENABLESCHEDULEDDIMMING%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Scheduled dimming</strong><span class="ct-hint">Automatically dim the panel during set hours.</span></span>
+            </label>
+            <div class="subcard" id="nightFields" style="display:%DSP_ENABLESCHEDULEDDIMMING%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="dimStartHour">Dim from</label>
+                  <div class="select-wrap"><select name="dimStartHour" id="dimStartHour">%OPT_DIMSTART%</select></div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="dimEndHour">Until</label>
+                  <div class="select-wrap"><select name="dimEndHour" id="dimEndHour">%OPT_DIMEND%</select></div>
+                </div>
+              </div>
+              <div class="field" style="margin:18px 0 0">
+                <label class="field-label" for="dimBrightness">Night brightness</label>
+                <div class="range-row">
+                  <input type="range" name="dimBrightness" id="dimBrightness" min="%MINBRIGHT%" max="255" step="5" value="%V_DIMBRIGHTNESS%" data-pct="1">
+                  <span class="range-val" data-for="dimBrightness">%PCT_DIMBRIGHTNESS%%</span>
+                </div>
+                <p class="field-hint">%HELP_DIMBRIGHT%</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DISPLAY LAYOUT -->
+        <section class="page" data-page="layout">
+          <div class="page-header">
+            <h1 class="page-h1">Display layout</h1>
+            <p class="page-lede">How metrics are arranged on the OLED when the PC monitor is streaming. Applies to PC-monitor mode only.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Clock &amp; rows</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label class="field-label" for="clockPosition">Clock position</label>
+                <div class="select-wrap">
+                  <select name="clockPosition" id="clockPosition">
+                    <option value="0" %SEL_CLOCKPOSITION_0%>Center (top)</option>
+                    <option value="1" %SEL_CLOCKPOSITION_1%>Left column &middot; row 1</option>
+                    <option value="2" %SEL_CLOCKPOSITION_2%>Right column &middot; row 1</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="rowMode">Row mode</label>
+                <div class="select-wrap">
+                  <select name="rowMode" id="rowMode">
+                    <option value="0" %SEL_DISPLAYROWMODE_0%>5 rows &middot; 13px (optimised)</option>
+                    <option value="1" %SEL_DISPLAYROWMODE_1%>6 rows &middot; 10px (compact)</option>
+                    <option value="2" %SEL_DISPLAYROWMODE_2%>Large 2-row (double size)</option>
+                    <option value="3" %SEL_DISPLAYROWMODE_3%>Large 3-row (double size)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="clockOffset">Clock offset (px)</label>
+              <input type="number" name="clockOffset" id="clockOffset" value="%V_CLOCKOFFSET%" min="-20" max="20">
+              <p class="field-hint">Fine-tune the horizontal clock position, -20 to +20 pixels.</p>
+            </div>
+            <label class="check-row standalone">
+              <input type="checkbox" name="showClock" id="showClock" value="1" %CHK_SHOWCLOCK%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Show clock in metrics view</strong></span>
+            </label>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Number formats</h2>
+            <div class="check-list">
+              <label class="check-row">
+                <input type="checkbox" name="rpmKFormat" id="rpmKFormat" %CHK_USERPMKFORMAT%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>K-format for RPM</strong><span class="ct-hint">Show <code>1.8K</code> instead of <code>1800RPM</code> for fans and pumps.</span></span>
+              </label>
+              <label class="check-row">
+                <input type="checkbox" name="netMBFormat" id="netMBFormat" %CHK_USENETWORKMBFORMAT%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>M-format for network</strong><span class="ct-hint">Show <code>1.2M</code> instead of <code>1200KB/s</code>.</span></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- VISIBLE METRICS -->
+        <section class="page" data-page="metrics">
+          <div class="page-header">
+            <h1 class="page-h1">Visible metrics</h1>
+            <p class="page-lede">Assign each metric to a position on the OLED. Applies to PC-monitor mode only.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">OLED preview</h2>
+            <div class="crt oled-preview">
+              <div class="oled-pv-head">
+                <span class="ttl">preview</span>
+                <span class="meta" id="oledMeta">128x64</span>
+              </div>
+              <div class="oled-screen" id="oledScreen"></div>
+            </div>
+
+            <div id="metricsList"><p class="field-hint">Loading metrics...</p></div>
+
+            <div class="note">
+              <span class="note-k">tip</span>
+              <div>Use <code>^</code> in a label for spacing - <code>CPU^^</code> renders as <code>CPU:&nbsp;&nbsp;45C</code>. Metrics themselves are chosen in the companion app (up to 20).</div>
+            </div>
+            <div class="note plain">
+              <span class="note-k">later</span>
+              <div>This preview is approximate. <strong>Planned (not yet built):</strong> pixel-accurate 1:1 OLED fonts, drag-and-drop positioning, and a live metrics preview streamed from the device.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- NETWORK -->
+        <section class="page" data-page="network">
+          <div class="page-header">
+            <h1 class="page-h1">Network</h1>
+            <p class="page-lede">Device name, mDNS hostname and how the device gets its IP address.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Identity</h2>
+            <div class="field" style="margin-bottom:0">
+              <label class="field-label" for="deviceName">Device name</label>
+              <input type="text" name="deviceName" id="deviceName" value="%V_DEVICENAME%" maxlength="31" pattern="^[a-zA-Z][a-zA-Z0-9-]*$">
+              <p class="field-hint">Reachable at <code><span id="hostPreview">%V_DEVICENAME%</span>.local</code>. Letters, numbers and hyphens only.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">IP address</h2>
+            <div class="field">
+              <label class="field-label" for="useStaticIP">Address mode</label>
+              <div class="select-wrap">
+                <select name="useStaticIP" id="useStaticIP">
+                  <option value="0" %SEL_USESTATICIP_NOT%>DHCP &middot; automatic</option>
+                  <option value="1" %SEL_USESTATICIP%>Static IP</option>
+                </select>
+              </div>
+            </div>
+            <div class="subcard" id="staticFields" style="display:%DSP_USESTATICIP%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0"><label class="field-label" for="staticIP">Static IP</label><input type="text" name="staticIP" id="staticIP" value="%V_STATICIP%" placeholder="192.168.1.100" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div>
+                <div class="field" style="margin-bottom:0"><label class="field-label" for="gateway">Gateway</label><input type="text" name="gateway" id="gateway" value="%V_GATEWAY%" placeholder="192.168.1.1" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div>
+                <div class="field" style="margin-bottom:0"><label class="field-label" for="subnet">Subnet mask</label><input type="text" name="subnet" id="subnet" value="%V_SUBNET%" placeholder="255.255.255.0" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div>
+                <div class="field" style="margin-bottom:0"><label class="field-label" for="dns1">Primary DNS</label><input type="text" name="dns1" id="dns1" value="%V_DNS1%" placeholder="8.8.8.8" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div>
+                <div class="field" style="margin-bottom:0"><label class="field-label" for="dns2">Secondary DNS</label><input type="text" name="dns2" id="dns2" value="%V_DNS2%" placeholder="8.8.4.4" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"></div>
+              </div>
+            </div>
+            <div class="note warn">
+              <span class="note-k">restart</span>
+              <div>Switching to a static IP reboots the device. Make sure the address doesn't clash with anything else on your network.</div>
+            </div>
+            <label class="check-row standalone" style="margin-top:16px">
+              <input type="checkbox" name="showIPAtBoot" id="showIPAtBoot" value="1" %CHK_SHOWIPATBOOT%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Show IP at startup</strong><span class="ct-hint">Display the IP address on the OLED for 5 seconds after boot.</span></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- TIMEZONE -->
+        <section class="page" data-page="timezone">
+          <div class="page-header">
+            <h1 class="page-h1">Timezone</h1>
+            <p class="page-lede">Sets the clock's region. Daylight-saving transitions are handled automatically.</p>
+          </div>
+          <div class="card">
+            <h2 class="card-title">Region</h2>
+            <div class="field" style="margin-bottom:0">
+              <label class="field-label" for="timezoneRegion">Timezone region</label>
+              <div class="select-wrap">
+                <select name="timezoneRegion" id="timezoneRegion">%OPT_TZ%</select>
+              </div>
+              <p class="field-hint">The system automatically switches between standard and daylight saving time for the selected region.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FIRMWARE -->
+        <section class="page" data-page="firmware">
+          <div class="page-header">
+            <h1 class="page-h1">Firmware</h1>
+            <p class="page-lede">Update over the air and back up or restore your configuration.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Update over the air</h2>
+            <div class="crt oled-preview" style="max-width:360px">
+              <div class="oled-pv-head"><span class="ttl">installed</span><span class="meta">ESP32-C3 &middot; %DISPLAYMODEL%</span></div>
+              <dl class="sr-rows" style="position:relative;z-index:1">
+                <div class="sr-row"><dt>version</dt><dd>v%VER%</dd></div>
+                <div class="sr-row"><dt>built</dt><dd>%BUILT%</dd></div>
+                <div class="sr-row"><dt>free heap</dt><dd id="fwHeap">%HEAP% KB</dd></div>
+              </dl>
+            </div>
+            <div class="ota-drop" id="otaDrop">
+              <span class="px" style="clip-path:polygon(40% 0,60% 0,60% 45%,85% 45%,50% 85%,15% 45%,40% 45%)"></span>
+              <div class="big">Drop a <code>.bin</code> firmware here</div>
+              <div class="small">or <button type="button" class="browse" id="otaBrowse">browse for a file</button> - the device reboots automatically when done</div>
+              <input type="file" id="otaFile" accept=".bin" hidden>
+            </div>
+            <div class="ota-progress" id="otaProgress">
+              <div class="ota-bar"><i id="otaFill"></i></div>
+              <div class="ota-pct" id="otaPct">Uploading... 0%</div>
+            </div>
+            <div class="note warn">
+              <span class="note-k">care</span>
+              <div>Don't unplug or close this tab during an update. Flashing the wrong board image can require a USB re-flash to recover.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Configuration backup</h2>
+            <p class="field-hint" style="margin:0 0 14px">Save all settings to a JSON file, or restore them on this or another device.</p>
+            <div class="page-actions" style="margin-top:0">
+              <button type="button" class="btn" id="exportBtn"><span class="gl"></span> Export config</button>
+              <button type="button" class="btn" id="importBtn"><span class="gl"></span> Import config</button>
+              <input type="file" id="importFile" accept=".json" hidden>
+            </div>
+          </div>
+        </section>
+
+      </form>
+    </div>
+  </main>
+</div>
+</div>
+
+<div class="save-bar">
+  <div class="save-bar-inner">
+    <div class="save-meta clean" id="saveMeta"><span class="dot"></span><span class="txt">All saved</span></div>
+    <button type="button" class="btn btn-danger btn-lg" id="resetBtn">Factory reset</button>
+    <button type="submit" form="cfgForm" class="btn btn-accent btn-lg" id="saveBtn">Save &amp; apply</button>
+  </div>
+</div>
+
+<script>window.SOLED={maxRows:%JS_MAXROWS%,isLarge:%JS_ISLARGE%,minBright:%MINBRIGHT%,ver:"%VER%"};</script>
+<script src="/portal.js"></script>
+</body>
+</html>
 )PAGE";
+
+// ============================================================================
+//  PORTAL_CSS - served verbatim from /portal.css (no %TOKEN% substitution).
+// ============================================================================
+static const char PORTAL_CSS[] PROGMEM = R"CSS(
+:root {
+  --paper:      #f4f0e7;
+  --paper-2:    #efe9db;
+  --sidebar:    #f1ece0;
+  --card:       #fcfaf4;
+  --card-2:     #f6f1e6;
+  --inset:      #eee7d6;
+  --ink:        #24221c;
+  --ink-soft:   #3a382f;
+  --mute:       #6c675b;
+  --dim:        #8a8472;
+  --faint:      #a39c89;
+  --line:       #e4ddcc;
+  --line-soft:  #ece6d7;
+  --line-2:     #d4cbb5;
+  --accent:     #1f8a5b;
+  --accent-d:   #176c47;
+  --accent-l:   #2ba169;
+  --accent-soft: rgba(31, 138, 91, 0.12);
+  --accent-line: rgba(31, 138, 91, 0.32);
+  --on-accent:  #ffffff;
+  --ok:   #1f8a5b;
+  --warn: #b8740d;
+  --err:  #c0392b;
+  --crt-bg:   #131e18;
+  --crt-fg:   #84f3ad;
+  --crt-dim:  #4d8a67;
+  --crt-line: #0c140f;
+  --crt-glow: rgba(132, 243, 173, 0.35);
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --sidebar-w: 248px;
+  --topbar-h:  58px;
+  --shadow-card: 0 1px 2px rgba(80,65,35,0.05);
+  --shadow-pop:  0 14px 40px rgba(40,33,18,0.16);
+}
+[data-accent="amber"] {
+  --accent: #b97512; --accent-d: #97600d; --accent-l: #cf8a1f;
+  --accent-soft: rgba(185,117,18,0.13); --accent-line: rgba(185,117,18,0.34);
+  --ok: #1f8a5b;
+  --crt-bg: #1a1209; --crt-fg: #ffcf7a; --crt-dim: #9c7636; --crt-line: #0d0903; --crt-glow: rgba(255,207,122,0.38);
+}
+[data-mode="dark"] {
+  --paper:   #161512;
+  --paper-2: #1e1c17;
+  --sidebar: #131210;
+  --card:    #201e18;
+  --card-2:  #1a1813;
+  --inset:   #14130e;
+  --ink:      #ece7d8;
+  --ink-soft: #d8d2c0;
+  --mute:     #aaa28c;
+  --dim:      #847c66;
+  --faint:    #5f5847;
+  --line:      #2c2920;
+  --line-soft: #24211a;
+  --line-2:    #403b2c;
+  --accent: #36b478; --accent-d: #44c98a; --accent-l: #2ba169;
+  --accent-soft: rgba(54,180,120,0.16); --accent-line: rgba(54,180,120,0.40);
+  --ok: #36b478;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.35);
+}
+[data-mode="dark"][data-accent="amber"] {
+  --accent: #e0a23f; --accent-d: #f0b556; --accent-l: #c98c2f;
+  --accent-soft: rgba(224,162,63,0.16); --accent-line: rgba(224,162,63,0.40);
+  --crt-bg: #1a1209; --crt-fg: #ffcf7a; --crt-dim: #9c7636; --crt-line: #0d0903; --crt-glow: rgba(255,207,122,0.38);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; min-height: 100vh;
+}
+body { transition: background 200ms ease, color 200ms ease; }
+a { color: var(--accent-d); text-decoration: none; transition: color 120ms ease; }
+a:hover { color: var(--accent); }
+::selection { background: var(--accent-soft); }
+.app { background: var(--paper); min-height: 100vh; }
+.topbar {
+  position: sticky; top: 0; z-index: 50; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 14px; padding: 0 24px;
+  background: color-mix(in oklab, var(--paper) 90%, transparent);
+  backdrop-filter: blur(10px) saturate(1.05);
+  border-bottom: 1px solid var(--line);
+}
+.tb-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: 7px; background: var(--accent);
+  display: grid; place-items: center; flex: none; box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.brand-mark::after {
+  content: ""; width: 13px; height: 13px;
+  background:
+    linear-gradient(#fff 0 0) 0 0 / 5.5px 5.5px no-repeat,
+    linear-gradient(#fff 0 0) 7.5px 7.5px / 5.5px 5.5px no-repeat,
+    linear-gradient(rgba(255,255,255,.55) 0 0) 7.5px 0 / 5.5px 5.5px no-repeat,
+    linear-gradient(rgba(255,255,255,.55) 0 0) 0 7.5px / 5.5px 5.5px no-repeat;
+}
+.tb-name { font-weight: 600; color: var(--ink); letter-spacing: -0.01em; font-size: 15px; }
+.tb-ver { font-family: var(--mono); font-size: 11px; color: var(--mute); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+.tb-sep { width: 1px; height: 22px; background: var(--line-2); margin: 0 4px; }
+.tb-crumb { font-size: 14px; color: var(--mute); font-weight: 500; }
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.acc-pick { display: flex; align-items: center; gap: 6px; }
+.acc-pick .lab { font-family: var(--mono); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
+.acc-sw { width: 22px; height: 22px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; padding: 0; background: var(--paper-2); display: grid; place-items: center; transition: border-color 120ms ease, transform 80ms ease; }
+.acc-sw:hover { transform: scale(1.08); }
+.acc-sw i { width: 13px; height: 13px; border-radius: 999px; display: block; }
+.acc-sw[data-acc="green"] i { background: #1f8a5b; }
+.acc-sw[data-acc="amber"] i { background: #b97512; }
+.acc-sw.on { border-color: var(--accent); }
+.mode-toggle { display: inline-flex; background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.mode-toggle button { font: inherit; font-family: var(--mono); font-size: 11.5px; cursor: pointer; border: 0; background: transparent; color: var(--mute); padding: 5px 11px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; transition: background 120ms ease, color 120ms ease; }
+.mode-toggle button:hover { color: var(--ink); }
+.mode-toggle button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow-card); }
+.mode-toggle .ic { width: 11px; height: 11px; border-radius: 999px; }
+.mode-toggle button[data-mode="light"] .ic { background: #e0a23f; box-shadow: 0 0 0 2px color-mix(in oklab, #e0a23f 30%, transparent); }
+.mode-toggle button[data-mode="dark"] .ic { background: transparent; box-shadow: inset -3px -1px 0 0 var(--mute); }
+.workspace { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); align-items: start; background: var(--paper); min-height: calc(100vh - var(--topbar-h)); }
+.sidebar {
+  position: sticky; top: var(--topbar-h); align-self: start;
+  height: calc(100vh - var(--topbar-h)); overflow-y: auto;
+  border-right: 1px solid var(--line); background: var(--sidebar);
+  padding: 22px 16px 26px; display: flex; flex-direction: column; gap: 22px;
+  scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group + .nav-group { margin-top: 14px; }
+.nav-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); padding: 0 10px; margin-bottom: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 9px 11px; border-radius: 8px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; color: var(--mute); position: relative;
+  transition: background 120ms ease, color 120ms ease;
+}
+.nav-item:hover { background: var(--paper-2); color: var(--ink); }
+.nav-item.active { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-card); }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--accent); }
+.nav-item .nv-tag { margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; font-weight: 500; }
+.nav-item.active .nv-tag { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-d); }
+.sidebar-spacer { flex: 1 1 auto; min-height: 8px; }
+.rail-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px 2px; }
+.status-readout { background: var(--crt-bg); border: 1px solid var(--crt-line); border-radius: var(--r-md); padding: 12px 13px; position: relative; overflow: hidden; box-shadow: inset 0 0 24px rgba(0,0,0,.55), inset 0 0 3px var(--crt-glow); font-family: var(--mono); }
+.status-readout::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
+.sr-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; position: relative; z-index: 1; }
+.sr-led { width: 8px; height: 8px; border-radius: 999px; flex: none; background: var(--crt-fg); box-shadow: 0 0 7px var(--crt-glow); }
+.sr-led.online { animation: led-pulse 2.4s ease-in-out infinite; }
+.sr-led.offline { background: var(--crt-dim); box-shadow: none; animation: none; }
+@keyframes led-pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .sr-led.online { animation: none; } }
+.sr-title { font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--crt-dim); }
+.sr-rows { display: flex; flex-direction: column; gap: 5px; position: relative; z-index: 1; margin: 0; }
+.sr-row { display: grid; grid-template-columns: 50px 1fr; gap: 9px; align-items: baseline; font-size: 11.5px; }
+.sr-row dt { color: var(--crt-dim); }
+.sr-row dd { margin: 0; color: var(--crt-fg); text-shadow: 0 0 6px var(--crt-glow); word-break: break-word; }
+.about { font-family: var(--mono); font-size: 11px; color: var(--faint); display: flex; flex-direction: column; gap: 5px; padding: 0 2px; }
+.about .line b { color: var(--ink-soft); font-weight: 600; }
+.about a { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-d); }
+.about a:hover { color: var(--accent); }
+.about a .gh { width: 11px; height: 11px; border-radius: 3px; background: var(--accent); flex: none; }
+.content { padding: 34px 40px 130px; min-width: 0; }
+.content-inner { max-width: 860px; }
+.page { display: none; }
+.page.active { display: block; }
+.page-header { margin-bottom: 24px; }
+.page-h1 { margin: 0; font-size: 25px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.page-lede { margin: 7px 0 0; color: var(--mute); font-size: 14.5px; max-width: 64ch; text-wrap: pretty; }
+.page-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 22px 24px; margin-bottom: 18px; box-shadow: var(--shadow-card); }
+.card-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 18px; letter-spacing: -0.01em; }
+.card-title .tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-weight: 500; }
+.field { margin-bottom: 18px; }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
+.field-hint { color: var(--dim); font-size: 12.5px; margin: 7px 0 0; max-width: 70ch; text-wrap: pretty; }
+.field-hint code, .note code, .field-label code { font-family: var(--mono); font-size: 0.9em; background: var(--inset); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; color: var(--ink-soft); }
+.select-wrap { position: relative; max-width: 520px; }
+.select-wrap::after { content: ""; position: absolute; right: 14px; top: 50%; width: 8px; height: 8px; border-right: 1.5px solid var(--mute); border-bottom: 1.5px solid var(--mute); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+select, input[type="text"], input[type="number"] { appearance: none; -webkit-appearance: none; width: 100%; max-width: 520px; background: var(--card); color: var(--ink); border: 1px solid var(--line-2); border-radius: var(--r-md); padding: 11px 14px; font: inherit; font-size: 14px; box-shadow: var(--shadow-card); transition: border-color 120ms ease, box-shadow 120ms ease; }
+select { padding-right: 36px; cursor: pointer; }
+select:hover, input[type="text"]:hover, input[type="number"]:hover { border-color: var(--line-2); }
+select:focus, input:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+input::placeholder { color: var(--faint); }
+.range-row { display: flex; align-items: center; gap: 14px; max-width: 520px; }
+input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; height: 4px; border-radius: 999px; background: var(--line-2); cursor: pointer; margin: 12px 0; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.25); cursor: pointer; transition: transform 80ms ease; }
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid var(--card); cursor: pointer; }
+.range-val { font-family: var(--mono); font-size: 13px; color: var(--accent-d); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 6px; padding: 3px 9px; min-width: 56px; text-align: center; flex: none; }
+.check-list { display: flex; flex-direction: column; }
+.check-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; padding: 13px 0; border-top: 1px solid var(--line-soft); }
+.check-row:first-child { border-top: 0; padding-top: 4px; }
+.check-row.standalone { border-top: 0; padding: 0; }
+.check-row input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+.check-box { flex: none; width: 20px; height: 20px; margin-top: 0; border-radius: 5px; border: 1.5px solid var(--line-2); background: var(--card); display: grid; place-items: center; transition: background 120ms ease, border-color 120ms ease; }
+.check-box::after { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--on-accent); transform: scale(0); transition: transform 130ms cubic-bezier(.3,1.4,.5,1); clip-path: polygon(0 40%,38% 40%,38% 0,62% 0,62% 40%,100% 40%,100% 64%,62% 64%,62% 100%,38% 100%,38% 64%,0 64%); }
+.check-row input:checked + .check-box { border-color: var(--accent); background: var(--accent); }
+.check-row input:checked + .check-box::after { transform: scale(1); }
+.check-row input:focus-visible + .check-box { box-shadow: 0 0 0 3px var(--accent-soft); }
+.check-text { font-size: 14px; color: var(--ink-soft); }
+.check-text strong { color: var(--ink); font-weight: 600; }
+.check-text .ct-hint { display: block; color: var(--dim); font-size: 12.5px; margin-top: 2px; }
+.subcard { margin-top: 16px; padding: 16px 18px; border-radius: var(--r-md); background: var(--card-2); border: 1px solid var(--line); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+.note { display: flex; gap: 11px; align-items: flex-start; max-width: 72ch; margin: 16px 0 0; padding: 12px 14px; background: var(--card-2); border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: var(--r-sm); font-size: 13.5px; color: var(--mute); text-wrap: pretty; }
+.note.warn { border-left-color: var(--warn); }
+.note.plain { border-left-color: var(--line-2); }
+.note .note-k { flex: none; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent-d); margin-top: 3px; }
+.note.warn .note-k { color: var(--warn); }
+.note.plain .note-k { color: var(--dim); }
+.note strong { color: var(--ink); font-weight: 600; }
+.btn { font: inherit; font-weight: 600; font-size: 13.5px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: var(--r-md); cursor: pointer; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); transition: background 120ms ease, border-color 120ms ease, filter 120ms ease, transform 80ms ease; }
+.btn:hover { background: var(--card-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .6; cursor: default; }
+.btn .gl { width: 12px; height: 12px; flex: none; border-radius: 2px; background: var(--accent); }
+.btn-accent { background: var(--accent); border-color: var(--accent-d); color: var(--on-accent); }
+.btn-accent .gl { background: var(--on-accent); }
+.btn-accent:hover { filter: brightness(1.05); background: var(--accent); }
+.btn-danger { color: var(--err); border-color: color-mix(in oklab, var(--err) 36%, var(--line-2)); }
+.btn-danger:hover { background: color-mix(in oklab, var(--err) 8%, var(--card)); }
+.btn-lg { padding: 11px 20px; font-size: 14px; }
+.crt { background: var(--crt-bg); border: 1px solid var(--crt-line); border-radius: var(--r-md); position: relative; overflow: hidden; font-family: var(--mono); box-shadow: inset 0 0 24px rgba(0,0,0,.55), inset 0 0 3px var(--crt-glow); }
+.crt::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px); }
+.oled-preview { max-width: 100%; margin-bottom: 18px; padding: 14px 15px; }
+.oled-pv-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; position: relative; z-index: 1; }
+.oled-pv-head .ttl { color: var(--crt-fg); font-size: 12.5px; text-shadow: 0 0 6px var(--crt-glow); }
+.oled-pv-head .meta { color: var(--crt-dim); font-size: 11px; }
+.oled-screen { position: relative; z-index: 1; aspect-ratio: 128 / 64; width: 100%; max-width: 420px; margin: 0 auto; background: #060d09; border: 1px solid var(--crt-line); border-radius: 4px; overflow: hidden; display: grid; gap: 1px; padding: 5px; }
+[data-accent="amber"] .oled-screen { background: #0c0803; }
+.oled-cell { display: flex; align-items: center; padding: 0 6px; font-size: 11px; letter-spacing: 0.5px; color: var(--crt-fg); text-shadow: 0 0 5px var(--crt-glow); border-radius: 2px; min-width: 0; }
+.oled-cell.empty { color: var(--crt-dim); opacity: .5; }
+.oled-cell .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oled-cell .val { margin-left: auto; padding-left: 8px; color: var(--crt-fg); }
+.oled-clock { grid-column: 1 / -1; justify-content: center; font-size: 15px; letter-spacing: 2px; color: var(--crt-fg); }
+.metric-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card-2); margin-bottom: 8px; }
+.metric-row:hover { border-color: var(--line-2); }
+.metric-id { min-width: 0; }
+.metric-id .nm { font-weight: 600; font-size: 14px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.metric-id .grip { color: var(--faint); font-family: var(--mono); font-size: 13px; cursor: grab; letter-spacing: -1px; }
+.metric-id .sub { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 2px; }
+.metric-id .pair { color: var(--accent-d); }
+.metric-pos .select-wrap { max-width: 150px; }
+.metric-pos select { padding: 8px 32px 8px 11px; font-size: 13px; background: var(--card); }
+.metric-adv { grid-column: 1 / -1; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.metric-adv .field-label { margin-bottom: 5px; }
+.metric-adv input, .metric-adv select { font-size: 13px; padding: 8px 11px; }
+.metric-adv select { padding-right: 32px; }
+.metric-adv .full { grid-column: 1 / -1; }
+.ota-drop { border: 1.5px dashed var(--line-2); border-radius: var(--r-md); padding: 26px 20px; text-align: center; background: var(--card-2); transition: border-color 120ms ease, background 120ms ease; }
+.ota-drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+.ota-drop .px { width: 22px; height: 22px; margin: 0 auto 10px; background: var(--accent); }
+.ota-drop .big { font-weight: 600; color: var(--ink); font-size: 15px; }
+.ota-drop .small { color: var(--dim); font-size: 13px; margin-top: 4px; }
+.ota-drop .browse { color: var(--accent-d); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; border: 0; background: 0; font: inherit; }
+.ota-progress { margin-top: 16px; display: none; }
+.ota-progress.show { display: block; }
+.ota-bar { height: 10px; border-radius: 999px; background: var(--inset); border: 1px solid var(--line); overflow: hidden; }
+.ota-bar > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width 240ms ease; }
+.ota-pct { font-family: var(--mono); font-size: 12px; color: var(--mute); margin-top: 7px; }
+.save-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: color-mix(in oklab, var(--paper) 88%, transparent); backdrop-filter: blur(10px) saturate(1.1); border-top: 1px solid var(--line); }
+.save-bar-inner { padding: 12px 40px 12px calc(var(--sidebar-w) + 40px); display: flex; align-items: center; gap: 14px; max-width: 100%; }
+.save-meta { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-right: auto; display: flex; align-items: center; gap: 8px; }
+.save-meta .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--warn); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warn) 18%, transparent); }
+.save-meta.clean .dot { background: var(--ok); box-shadow: 0 0 0 3px var(--accent-soft); }
+@media (max-width: 880px) {
+  .topbar { padding: 0 14px; gap: 10px; }
+  .tb-ver, .tb-sep, .tb-crumb { display: none; }
+  .acc-pick .lab { display: none; }
+  .workspace { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static; height: auto; overflow: visible;
+    border-right: 0; border-bottom: 1px solid var(--line);
+    flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 12px 14px; overflow-x: auto;
+  }
+  .nav-group { flex-direction: row; flex-wrap: nowrap; gap: 6px; }
+  .nav-group + .nav-group { margin-top: 0; }
+  .nav-label { display: none; }
+  .nav-item { padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+  .nav-item.active::before { display: none; }
+  .nav-item .nv-tag { display: none; }
+  .sidebar-spacer { display: none; }
+  .status-block, .about { display: none; }
+  .content { padding: 24px 18px 130px; }
+  .save-bar-inner { padding: 11px 16px; }
+  .save-meta .txt { display: none; }
+}
+@media (max-width: 560px) {
+  .page-h1 { font-size: 22px; }
+  .card { padding: 18px 16px; }
+  .page-actions .btn { flex: 1; justify-content: center; }
+  .metric-adv { grid-template-columns: 1fr; }
+}
+)CSS";
+
+// ============================================================================
+//  PORTAL_JS - served verbatim from /portal.js (no %TOKEN% substitution).
+//  Reads runtime config from window.SOLED (emitted inline in PAGE_HTML).
+// ============================================================================
+static const char PORTAL_JS[] PROGMEM = R"JS(
+(function () {
+  'use strict';
+  var $  = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var CFG = window.SOLED || {};
+
+  /* ---- section nav (master-detail) ---- */
+  var navItems = $$('.nav-item');
+  var pages = $$('.page');
+  var crumb = $('#crumb');
+  function showPage(key) {
+    pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === key); });
+    navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.nav === key); });
+    var active = navItems.filter(function (n) { return n.dataset.nav === key; })[0];
+    if (active && crumb) crumb.textContent = active.textContent.replace(/PC$/, '').trim();
+    window.scrollTo(0, 0);
+    try { localStorage.setItem('soled_section', key); } catch (e) {}
+  }
+  navItems.forEach(function (n) { n.addEventListener('click', function () { showPage(n.dataset.nav); }); });
+  try { var s = localStorage.getItem('soled_section'); if (s && $('[data-page="' + s + '"]')) showPage(s); } catch (e) {}
+
+  /* ---- accent picker ---- */
+  var accSw = $$('.acc-sw');
+  function setAccent(acc) {
+    document.documentElement.setAttribute('data-accent', acc);
+    accSw.forEach(function (b) { b.classList.toggle('on', b.dataset.acc === acc); });
+    try { localStorage.setItem('soled_accent', acc); } catch (e) {}
+  }
+  accSw.forEach(function (b) { b.addEventListener('click', function () { setAccent(b.dataset.acc); }); });
+  try { var a = localStorage.getItem('soled_accent'); if (a) setAccent(a); } catch (e) {}
+
+  /* ---- light / dark mode ---- */
+  var modeBtns = $$('.mode-toggle button');
+  function setMode(mode) {
+    document.documentElement.setAttribute('data-mode', mode);
+    modeBtns.forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
+    var meta = $('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', mode === 'dark' ? '#161512' : '#f4f0e7');
+    try { localStorage.setItem('soled_mode', mode); } catch (e) {}
+  }
+  modeBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode); }); });
+  try { var m = localStorage.getItem('soled_mode'); if (m) setMode(m); } catch (e) {}
+
+  /* ---- dirty indicator ---- */
+  var saveMeta = $('#saveMeta');
+  function markDirty() { if (saveMeta) { saveMeta.classList.remove('clean'); $('.txt', saveMeta).textContent = 'Unsaved changes'; } }
+  function markClean(txt) { if (saveMeta) { saveMeta.classList.add('clean'); $('.txt', saveMeta).textContent = txt || 'All saved'; } }
+  var form = $('#cfgForm');
+  form.addEventListener('input', markDirty);
+  form.addEventListener('change', markDirty);
+
+  /* ---- range value bubbles ---- */
+  function fmtRange(inp) {
+    var span = $('.range-val[data-for="' + inp.id + '"]');
+    if (!span) return;
+    var suf = inp.dataset.suffix || '';
+    if (inp.dataset.pct) { span.textContent = Math.round((inp.value / 255) * 100) + '%'; return; }
+    var div = parseFloat(inp.dataset.div || '1');
+    var fixed = parseInt(inp.dataset.fixed || '0', 10);
+    span.textContent = (inp.value / div).toFixed(fixed) + suf;
+  }
+  $$('input[type="range"]').forEach(function (inp) { fmtRange(inp); inp.addEventListener('input', function () { fmtRange(inp); }); });
+
+  /* ---- conditional reveals ---- */
+  function toggle(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+  var nightChk = $('#enableScheduledDimming');
+  if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
+  var staticSel = $('#useStaticIP');
+  if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
+  var refSel = $('#refreshRateMode');
+  if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
+  var marioEnc = $('#marioIdleEncounters');
+  if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
+
+  /* ---- per-style settings panels ---- */
+  var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings' };
+  var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings'];
+  var clockStyle = $('#clockStyle');
+  function syncClockPanels() {
+    ALL_PANELS.forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    var show = STYLE_PANELS[clockStyle.value];
+    if (show) { var e = document.getElementById(show); if (e) e.style.display = ''; }
+  }
+  if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
+
+  /* ---- device name -> host preview ---- */
+  var dn = $('#deviceName');
+  if (dn) dn.addEventListener('input', function () {
+    var v = dn.value.toLowerCase() || 'smalloled';
+    var hp = $('#hostPreview'); if (hp) hp.textContent = v;
+    var sh = $('#srHost'); if (sh) sh.textContent = v;
+  });
+
+  /* ============================================================
+     VISIBLE METRICS - full per-metric config, fetched from /metrics.
+     Every form field name preserved for handleSave().
+     ============================================================ */
+  var metricsData = [];
+  var MAX_ROWS = CFG.maxRows || 5;
+  var IS_LARGE = !!CFG.isLarge;
+
+  function rowGeom() {
+    var rm = parseInt($('#rowMode').value, 10);
+    IS_LARGE = (rm >= 2);
+    MAX_ROWS = (rm === 0) ? 5 : (rm === 1) ? 6 : (rm === 2) ? 2 : 3;
+    return { rows: MAX_ROWS, cols: IS_LARGE ? 1 : 2, large: IS_LARGE };
+  }
+
+  function saveFormState() {
+    metricsData.forEach(function (mt) {
+      var lbl = document.querySelector('input[name="label_' + mt.id + '"]'); if (lbl) mt.label = lbl.value;
+      var pos = document.getElementById('pos_' + mt.id); if (pos) mt.position = parseInt(pos.value, 10);
+      var comp = document.getElementById('comp_' + mt.id); if (comp) mt.companionId = parseInt(comp.value, 10);
+      var bp = document.getElementById('barPos_' + mt.id); if (bp) mt.barPosition = parseInt(bp.value, 10);
+      var bmin = document.querySelector('input[name="barMin_' + mt.id + '"]'); if (bmin) mt.barMin = parseInt(bmin.value, 10) || 0;
+      var bmax = document.querySelector('input[name="barMax_' + mt.id + '"]'); if (bmax) mt.barMax = parseInt(bmax.value, 10) || 100;
+      var bw = document.querySelector('input[name="barWidth_' + mt.id + '"]'); if (bw) mt.barWidth = parseInt(bw.value, 10) || 60;
+      var bo = document.querySelector('input[name="barOffset_' + mt.id + '"]'); if (bo) mt.barOffsetX = parseInt(bo.value, 10) || 0;
+    });
+  }
+
+  function onRowMode() {
+    saveFormState();
+    var g = rowGeom();
+    var maxPos = g.large ? g.rows : g.rows * 2;
+    var hidden = metricsData.filter(function (mt) {
+      return (mt.position !== 255 && mt.position >= maxPos) || (mt.barPosition !== 255 && mt.barPosition >= maxPos);
+    });
+    if (hidden.length > 0) {
+      var names = hidden.map(function (mt) { return mt.name; }).join(', ');
+      if (!confirm('Warning: ' + hidden.length + ' metric(s) (' + names + ') will be hidden in this row mode. Continue?')) { return; }
+      metricsData.forEach(function (mt) {
+        if (mt.position !== 255 && mt.position >= maxPos) mt.position = 255;
+        if (mt.barPosition !== 255 && mt.barPosition >= maxPos) mt.barPosition = 255;
+      });
+    }
+    renderMetrics();
+    renderOLED();
+  }
+
+  function posOptionsHtml(cur, g, includeNoneLabel) {
+    var html = '<option value="255">' + (includeNoneLabel || 'None (hidden)') + '</option>';
+    for (var r = 0; r < g.rows; r++) {
+      if (g.large) {
+        html += '<option value="' + r + '"' + (cur === r ? ' selected' : '') + '>Row ' + (r + 1) + '</option>';
+      } else {
+        var lp = r * 2, rp = r * 2 + 1;
+        html += '<option value="' + lp + '"' + (cur === lp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Left</option>';
+        html += '<option value="' + rp + '"' + (cur === rp ? ' selected' : '') + '>Row ' + (r + 1) + ' &middot; Right</option>';
+      }
+    }
+    return html;
+  }
+
+  function renderOLED() {
+    var g = rowGeom();
+    var screen = $('#oledScreen');
+    var showClock = $('#showClock').checked;
+    $('#oledMeta').textContent = '128x64 · ' + g.rows + ' rows · ' + (g.cols === 1 ? 'single column' : '2 columns') + (g.large ? ' · large' : '');
+    screen.style.gridTemplateRows = 'repeat(' + g.rows + ', 1fr)';
+    screen.style.gridTemplateColumns = 'repeat(' + g.cols + ', 1fr)';
+    screen.innerHTML = '';
+    var total = g.rows * g.cols;
+    var byPos = {};
+    metricsData.forEach(function (mt) { if (mt.position !== 255) byPos[mt.position] = mt; });
+    var startCell = 0;
+    if (showClock) {
+      var cc = document.createElement('div'); cc.className = 'oled-cell oled-clock'; cc.textContent = '14:30';
+      screen.appendChild(cc); startCell = g.cols;
+    }
+    for (var p = startCell; p < total; p++) {
+      var mt = byPos[p];
+      var cell = document.createElement('div');
+      if (mt) {
+        cell.className = 'oled-cell';
+        var lbl = (mt.label || mt.name).replace(/\^/g, ' ').trim();
+        cell.innerHTML = '<span class="lbl">' + lbl + '</span><span class="val">' + (mt.unit === '%' ? '00%' : '--') + '</span>';
+      } else { cell.className = 'oled-cell empty'; cell.textContent = '—'; }
+      screen.appendChild(cell);
+    }
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function renderMetrics() {
+    var g = rowGeom();
+    var list = $('#metricsList');
+    list.innerHTML = '';
+    if (!metricsData.length) { list.innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; return; }
+    var sorted = metricsData.slice().sort(function (a, b) { return a.displayOrder - b.displayOrder; });
+    sorted.forEach(function (mt) {
+      var compName = mt.companionId > 0 ? (metricsData.filter(function (x){return x.id===mt.companionId;})[0] || {}).name : null;
+      var compOpts = '<option value="0">None</option>';
+      metricsData.forEach(function (x) {
+        if (x.id !== mt.id) compOpts += '<option value="' + x.id + '"' + (mt.companionId === x.id ? ' selected' : '') + '>' + esc(x.name) + ' (' + esc(x.unit) + ')</option>';
+      });
+      var row = document.createElement('div');
+      row.className = 'metric-row';
+      row.innerHTML =
+        '<div class="metric-id">' +
+          '<div class="nm"><span class="grip" title="Display order ' + mt.displayOrder + '">⠿</span>' + esc(mt.name) + '</div>' +
+          '<div class="sub">' + esc(mt.unit) + (compName ? ' · <span class="pair">+ ' + esc(compName) + '</span>' : '') + '</div>' +
+        '</div>' +
+        '<div class="metric-pos"><div class="select-wrap"><select id="pos_' + mt.id + '" name="position_' + mt.id + '" aria-label="Position">' + posOptionsHtml(mt.position, g, 'Hidden') + '</select></div></div>' +
+        '<div class="metric-adv">' +
+          '<div><label class="field-label">Custom label (10 max)</label><input type="text" name="label_' + mt.id + '" value="' + esc(mt.label) + '" maxlength="10" placeholder="' + esc(mt.name) + '"></div>' +
+          '<div><label class="field-label">Pair with</label><div class="select-wrap"><select id="comp_' + mt.id + '" name="companion_' + mt.id + '">' + compOpts + '</select></div></div>' +
+          '<div class="full"><label class="field-label">Progress bar position</label><div class="select-wrap"><select id="barPos_' + mt.id + '" name="barPosition_' + mt.id + '">' + posOptionsHtml(mt.barPosition, g, 'None') + '</select></div></div>' +
+          '<div><label class="field-label">Bar min</label><input type="number" name="barMin_' + mt.id + '" value="' + (mt.barMin || 0) + '"></div>' +
+          '<div><label class="field-label">Bar max</label><input type="number" name="barMax_' + mt.id + '" value="' + (mt.barMax || 100) + '"></div>' +
+          '<div><label class="field-label">Bar width (px)</label><input type="number" name="barWidth_' + mt.id + '" value="' + (mt.barWidth || 60) + '" min="10" max="64"></div>' +
+          '<div><label class="field-label">Bar offset X (px)</label><input type="number" name="barOffset_' + mt.id + '" value="' + (mt.barOffsetX || 0) + '" min="0" max="54"></div>' +
+        '</div>' +
+        '<input type="hidden" name="order_' + mt.id + '" value="' + mt.displayOrder + '">';
+      list.appendChild(row);
+      var posSel = $('#pos_' + mt.id, row);
+      posSel.addEventListener('change', function () { saveFormState(); renderMetrics(); renderOLED(); markDirty(); });
+      var compSel = $('#comp_' + mt.id, row);
+      compSel.addEventListener('change', function () { saveFormState(); renderMetrics(); markDirty(); });
+    });
+  }
+
+  var rowModeSel = $('#rowMode');
+  if (rowModeSel) rowModeSel.addEventListener('change', onRowMode);
+  var showClockChk = $('#showClock');
+  if (showClockChk) showClockChk.addEventListener('change', renderOLED);
+
+  fetch('/metrics').then(function (r) { return r.json(); }).then(function (data) {
+    if (data.metrics && data.metrics.length) { metricsData = data.metrics; renderMetrics(); renderOLED(); }
+    else { $('#metricsList').innerHTML = '<p class="field-hint">No metrics received yet. Start the companion app on your PC.</p>'; renderOLED(); }
+  }).catch(function () { $('#metricsList').innerHTML = '<p class="field-hint">Could not load metrics from the device.</p>'; });
+
+  /* ============================================================
+     SAVE  (real POST /save, JSON response, handles networkChanged)
+     ============================================================ */
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    saveFormState();
+    var btn = $('#saveBtn'); var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Saving...';
+    var body = new URLSearchParams(new FormData(form));
+    fetch('/save', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        btn.disabled = false; btn.textContent = orig;
+        if (d.success) {
+          markClean('Saved');
+          if (d.networkChanged) {
+            alert('Network settings changed. The device is restarting - you may need to reconnect at the new IP address.');
+            setTimeout(function () { window.location.href = '/'; }, 3000);
+          }
+        } else { alert('Error saving settings.'); }
+      })
+      .catch(function (err) { btn.disabled = false; btn.textContent = orig; alert('Error saving settings: ' + err); });
+  });
+
+  /* ---- factory reset ---- */
+  $('#resetBtn').addEventListener('click', function () {
+    if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
+    if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Metric labels & layout\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
+    window.location.href = '/reset';
+  });
+
+  /* ============================================================
+     IMPORT / EXPORT  (real /api/export, /api/import)
+     ============================================================ */
+  $('#exportBtn').addEventListener('click', function () {
+    fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a'); a.href = url; a.download = 'smalloled-config.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }).catch(function (err) { alert('Error exporting configuration: ' + err); });
+  });
+  $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
+  $('#importFile').addEventListener('change', function (ev) {
+    var file = ev.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var cfg;
+      try { cfg = JSON.parse(e.target.result); } catch (err) { alert('Invalid configuration file: ' + err); return; }
+      fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.success) { alert('Configuration imported. Reloading...'); location.reload(); }
+          else { alert('Error importing configuration: ' + d.message); }
+        })
+        .catch(function (err) { alert('Error importing configuration: ' + err); });
+    };
+    reader.readAsText(file);
+  });
+
+  /* ============================================================
+     OTA  (real multipart POST /update with progress)
+     ============================================================ */
+  var drop = $('#otaDrop'), otaFile = $('#otaFile');
+  $('#otaBrowse').addEventListener('click', function () { otaFile.click(); });
+  otaFile.addEventListener('change', function () { if (otaFile.files[0]) doUpload(otaFile.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('drag'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('drag'); }); });
+  drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) doUpload(f); });
+  function doUpload(file) {
+    if (!file.name || file.name.slice(-4) !== '.bin') { alert('Please select a valid .bin firmware file.'); return; }
+    var prog = $('#otaProgress'), fill = $('#otaFill'), pct = $('#otaPct');
+    prog.classList.add('show'); fill.style.width = '0%'; pct.textContent = 'Uploading ' + file.name + '... 0%';
+    var xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', function (e) {
+      if (e.lengthComputable) { var p = Math.round((e.loaded / e.total) * 100); fill.style.width = p + '%'; pct.textContent = 'Uploading ' + file.name + '... ' + p + '%'; }
+    });
+    xhr.addEventListener('load', function () {
+      if (xhr.status === 200) { fill.style.width = '100%'; pct.textContent = '✓ Written - rebooting device...'; setTimeout(function () { window.location.href = '/'; }, 8000); }
+      else { pct.textContent = 'Upload failed - please try again.'; }
+    });
+    xhr.addEventListener('error', function () { pct.textContent = 'Upload error - please try again.'; });
+    var fd = new FormData(); fd.append('firmware', file);
+    xhr.open('POST', '/update'); xhr.send(fd);
+  }
+
+  /* ============================================================
+     LIVE DEVICE STATUS  (/api/info + /api/status)
+     ============================================================ */
+  function fmtUptime(sec) {
+    var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
+  }
+  function refreshStatus() {
+    fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
+      if (d.ip) { var e = $('#srIp'); if (e) e.textContent = d.ip; }
+      if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname).replace(/\.local$/, ''); }
+      if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }
+      if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
+      if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
+    }).catch(function () {});
+    fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
+      var led = $('#srLed'), title = $('#srTitle');
+      if (led) { led.classList.toggle('online', !!d.pcOnline); led.classList.toggle('offline', !d.pcOnline); }
+      if (title) title.textContent = (d.pcOnline ? 'PC online' : 'PC offline') + ' · ' + (d.mode || 'clock');
+    }).catch(function () {});
+  }
+  refreshStatus();
+  setInterval(refreshStatus, 5000);
+})();
+)JS";

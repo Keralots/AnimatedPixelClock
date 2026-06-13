@@ -31,6 +31,8 @@ extern bool manualClockMode;
 // ========== Web Server Setup ==========
 void setupWebServer() {
  server.on("/", handleRoot);
+ server.on("/portal.css", HTTP_GET, handlePortalCss);
+ server.on("/portal.js", HTTP_GET, handlePortalJs);
  server.on("/save", HTTP_POST, handleSave);
  server.on("/reset", handleReset);
  server.on("/metrics", handleMetricsAPI);
@@ -117,6 +119,7 @@ void handleDeviceInfo() {
  doc["displayType"] = settings.displayType;
  doc["rssi"] = WiFi.RSSI();
  doc["uptime"] = millis() / 1000;
+ doc["freeHeap"] = ESP.getFreeHeap();
  doc["model"] = "SmallOLED";
 
  String json;
@@ -274,6 +277,12 @@ static bool resolvePlaceholder(const char* n, String& out) {
   // --- Header / identity ---
   if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
   if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
+  if (!strcmp(n, "BUILT")) { out = String(__DATE__); return true; }
+  if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
+  if (!strcmp(n, "DISPLAYMODEL")) {
+    out = (settings.displayType == 2) ? "CH1116" : (settings.displayType == 1) ? "SH1106" : "SSD1306";
+    return true;
+  }
 
   // --- Brightness help text and minimum (depend on touch-button presence) ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
@@ -315,13 +324,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   // --- LED night-light slider (only present when the feature is compiled in) ---
   if (!strcmp(n, "LED_SLIDER")) {
 #if LED_PWM_ENABLED
-    out = R"LED(<label for="ledBrightness" style="margin-top: 15px; display: block;">LED Night Light Brightness</label><input type="range" name="ledBrightness" id="ledBrightness"
- min="0" max="255" step="5"
- value=")LED" + String(settings.ledBrightness) + R"LED("
- oninput="document.getElementById('ledBrightnessValue').textContent = Math.round((this.value / 255) * 100)"><span style="color: #fbbf24; font-size: 14px; margin-left: 10px;"><span id="ledBrightnessValue">)LED" + String((settings.ledBrightness * 100) / 255) + R"LED(</span>%
- </span><p style="color: #888; font-size: 12px; margin-top: 5px;">
- LED brightness control (0-100%). Toggle via touch button long press (hold 1 second). This is optional feature and requires connected LED!
- </p>)LED";
+    out = R"LED(<div class="field" style="margin-top:16px"><label class="field-label" for="ledBrightness">LED night light</label><div class="range-row"><input type="range" name="ledBrightness" id="ledBrightness" min="0" max="255" step="5" value=")LED" + String(settings.ledBrightness) + R"LED(" data-pct="1"><span class="range-val" data-for="ledBrightness">)LED" + String((settings.ledBrightness * 100) / 255) + R"LED(%</span></div><p class="field-hint">Optional LED night light (0-100%). Toggle via touch-button long press (hold 1s). Requires a connected LED.</p></div>)LED";
 #endif
     return true; // resolved to "" when LED is disabled, so the slider is omitted
   }
@@ -551,6 +554,35 @@ static void streamTemplate(const char* tmpl, size_t tmplLen) {
 
 void handleRoot() {
   streamTemplate(PAGE_HTML, sizeof(PAGE_HTML) - 1);
+}
+
+// Stream a static PROGMEM asset (CSS/JS) in chunks. These contain no %TOKEN%s,
+// so they are emitted verbatim and cached hard by the browser (fetched once).
+static void streamStatic(const char* data, size_t len, const char* contentType) {
+  server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
+  server.setContentLength(len);
+  server.send(200, contentType, "");
+  static const size_t CHUNK = 1024;
+  char* buf = (char*)malloc(CHUNK + 1);
+  if (!buf) { server.sendContent(""); return; }
+  size_t pos = 0;
+  while (pos < len) {
+    size_t take = (len - pos < CHUNK) ? (len - pos) : CHUNK;
+    memcpy(buf, data + pos, take); // PROGMEM is memory-mapped on ESP32
+    buf[take] = '\0';
+    server.sendContent(buf, take);
+    pos += take;
+  }
+  free(buf);
+  server.sendContent("");
+}
+
+void handlePortalCss() {
+  streamStatic(PORTAL_CSS, sizeof(PORTAL_CSS) - 1, "text/css");
+}
+
+void handlePortalJs() {
+  streamStatic(PORTAL_JS, sizeof(PORTAL_JS) - 1, "application/javascript");
 }
 
 void handleSave() {

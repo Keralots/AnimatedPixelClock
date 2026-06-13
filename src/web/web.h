@@ -24,6 +24,8 @@ void setupWebServer();
 
 // Web handlers
 void handleRoot();
+void handlePortalCss();
+void handlePortalJs();
 void handleSave();
 void handleReset();
 void handleMetricsAPI();
