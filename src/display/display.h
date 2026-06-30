@@ -21,9 +21,20 @@
   #define DISPLAY_TYPE DEFAULT_DISPLAY_TYPE
 #endif
 
+// HUB75 RGB matrix backend (ESP32-S3). Selected by -DDISPLAY_HUB75=1 in the
+// matrix-* build envs; the OLED branches below are skipped entirely.
+#if DISPLAY_HUB75
+  #include "matrix_display.h"
+  extern MatrixDisplay display;
+  #ifndef DISPLAY_WHITE
+    #define DISPLAY_WHITE 0xFFFF
+  #endif
+  #ifndef DISPLAY_BLACK
+    #define DISPLAY_BLACK 0x0000
+  #endif
 // Display type 1: SH1106 (1.3") - has 132x64 RAM, driver applies 2-column offset
 // Display type 2: CH1116 (1.54") - SH1106-compatible, uses a 1-column offset
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   #if DISPLAY_TYPE == 2
     #include "ch1116.h"
     extern Adafruit_CH1116 display;

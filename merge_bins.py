@@ -31,7 +31,7 @@ def create_ota_binary():
     # Check if firmware exists
     if not os.path.exists(FIRMWARE):
         print(f"Error: {FIRMWARE} not found!")
-        print("Please build the firmware first: platformio run")
+        print("Please build the firmware first: platformio run -e esp32-c3-devkitm-1")
         return False
 
     # Create output directory if needed
@@ -74,7 +74,7 @@ def merge_binaries():
     for filepath in [BOOTLOADER, PARTITIONS, FIRMWARE]:
         if not os.path.exists(filepath):
             print(f"Error: {filepath} not found!")
-            print("Please build the firmware first: platformio run")
+            print("Please build the firmware first: platformio run -e esp32-c3-devkitm-1")
             return False
 
     # Create output directory if needed

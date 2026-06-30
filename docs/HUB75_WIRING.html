@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HUB75 RGB Matrix - Wiring Guide</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #111; max-width: 820px;
+         margin: 24px auto; padding: 0 16px; line-height: 1.45; }
+  h1 { font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 6px; }
+  h2 { font-size: 16px; margin-top: 26px; border-bottom: 1px solid #bbb; padding-bottom: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+  th, td { border: 1px solid #999; padding: 4px 8px; text-align: left; }
+  th { background: #eee; }
+  td.c, th.c { text-align: center; }
+  pre { background: #f4f4f4; border: 1px solid #ccc; padding: 8px 10px; font-size: 12px;
+        overflow-x: auto; border-radius: 4px; }
+  code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  .note { background: #fff8e1; border-left: 4px solid #e8920a; padding: 6px 10px; margin: 10px 0;
+          font-size: 13px; }
+  .diagram { text-align: center; margin: 14px 0; }
+  .diagram svg { max-width: 100%; height: auto; border: 1px solid #ccc; }
+  @media print {
+    body { margin: 0; max-width: none; }
+    h2 { page-break-after: avoid; }
+    table, pre { page-break-inside: avoid; }
+    .diagram { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>HUB75 RGB Matrix - Wiring Guide (Phase 1 bring-up)</h1>
+<p>Bench wiring for the AnimatedPixelClock HUB75 port: a Waveshare ESP32-S3 controller driving
+<strong>2x Waveshare P2.5 64x64 HUB75E</strong> panels chained into a single <strong>128x64</strong>
+RGB canvas.</p>
+<div class="note">Read the whole sheet once before connecting anything. Power-on <strong>order</strong>
+and a common ground matter (Section 5). Keep brightness low for the first light.</div>
+
+<div class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="800" viewBox="0 0 880 800" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="880" height="800" fill="#11151c"/>
+  <text x="440" y="40" text-anchor="middle" fill="#eef" font-size="24" font-weight="bold">HUB75 Wiring - ESP32-S3 to Panel 1 (JIN)</text>
+  <text x="440" y="66" text-anchor="middle" fill="#8aa" font-size="14">2x Waveshare P2.5 64x64 HUB75E chained = 128x64. Pin map locked; matches bringup/hello_matrix.cpp</text>
+  <rect x="30" y="100" width="170" height="512" rx="10" fill="#1c2330" stroke="#3a4d6b" stroke-width="2"/>
+  <text x="115" y="92" text-anchor="middle" fill="#cde" font-size="15" font-weight="bold">ESP32-S3</text>
+  <text x="115" y="630" text-anchor="middle" fill="#789" font-size="11">GPIO pad</text>
+  <rect x="630" y="100" width="200" height="512" rx="10" fill="#1c2330" stroke="#3a4d6b" stroke-width="2"/>
+  <text x="730" y="92" text-anchor="middle" fill="#cde" font-size="15" font-weight="bold">HUB75E JIN (panel 1)</text>
+  <text x="730" y="630" text-anchor="middle" fill="#789" font-size="11">16-pin connector</text>
+  <text x="205" y="112" text-anchor="end" fill="#9ab" font-size="11">GPIO</text>
+  <text x="625" y="112" text-anchor="start" fill="#9ab" font-size="11">pin</text>
+  <rect x="215" y="120" width="400" height="24" rx="4" fill="#e23"/>
+  <text x="205" y="137" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">1</text>
+  <text x="415" y="137" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">R1</text>
+  <text x="625" y="137" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">1</text>
+  <rect x="215" y="152" width="400" height="24" rx="4" fill="#1ca94a"/>
+  <text x="205" y="169" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">2</text>
+  <text x="415" y="169" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">G1</text>
+  <text x="625" y="169" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">2</text>
+  <rect x="215" y="184" width="400" height="24" rx="4" fill="#2884e8"/>
+  <text x="205" y="201" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">4</text>
+  <text x="415" y="201" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B1</text>
+  <text x="625" y="201" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">3</text>
+  <rect x="215" y="216" width="400" height="24" rx="4" fill="#e23"/>
+  <text x="205" y="233" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">5</text>
+  <text x="415" y="233" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">R2</text>
+  <text x="625" y="233" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">5</text>
+  <rect x="215" y="248" width="400" height="24" rx="4" fill="#1ca94a"/>
+  <text x="205" y="265" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">6</text>
+  <text x="415" y="265" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">G2</text>
+  <text x="625" y="265" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">6</text>
+  <rect x="215" y="280" width="400" height="24" rx="4" fill="#2884e8"/>
+  <text x="205" y="297" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">7</text>
+  <text x="415" y="297" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B2</text>
+  <text x="625" y="297" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">7</text>
+  <rect x="215" y="312" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="329" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">8</text>
+  <text x="415" y="329" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">A</text>
+  <text x="625" y="329" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">9</text>
+  <rect x="215" y="344" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="361" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">9</text>
+  <text x="415" y="361" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B</text>
+  <text x="625" y="361" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">10</text>
+  <rect x="215" y="376" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="393" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">10</text>
+  <text x="415" y="393" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">C</text>
+  <text x="625" y="393" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">11</text>
+  <rect x="215" y="408" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="425" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">11</text>
+  <text x="415" y="425" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">D</text>
+  <text x="625" y="425" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">12</text>
+  <rect x="215" y="440" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="457" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">12</text>
+  <text x="415" y="457" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">E  (1/32 scan - mandatory)</text>
+  <text x="625" y="457" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">8</text>
+  <rect x="215" y="472" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="489" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">13</text>
+  <text x="415" y="489" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">CLK</text>
+  <text x="625" y="489" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">13</text>
+  <rect x="215" y="504" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="521" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">14</text>
+  <text x="415" y="521" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">LAT (STB)</text>
+  <text x="625" y="521" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">14</text>
+  <rect x="215" y="536" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="553" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">38</text>
+  <text x="415" y="553" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">OE</text>
+  <text x="625" y="553" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">15</text>
+  <rect x="215" y="568" width="400" height="24" rx="4" fill="#2a3340" stroke="#556" stroke-width="1"/>
+  <text x="205" y="585" text-anchor="end" fill="#cde" font-size="13" font-weight="bold">GND</text>
+  <text x="415" y="585" text-anchor="middle" fill="#cde" font-size="13" font-weight="bold">GND</text>
+  <text x="625" y="585" text-anchor="start" fill="#cde" font-size="13" font-weight="bold">4, 16</text>
+  <text x="40" y="666" fill="#9ab" font-size="12" font-weight="bold">Legend:</text>
+  <rect x="100" y="656" width="16" height="14" rx="3" fill="#e23"/><text x="122" y="667" fill="#cde" font-size="12">R data</text>
+  <rect x="185" y="656" width="16" height="14" rx="3" fill="#1ca94a"/><text x="207" y="667" fill="#cde" font-size="12">G data</text>
+  <rect x="270" y="656" width="16" height="14" rx="3" fill="#2884e8"/><text x="292" y="667" fill="#cde" font-size="12">B data</text>
+  <rect x="355" y="656" width="16" height="14" rx="3" fill="#e8920a"/><text x="377" y="667" fill="#cde" font-size="12">address A-E</text>
+  <rect x="470" y="656" width="16" height="14" rx="3" fill="#7a8696"/><text x="492" y="667" fill="#cde" font-size="12">control CLK/LAT/OE</text>
+  <rect x="640" y="656" width="16" height="14" rx="3" fill="#2a3340" stroke="#556"/><text x="662" y="667" fill="#cde" font-size="12">ground</text>
+  <rect x="40" y="690" width="800" height="90" rx="10" fill="#161d27" stroke="#2c3a52" stroke-width="1.5"/>
+  <text x="60" y="714" fill="#cde" font-size="13" font-weight="bold">Chain:</text>
+  <text x="120" y="714" fill="#9cf" font-size="13">ESP --16-pin--&gt; [Panel 1 JIN]   Panel 1 JOUT --ribbon--&gt; [Panel 2 JIN]   (P1 = x0..63, P2 = x64..127)</text>
+  <text x="60" y="740" fill="#cde" font-size="13" font-weight="bold">Power:</text>
+  <text x="120" y="740" fill="#fc9" font-size="13">5V/10A PSU -&gt; inject 5V+GND to EACH panel separately (~4A peak each). Do NOT feed panel 2 via panel 1 ribbon.</text>
+  <text x="60" y="763" fill="#cde" font-size="13" font-weight="bold">Order:</text>
+  <text x="120" y="763" fill="#fc9" font-size="13">bond ALL grounds first (PSU + both panels + ESP) -&gt; apply panel 5V -&gt; plug ESP USB last. Common ground is mandatory.</text>
+</svg>
+</div>
+
+<h2>1. Bill of materials</h2>
+<table>
+<tr><th class="c">Qty</th><th>Item</th><th>Notes</th></tr>
+<tr><td class="c">2</td><td>Waveshare P2.5 64x64 HUB75E panel</td><td>1/32 scan, driver likely FM6126A (verify, Section 8)</td></tr>
+<tr><td class="c">1</td><td>ESP32-S3 controller</td><td>S3-Zero (final) or S3-WROOM-1 devkit (bench). Native USB or USB-UART bridge</td></tr>
+<tr><td class="c">1</td><td>5V / 10A PSU</td><td>powers both panels</td></tr>
+<tr><td class="c">3</td><td>SN74AHCT125N (quad buffer)</td><td>OPTIONAL - only if ghosting appears (Section 6)</td></tr>
+<tr><td class="c">-</td><td>Dupont / ribbon jumpers, 16-pin HUB75 ribbon</td><td>panel-to-panel chain</td></tr>
+<tr><td class="c">-</td><td>Thick 5V + GND wire</td><td>power injection, per-panel, not through the ribbon</td></tr>
+</table>
+
+<h2>2. HUB75E connector pinout (16-pin, 2x8 IDC)</h2>
+<p>Looking at the panel's <strong>JIN</strong> (input) header. The E line is present because this is a
+64x64 / 1/32-scan panel (plain HUB75 would have GND there instead).</p>
+<pre>
+   pin  signal        pin  signal
+   ---  ------        ---  ------
+    1   R1             2   G1
+    3   B1             4   GND
+    5   R2             6   G2
+    7   B2             8   E
+    9   A             10   B
+   11   C             12   D
+   13   CLK           14   LAT (STB)
+   15   OE            16   GND
+</pre>
+<div class="note"><strong>Verify against the Waveshare silkscreen on arrival.</strong> Orientation is
+set by the connector notch / the pin-1 arrow on the PCB. If labels differ, trust the panel silkscreen.</div>
+
+<h2>3. ESP32-S3 -> panel1 JIN wiring</h2>
+<table>
+<tr><th>Signal</th><th class="c">S3 GPIO</th><th class="c">HUB75E pin</th></tr>
+<tr><td>R1</td><td class="c">1</td><td class="c">1</td></tr>
+<tr><td>G1</td><td class="c">2</td><td class="c">2</td></tr>
+<tr><td>B1</td><td class="c">4</td><td class="c">3</td></tr>
+<tr><td>R2</td><td class="c">5</td><td class="c">5</td></tr>
+<tr><td>G2</td><td class="c">6</td><td class="c">6</td></tr>
+<tr><td>B2</td><td class="c">7</td><td class="c">7</td></tr>
+<tr><td>A</td><td class="c">8</td><td class="c">9</td></tr>
+<tr><td>B</td><td class="c">9</td><td class="c">10</td></tr>
+<tr><td>C</td><td class="c">10</td><td class="c">11</td></tr>
+<tr><td>D</td><td class="c">11</td><td class="c">12</td></tr>
+<tr><td>E</td><td class="c">12</td><td class="c">8</td></tr>
+<tr><td>CLK</td><td class="c">13</td><td class="c">13</td></tr>
+<tr><td>LAT</td><td class="c">14</td><td class="c">14</td></tr>
+<tr><td>OE</td><td class="c">38</td><td class="c">15</td></tr>
+<tr><td>GND</td><td class="c">GND</td><td class="c">4, 16</td></tr>
+</table>
+<p>Avoids S3 strapping pins (0/3/45/46), USB (19/20), UART (43/44), the onboard RGB LED, and the
+PSRAM pins (33-37). Same map is hard-coded in <code>bringup/hello_matrix.cpp</code> - change both if
+you re-wire. (On some DevKitC-1 revisions the onboard WS2812 is on GPIO38 = our OE; it flickers
+harmlessly, no HUB75 impact.)</p>
+
+<h2>4. Chaining the two panels</h2>
+<pre>
+  ESP32-S3 --16-pin--> [ Panel 1 ] JOUT --16-pin ribbon--> JIN [ Panel 2 ]
+                        x = 0..63                            x = 64..127
+</pre>
+<p>ESP ribbon -> <strong>panel 1 JIN</strong>. Panel 1 <strong>JOUT -> panel 2 JIN</strong>. Data
+flows left-to-right (panel 1 = x 0..63, panel 2 = x 64..127). The bring-up <strong>seam test</strong>
+(left red / right blue) confirms this; swapped sides = reversed chain order.</p>
+
+<h2>5. Power (read the ORDER carefully)</h2>
+<ul>
+<li>Inject <strong>5V to each panel's own power terminals separately</strong> (~4A peak per panel;
+the 10A PSU covers the pair for a mostly-dark clock).</li>
+<li><strong>Do NOT power panel 2 through panel 1's ribbon</strong> - run dedicated 5V/GND wires to each panel.</li>
+<li>During bring-up: power the controller from USB (flashing + serial), the panels from the PSU.</li>
+</ul>
+<p><strong>Power-on order:</strong> (1) <strong>bond all grounds FIRST</strong> - PSU GND &lt;-&gt;
+panel 1 GND &lt;-&gt; panel 2 GND &lt;-&gt; ESP GND - before any 5V. (2) Apply panel <strong>5V</strong>.
+(3) Plug in the ESP <strong>USB</strong> last.</p>
+<div class="note"><strong>Ground-loop caution:</strong> the ESP is fed from USB while the panels are
+fed from the PSU, so their grounds <em>must</em> meet at one point. Never run a panel with its ground
+floating relative to the ESP. Do not hot-unplug the PSU ground while USB is still attached.</div>
+
+<h2>6. Level shifting (only if needed)</h2>
+<p>Start with <strong>direct 3.3V</strong> from the S3 (no buffers). With two panels and a short ribbon
+this is often clean. If you see <strong>ghosting / flicker / dim or unstable pixels</strong>, buffer
+the 12 priority lines with the 3x SN74AHCT125N:</p>
+<ul>
+<li><strong>Buffer (12):</strong> CLK, R1, G1, B1, R2, G2, B2, LAT, OE, A, B, C</li>
+<li><strong>Leave direct on 3.3V (2):</strong> D, E (address lines change once per row - safe unbuffered)</li>
+<li>Per chip: VCC(14)=5V, GND(7)=GND, tie all four <code>~OE</code> enable inputs LOW (to GND).
+3.3V signal into each buffer A input, 5V-level out of its Y output to the panel.</li>
+</ul>
+
+<h2>7. Flashing</h2>
+<ul>
+<li><strong>S3-Zero (native USB, no UART chip):</strong> hold BOOT/GPIO0 while plugging USB -> download
+mode -> <code>platformio run -e matrix-s3 --target upload</code>. Serial over native USB-CDC.</li>
+<li><strong>S3-WROOM-1 devkit (CH343 bridge):</strong> just plug the UART USB-C port (auto-reset, no
+BOOT-hold) -> <code>platformio run -e matrix-s3-wroom --target upload</code>. Serial over UART
+(<code>platformio device monitor</code>, 115200).</li>
+</ul>
+
+<h2>8. FM6126A driver verification (KNOWN UNKNOWN)</h2>
+<p>The bring-up sketch defaults <code>USE_FM6126A 1</code> only because Waveshare 64x64 units commonly
+need it - a guess until checked. Read the IC markings on the panel back. Empirically: if the screen
+stays <strong>blank with init ON</strong>, set <code>USE_FM6126A 0</code> and reflash (and vice-versa).
+Record the actual chip.</p>
+
+<h2>9. First-power checklist + troubleshooting</h2>
+<p><strong>Checklist:</strong> grounds bonded first -> panel 5V on -> USB last -> brightness low for
+first light -> flash -> watch the pattern cycle.</p>
+<table>
+<tr><th>Symptom</th><th>Likely cause / fix</th></tr>
+<tr><td>Dead-black screen</td><td>FM6126A init wrong (toggle <code>USE_FM6126A</code>); OR bad panel power; OR (with 2 panels) set <code>PANELS 1</code> to isolate which panel is dead</td></tr>
+<tr><td>Wrong colors (e.g. red shows blue)</td><td>R/G/B line swap - recheck R1/G1/B1, R2/G2/B2</td></tr>
+<tr><td>Only top OR bottom half lit/dim</td><td>R2/G2/B2 (lower-half) wiring issue</td></tr>
+<tr><td>Image halved / doubled / mirrored vertically</td><td>Wrong scan rate - panel not 1/32, or E line not wired / wrong pin (GPIO12 -> HUB75 pin 8)</td></tr>
+<tr><td>Image shifted or wrapped horizontally</td><td>Address line (A-E) wiring error</td></tr>
+<tr><td>Flicker / ghosting</td><td>Apply the AHCT125 buffer (Section 6); or toggle <code>mxconfig.clkphase</code></td></tr>
+<tr><td>Missing / smeared last column</td><td>Toggle <code>mxconfig.clkphase</code></td></tr>
+<tr><td>Right half wrong / seam colors swapped</td><td>Chain order reversed - check panel1 JOUT -> panel2 JIN</td></tr>
+</table>
+
+<p style="margin-top:24px; font-style:italic; color:#555;">Phase 1 is done when all six bring-up
+patterns render correctly on the full 128x64 chain and the real driver chip is verified and recorded.</p>
+
+</body>
+</html>

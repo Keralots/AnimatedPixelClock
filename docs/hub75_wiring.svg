@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="800" viewBox="0 0 880 800" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="880" height="800" fill="#11151c"/>
+  <text x="440" y="40" text-anchor="middle" fill="#eef" font-size="24" font-weight="bold">HUB75 Wiring - ESP32-S3-Zero to Panel 1 (JIN)</text>
+  <text x="440" y="66" text-anchor="middle" fill="#8aa" font-size="14">2x Waveshare P2.5 64x64 HUB75E chained = 128x64. Pin map locked; matches bringup/hello_matrix.cpp</text>
+
+  <!-- ESP box -->
+  <rect x="30" y="100" width="170" height="512" rx="10" fill="#1c2330" stroke="#3a4d6b" stroke-width="2"/>
+  <text x="115" y="92" text-anchor="middle" fill="#cde" font-size="15" font-weight="bold">ESP32-S3-Zero</text>
+  <text x="115" y="630" text-anchor="middle" fill="#789" font-size="11">GPIO pad</text>
+
+  <!-- HUB box -->
+  <rect x="630" y="100" width="200" height="512" rx="10" fill="#1c2330" stroke="#3a4d6b" stroke-width="2"/>
+  <text x="730" y="92" text-anchor="middle" fill="#cde" font-size="15" font-weight="bold">HUB75E JIN (panel 1)</text>
+  <text x="730" y="630" text-anchor="middle" fill="#789" font-size="11">16-pin connector</text>
+
+  <!-- header -->
+  <text x="205" y="112" text-anchor="end" fill="#9ab" font-size="11">GPIO</text>
+  <text x="625" y="112" text-anchor="start" fill="#9ab" font-size="11">pin</text>
+
+  <!-- ===== signal rows ===== -->
+  <!-- R1 -->
+  <rect x="215" y="120" width="400" height="24" rx="4" fill="#e23"/>
+  <text x="205" y="137" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">1</text>
+  <text x="415" y="137" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">R1</text>
+  <text x="625" y="137" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">1</text>
+  <!-- G1 -->
+  <rect x="215" y="152" width="400" height="24" rx="4" fill="#1ca94a"/>
+  <text x="205" y="169" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">2</text>
+  <text x="415" y="169" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">G1</text>
+  <text x="625" y="169" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">2</text>
+  <!-- B1 -->
+  <rect x="215" y="184" width="400" height="24" rx="4" fill="#2884e8"/>
+  <text x="205" y="201" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">4</text>
+  <text x="415" y="201" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B1</text>
+  <text x="625" y="201" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">3</text>
+  <!-- R2 -->
+  <rect x="215" y="216" width="400" height="24" rx="4" fill="#e23"/>
+  <text x="205" y="233" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">5</text>
+  <text x="415" y="233" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">R2</text>
+  <text x="625" y="233" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">5</text>
+  <!-- G2 -->
+  <rect x="215" y="248" width="400" height="24" rx="4" fill="#1ca94a"/>
+  <text x="205" y="265" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">6</text>
+  <text x="415" y="265" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">G2</text>
+  <text x="625" y="265" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">6</text>
+  <!-- B2 -->
+  <rect x="215" y="280" width="400" height="24" rx="4" fill="#2884e8"/>
+  <text x="205" y="297" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">7</text>
+  <text x="415" y="297" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B2</text>
+  <text x="625" y="297" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">7</text>
+  <!-- A -->
+  <rect x="215" y="312" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="329" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">8</text>
+  <text x="415" y="329" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">A</text>
+  <text x="625" y="329" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">9</text>
+  <!-- B -->
+  <rect x="215" y="344" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="361" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">9</text>
+  <text x="415" y="361" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">B</text>
+  <text x="625" y="361" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">10</text>
+  <!-- C -->
+  <rect x="215" y="376" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="393" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">10</text>
+  <text x="415" y="393" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">C</text>
+  <text x="625" y="393" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">11</text>
+  <!-- D -->
+  <rect x="215" y="408" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="425" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">11</text>
+  <text x="415" y="425" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">D</text>
+  <text x="625" y="425" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">12</text>
+  <!-- E -->
+  <rect x="215" y="440" width="400" height="24" rx="4" fill="#e8920a"/>
+  <text x="205" y="457" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">12</text>
+  <text x="415" y="457" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">E  (1/32 scan - mandatory)</text>
+  <text x="625" y="457" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">8</text>
+  <!-- CLK -->
+  <rect x="215" y="472" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="489" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">13</text>
+  <text x="415" y="489" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">CLK</text>
+  <text x="625" y="489" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">13</text>
+  <!-- LAT -->
+  <rect x="215" y="504" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="521" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">14</text>
+  <text x="415" y="521" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">LAT (STB)</text>
+  <text x="625" y="521" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">14</text>
+  <!-- OE -->
+  <rect x="215" y="536" width="400" height="24" rx="4" fill="#7a8696"/>
+  <text x="205" y="553" text-anchor="end" fill="#eef" font-size="13" font-weight="bold">38</text>
+  <text x="415" y="553" text-anchor="middle" fill="#fff" font-size="13" font-weight="bold">OE</text>
+  <text x="625" y="553" text-anchor="start" fill="#eef" font-size="13" font-weight="bold">15</text>
+  <!-- GND -->
+  <rect x="215" y="568" width="400" height="24" rx="4" fill="#2a3340" stroke="#556" stroke-width="1"/>
+  <text x="205" y="585" text-anchor="end" fill="#cde" font-size="13" font-weight="bold">GND</text>
+  <text x="415" y="585" text-anchor="middle" fill="#cde" font-size="13" font-weight="bold">GND</text>
+  <text x="625" y="585" text-anchor="start" fill="#cde" font-size="13" font-weight="bold">4, 16</text>
+
+  <!-- legend -->
+  <text x="40" y="666" fill="#9ab" font-size="12" font-weight="bold">Legend:</text>
+  <rect x="100" y="656" width="16" height="14" rx="3" fill="#e23"/><text x="122" y="667" fill="#cde" font-size="12">R data</text>
+  <rect x="185" y="656" width="16" height="14" rx="3" fill="#1ca94a"/><text x="207" y="667" fill="#cde" font-size="12">G data</text>
+  <rect x="270" y="656" width="16" height="14" rx="3" fill="#2884e8"/><text x="292" y="667" fill="#cde" font-size="12">B data</text>
+  <rect x="355" y="656" width="16" height="14" rx="3" fill="#e8920a"/><text x="377" y="667" fill="#cde" font-size="12">address A-E</text>
+  <rect x="470" y="656" width="16" height="14" rx="3" fill="#7a8696"/><text x="492" y="667" fill="#cde" font-size="12">control CLK/LAT/OE</text>
+  <rect x="640" y="656" width="16" height="14" rx="3" fill="#2a3340" stroke="#556"/><text x="662" y="667" fill="#cde" font-size="12">ground</text>
+
+  <!-- chain + power -->
+  <rect x="40" y="690" width="800" height="90" rx="10" fill="#161d27" stroke="#2c3a52" stroke-width="1.5"/>
+  <text x="60" y="714" fill="#cde" font-size="13" font-weight="bold">Chain:</text>
+  <text x="120" y="714" fill="#9cf" font-size="13">ESP --16-pin--&gt; [Panel 1 JIN]   Panel 1 JOUT --ribbon--&gt; [Panel 2 JIN]   (P1 = x0..63, P2 = x64..127)</text>
+  <text x="60" y="740" fill="#cde" font-size="13" font-weight="bold">Power:</text>
+  <text x="120" y="740" fill="#fc9" font-size="13">5V/10A PSU -&gt; inject 5V+GND to EACH panel separately (~4A peak each). Do NOT feed panel 2 via panel 1 ribbon.</text>
+  <text x="60" y="763" fill="#cde" font-size="13" font-weight="bold">Order:</text>
+  <text x="120" y="763" fill="#fc9" font-size="13">bond ALL grounds first (PSU + both panels + ESP) -&gt; apply panel 5V -&gt; plug ESP USB last. Common ground is mandatory.</text>
+</svg>

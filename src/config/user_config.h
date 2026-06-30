@@ -97,7 +97,11 @@
 // - Medium press (500ms-1s, release): Toggle LED night light on/off
 // - Long hold (> 1s): Ramp LED brightness up/down (gamma-corrected)
 // Note: If TTP223 is not connected, GPIO 7 just floats harmlessly
+// Guarded so the HUB75 build can force it off via -DTOUCH_BUTTON_ENABLED=0
+// (TOUCH_BUTTON_PIN 7 collides with the HUB75 B2 data line).
+#ifndef TOUCH_BUTTON_ENABLED
 #define TOUCH_BUTTON_ENABLED 1           // 1 = enabled, 0 = disabled (always enabled now)
+#endif
 #define TOUCH_BUTTON_PIN 7               // GPIO pin for TTP223 signal (default: GPIO 7)
 #define TOUCH_DEBOUNCE_MS 50            // Debounce delay in milliseconds (default: 100ms)
 #define TOUCH_ACTIVE_LEVEL HIGH          // HIGH = active HIGH, LOW = active LOW (TTP223 default: HIGH)
@@ -105,7 +109,11 @@
 // ========== LED PWM Night Light Configuration ==========
 // Filament LED night light control via GPIO 1 and 2N2222 transistor
 // Gesture-based control using TTP223 touch button
+// Guarded so the HUB75 build can force it off via -DLED_PWM_ENABLED=0
+// (LED_PWM_PIN 1 collides with the HUB75 R1 data line).
+#ifndef LED_PWM_ENABLED
 #define LED_PWM_ENABLED 1                // 1 = enabled, 0 = disabled (default: 0)
+#endif
 #define LED_PWM_PIN 1                    // GPIO pin for PWM LED control (GPIO 1)
 #define LED_PWM_CHANNEL 0                // PWM channel (0-15)
 #define LED_PWM_FREQ 5000                // PWM frequency in Hz

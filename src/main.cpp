@@ -26,7 +26,9 @@
 #include <Wire.h>
 #endif
 
-#if DISPLAY_TYPE == 2
+#if DISPLAY_HUB75
+#include "display/matrix_display.h" // HUB75 RGB matrix (ESP32-S3)
+#elif DISPLAY_TYPE == 2
 #include "display/ch1116.h"  // For 1.54" CH1116 (SH1106-compatible, 1-col offset)
 #elif DISPLAY_TYPE == 1
 #include <Adafruit_SH110X.h> // For 1.3" SH1106
@@ -49,7 +51,13 @@ extern WebServer server;         // Defined in web.cpp
 extern Preferences preferences;  // Defined in settings.cpp
 
 // ========== Display Object ==========
-#if DISPLAY_TYPE == 2
+#if DISPLAY_HUB75
+  // HUB75 RGB matrix (128x64). The shim adds OLED-compatible clearDisplay()/
+  // display()/getBuffer() so the animation code runs unchanged.
+  MatrixDisplay display(makeMatrixConfig());
+  #define DISPLAY_WHITE 0xFFFF
+  #define DISPLAY_BLACK 0x0000
+#elif DISPLAY_TYPE == 2
   // CH1116 display (1.54", SH1106-compatible with corrected column offset)
   #if DISPLAY_INTERFACE == 1
     Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);

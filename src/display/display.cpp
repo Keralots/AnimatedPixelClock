@@ -28,7 +28,11 @@ const uint8_t TEMPORARY_WAKE_BRIGHTNESS = 20;
 #endif
 
 static void setDisplayPower(bool on) {
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#if DISPLAY_HUB75
+  // HUB75 has no panel-off command; power-on is handled by setDisplayContrast,
+  // power-off = brightness 0 (black).
+  if (!on) display.setBrightness8(0);
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.oled_command(on ? 0xAF : 0xAE);
 #else
   display.ssd1306_command(on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
@@ -36,7 +40,9 @@ static void setDisplayPower(bool on) {
 }
 
 static void setDisplayContrast(uint8_t brightness) {
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#if DISPLAY_HUB75
+  display.setBrightness8(brightness);
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.setContrast(brightness);
 #else
   display.ssd1306_command(SSD1306_SETCONTRAST);
@@ -93,6 +99,14 @@ static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
 
 // Initialize display - returns true on success
 bool initDisplay() {
+#if DISPLAY_HUB75
+  if (!display.begin()) {
+    return false;
+  }
+  display.setBrightness8(sanitizeBrightnessValue(settings.displayBrightness));
+  display.clearScreen();
+  return true;
+#else
 #if DISPLAY_INTERFACE == 1
   // SPI mode - remap ESP32-C3 SPI bus to our chosen pins
   SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, SPI_CS_PIN);
@@ -131,6 +145,7 @@ bool initDisplay() {
 #endif
 
   return false;
+#endif  // DISPLAY_HUB75
 }
 
 // Apply display brightness from settings
