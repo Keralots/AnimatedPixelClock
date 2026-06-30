@@ -301,6 +301,62 @@ void handleRename() {
 
 // Resolve a single %NAME% placeholder. Returns false for unknown names so the
 // streamer leaves the literal text untouched.
+#if DISPLAY_HUB75
+// RGB565 -> "#rrggbb" for the web color inputs.
+static String rgb565ToHex(uint16_t c) {
+  uint8_t r = (uint8_t)(((c >> 11) & 0x1F) * 255 / 31);
+  uint8_t g = (uint8_t)(((c >> 5) & 0x3F) * 255 / 63);
+  uint8_t b = (uint8_t)((c & 0x1F) * 255 / 31);
+  char buf[8];
+  snprintf(buf, sizeof(buf), "#%02x%02x%02x", r, g, b);
+  return String(buf);
+}
+
+// One row per editable sprite element, grouped by mode. APPEND new rows as
+// modes are colored (the slot enum is in config/color_slots.h).
+struct SpriteColorRow { uint8_t slot; const char* group; const char* label; };
+static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
+    {COL_DIGITS, "Digits", "Time digits + colon"},
+    {COL_MARIO_HAT, "Mario", "Hat"},
+    {COL_MARIO_OVERALLS, "Mario", "Overalls"},
+    {COL_MARIO_SKIN, "Mario", "Skin"},
+    {COL_MARIO_SHOES, "Mario", "Shoes"},
+    {COL_PACMAN, "Pac-Man", "Pac-Man"},
+    {COL_PELLET, "Pac-Man", "Pellets"},
+    {COL_SNAKE, "Snake", "Snake"},
+    {COL_INVADER, "Space Invaders", "Invader"},
+    {COL_LASER, "Space Invaders", "Laser / explosion"},
+};
+
+static String buildSpriteColorsSection() {
+  String s = F("<section class=\"page\" data-page=\"colors\"><div class=\"page-header\">"
+               "<h1 class=\"page-h1\">Sprite colors</h1>"
+               "<p class=\"page-lede\">Pick a color for each clock element. Applies live on save and is stored on the device.</p>"
+               "</div><div class=\"card\">");
+  const char* curGroup = nullptr;
+  for (size_t i = 0; i < sizeof(SPRITE_COLOR_ROWS) / sizeof(SPRITE_COLOR_ROWS[0]); i++) {
+    const SpriteColorRow& r = SPRITE_COLOR_ROWS[i];
+    if (curGroup == nullptr || strcmp(curGroup, r.group) != 0) {
+      curGroup = r.group;
+      s += F("<div style=\"font-weight:600;margin:14px 0 4px\">");
+      s += r.group;
+      s += F("</div>");
+    }
+    s += F("<label style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0\"><span>");
+    s += r.label;
+    s += F("</span><input type=\"color\" name=\"color_");
+    s += String(r.slot);
+    s += F("\" value=\"");
+    s += rgb565ToHex(settings.spriteColors[r.slot]);
+    s += F("\"></label>");
+  }
+  s += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:16px\">"
+         "<input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all colors to defaults on save</label>");
+  s += F("</div></section>");
+  return s;
+}
+#endif  // DISPLAY_HUB75
+
 static bool resolvePlaceholder(const char* n, String& out) {
   // --- Header / identity ---
   if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
@@ -313,7 +369,24 @@ static bool resolvePlaceholder(const char* n, String& out) {
   }
   if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
   if (!strcmp(n, "DISPLAYMODEL")) {
+#if DISPLAY_HUB75
+    out = "HUB75 Matrix";
+#else
     out = (settings.displayType == 2) ? "CH1116" : (settings.displayType == 1) ? "SH1106" : "SSD1306";
+#endif
+    return true;
+  }
+  // Sprite-colors nav button + section (HUB75 only; resolve to "" on OLED).
+  if (!strcmp(n, "SPRITE_COLORS_NAV")) {
+#if DISPLAY_HUB75
+    out = F("<button type=\"button\" class=\"nav-item\" data-nav=\"colors\">Colors</button>");
+#endif
+    return true;
+  }
+  if (!strcmp(n, "SPRITE_COLORS_SECTION")) {
+#if DISPLAY_HUB75
+    out = buildSpriteColorsSection();
+#endif
     return true;
   }
   // Hides the OTA partition-limit warning on already-repartitioned devices.
@@ -1114,6 +1187,28 @@ void handleSave() {
  assertBounds(settings.dinoSpeed, 5, 30, "dinoSpeed");
  assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
 
+#if DISPLAY_HUB75
+ // Sprite colors. Written straight into settings.spriteColors[] (read every
+ // frame by SPRITE_COLOR), so the change is live; saveSettings() persists it.
+ // No reboot (colors are not a network change).
+ if (server.arg("resetSpriteColors") == "1") {
+   for (int i = 0; i < COL_COUNT; i++) settings.spriteColors[i] = SPRITE_COLOR_DEFAULTS[i];
+ } else {
+   for (int slot = 0; slot < COL_COUNT; slot++) {
+     String key = "color_" + String(slot);
+     if (!server.hasArg(key)) continue;
+     String v = server.arg(key);
+     if (v.length() != 7 || v[0] != '#') continue;   // require exactly #RRGGBB
+     bool ok = true;
+     for (int k = 1; k < 7; k++) { if (!isxdigit((int)v[k])) { ok = false; break; } }
+     if (!ok) continue;
+     long rgb = strtol(v.c_str() + 1, nullptr, 16);
+     uint8_t r8 = (rgb >> 16) & 0xFF, g8 = (rgb >> 8) & 0xFF, b8 = rgb & 0xFF;
+     settings.spriteColors[slot] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
+   }
+ }
+#endif
+
  saveSettings();
  applyTimezone();
  ntpSynced = false; // Force NTP resync after timezone change
@@ -1254,6 +1349,15 @@ void handleExportConfig() {
  }
  json += "]";
 
+#if DISPLAY_HUB75
+ json += ",\"spriteColors\":[";
+ for (int i = 0; i < COL_COUNT; i++) {
+ if (i > 0) json += ",";
+ json += "\"" + rgb565ToHex(settings.spriteColors[i]) + "\"";
+ }
+ json += "]";
+#endif
+
  json += "}";
 
  server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -1389,6 +1493,25 @@ void handleImportConfig() {
  settings.metricBarOffsets[i] = barOffsets[i];
  }
  }
+
+#if DISPLAY_HUB75
+ // Sprite colors (array of "#rrggbb" strings). Validated; bad entries skipped.
+ if (!doc["spriteColors"].isNull()) {
+ JsonArray cols = doc["spriteColors"];
+ for (int i = 0; i < COL_COUNT && i < (int)cols.size(); i++) {
+ const char* cs = cols[i];
+ if (!cs) continue;
+ String v(cs);
+ if (v.length() != 7 || v[0] != '#') continue;
+ bool ok = true;
+ for (int k = 1; k < 7; k++) { if (!isxdigit((int)v[k])) { ok = false; break; } }
+ if (!ok) continue;
+ long rgb = strtol(v.c_str() + 1, nullptr, 16);
+ uint8_t r8 = (rgb >> 16) & 0xFF, g8 = (rgb >> 8) & 0xFF, b8 = rgb & 0xFF;
+ settings.spriteColors[i] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
+ }
+ }
+#endif
 
  // Hide out-of-range positions based on imported display mode
  {

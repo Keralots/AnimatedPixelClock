@@ -58,6 +58,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <div class="nav-label">Configuration</div>
         <button type="button" class="nav-item active" data-nav="clock">Clock</button>
         <button type="button" class="nav-item" data-nav="display">Display</button>
+        %SPRITE_COLORS_NAV%
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
       </div>
@@ -647,6 +648,8 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             </div>
           </div>
         </section>
+
+        %SPRITE_COLORS_SECTION%
 
         <!-- DISPLAY LAYOUT -->
         <section class="page" data-page="layout">

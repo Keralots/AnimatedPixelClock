@@ -274,7 +274,9 @@ void displayStandardClock() {
   int time_width = 5 * 18;  // 5 chars * 18px
   int time_x = (SCREEN_WIDTH - time_width) / 2;
   display.setCursor(time_x, 8);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   display.print(timeStr);
+  display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 
   // AM/PM indicator for 12-hour format
   drawMeridiemIndicator(110, 8, isPM);
@@ -346,7 +348,9 @@ void displayLargeClock() {
   // Center time: 5 chars * 24px = 120px, centered in 128px
   int time_x = (SCREEN_WIDTH - 120) / 2;
   display.setCursor(time_x, 4);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   display.print(timeStr);
+  display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 
   // AM/PM indicator for 12-hour format lives in the bottom-right corner here,
   // so it does not collide with the oversized minute digits.

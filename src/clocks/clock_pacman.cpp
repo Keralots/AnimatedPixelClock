@@ -219,8 +219,8 @@ void displayClockWithPacman() {
         // M1 starts at: DIGIT_X_PACMAN[3]
         // Center the colon in the gap between them
         int colon_x = (DIGIT_X_PACMAN[1] + 4 * PELLET_SPACING + DIGIT_X_PACMAN[3]) / 2;
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 8, PELLET_SIZE, DISPLAY_WHITE);   // Top dot (lowered)
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 18, PELLET_SIZE, DISPLAY_WHITE);  // Bottom dot (lowered)
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 8, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));   // Top dot (lowered)
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 18, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));  // Bottom dot (lowered)
       }
       continue;
     }
@@ -254,7 +254,7 @@ void displayClockWithPacman() {
           // Draw pellet (small circle like patrol pellets)
           int px = base_x + col * PELLET_SPACING;
           int py = base_y + row * PELLET_SPACING;
-          display.fillCircle(px, py, PELLET_SIZE, DISPLAY_WHITE);
+          display.fillCircle(px, py, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));
         }
       }
     }
@@ -715,7 +715,7 @@ void updatePellets() {
 void drawPellets() {
   for (int i = 0; i < num_pellets; i++) {
     if (patrol_pellets[i].active) {
-      display.fillCircle(patrol_pellets[i].x, PACMAN_PATROL_Y, 1, DISPLAY_WHITE);
+      display.fillCircle(patrol_pellets[i].x, PACMAN_PATROL_Y, 1, SPRITE_COLOR(COL_PELLET));
     }
   }
 }
@@ -725,7 +725,7 @@ void drawPacman(int x, int y, int direction, int mouthFrame) {
   if (y < -10 || y > SCREEN_HEIGHT + 10) return;
 
   // Draw Pac-Man as 8x8 circle with mouth cutout
-  display.fillCircle(x, y, 4, DISPLAY_WHITE);
+  display.fillCircle(x, y, 4, SPRITE_COLOR(COL_PACMAN));
 
   if (mouthFrame > 0) {
     // Draw mouth (wedge cutout)

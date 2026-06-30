@@ -54,9 +54,8 @@ extern Preferences preferences;  // Defined in settings.cpp
 #if DISPLAY_HUB75
   // HUB75 RGB matrix (128x64). The shim adds OLED-compatible clearDisplay()/
   // display()/getBuffer() so the animation code runs unchanged.
+  // DISPLAY_WHITE/DISPLAY_BLACK come from display.h (centralized).
   MatrixDisplay display(makeMatrixConfig());
-  #define DISPLAY_WHITE 0xFFFF
-  #define DISPLAY_BLACK 0x0000
 #elif DISPLAY_TYPE == 2
   // CH1116 display (1.54", SH1106-compatible with corrected column offset)
   #if DISPLAY_INTERFACE == 1

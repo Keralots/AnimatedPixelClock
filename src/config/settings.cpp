@@ -12,6 +12,23 @@
 
 Preferences preferences;
 
+#if DISPLAY_HUB75
+// Default sprite-color palette (RGB565), indexed by ColorSlot (color_slots.h).
+// Real definition for the header's extern. APPEND-ONLY: keep in sync with the enum.
+const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT] = {
+    /* COL_DIGITS         */ 0xFFFF,  // white
+    /* COL_MARIO_HAT      */ 0xF800,  // red
+    /* COL_MARIO_OVERALLS */ 0x001F,  // blue
+    /* COL_MARIO_SKIN     */ 0xFDB8,  // tan
+    /* COL_MARIO_SHOES    */ 0xA145,  // brown
+    /* COL_PACMAN         */ 0xFFE0,  // yellow
+    /* COL_PELLET         */ 0xFFE0,  // yellow
+    /* COL_SNAKE          */ 0x07E0,  // green
+    /* COL_INVADER        */ 0x07E0,  // green
+    /* COL_LASER          */ 0xF800,  // red
+};
+#endif
+
 uint8_t sanitizeBrightnessValue(uint8_t value) {
 #if TOUCH_BUTTON_ENABLED
   return value;
@@ -480,6 +497,18 @@ void loadSettings() {
     }
   }
 
+#if DISPLAY_HUB75
+  // Sprite colors: fill from defaults, then overlay any stored slots. Length-based
+  // + append-only -> a firmware with MORE slots keeps the user's existing colors
+  // and gets defaults for the new ones (no garbage from a shorter stored blob).
+  for (int i = 0; i < COL_COUNT; i++) {
+    settings.spriteColors[i] = SPRITE_COLOR_DEFAULTS[i];
+  }
+  // getBytes copies min(stored, requested) bytes, leaving extra slots at default.
+  preferences.getBytes("spriteCols", settings.spriteColors,
+                       COL_COUNT * sizeof(uint16_t));
+#endif
+
   preferences.end();
 
   if (brightnessSettingsSanitized) {
@@ -576,6 +605,12 @@ void saveSettings() {
   preferences.putString("subnet", settings.subnet);
   preferences.putString("dns1", settings.dns1);
   preferences.putString("dns2", settings.dns2);
+
+#if DISPLAY_HUB75
+  // Save user-editable sprite colors (RGB565 array, indexed by ColorSlot)
+  preferences.putBytes("spriteCols", settings.spriteColors,
+                       COL_COUNT * sizeof(uint16_t));
+#endif
 
   // Save metric display order
   preferences.putBytes("metricOrd", settings.metricOrder, MAX_METRICS);

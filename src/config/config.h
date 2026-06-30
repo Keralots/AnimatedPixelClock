@@ -10,6 +10,7 @@
 
 #include <Arduino.h>
 #include "user_config.h"
+#include "color_slots.h"
 
 // ========== Version ==========
 #define FIRMWARE_VERSION "1.6.1"
@@ -175,6 +176,11 @@ struct Settings {
   int metricBarMax[MAX_METRICS];
   int metricBarWidths[MAX_METRICS];
   int metricBarOffsets[MAX_METRICS];
+
+#if DISPLAY_HUB75
+  // User-editable sprite colors (RGB565), indexed by ColorSlot. HUB75 only.
+  uint16_t spriteColors[COL_COUNT];
+#endif
 };
 
 // ========== Mario Clock Types ==========

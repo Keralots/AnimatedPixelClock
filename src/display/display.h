@@ -61,6 +61,17 @@
   #endif
 #endif
 
+// ---- User-editable sprite colors ----
+// On HUB75, returns the configured RGB565 color for a ColorSlot. On the mono
+// OLED build, collapses to DISPLAY_WHITE so the animation code stays monochrome
+// and unchanged. Macro expands at call sites where `settings` (config.h) is in
+// scope. Slot enum + defaults live in config/color_slots.h.
+#if DISPLAY_HUB75
+  #define SPRITE_COLOR(slot) (settings.spriteColors[(slot)])
+#else
+  #define SPRITE_COLOR(slot) DISPLAY_WHITE
+#endif
+
 // Initialize display - returns true on success
 bool initDisplay();
 void applyDisplayBrightness();
