@@ -81,6 +81,7 @@ static float shellSlideSpeed = 0;
 // ========== Draw Time With Bounce Effect ==========
 void drawTimeWithBounce() {
   display.setTextSize(3);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
 
   char digits[5];
   digits[0] = '0' + (displayed_hour / 10);
@@ -94,6 +95,7 @@ void drawTimeWithBounce() {
     display.setCursor(DIGIT_X[i], y);
     display.print(digits[i]);
   }
+  display.setTextColor(DISPLAY_WHITE);  // reset so date/coin text stays white
 }
 
 // ========== Display Clock With Mario ==========
@@ -352,71 +354,73 @@ void drawMario(int x, int y, bool facingRight, int frame, bool jumping) {
   int sx = x - 4;
   int sy = y - 10;
 
+  // Color map: hat block + brim = HAT, middle block = OVERALLS, arm pixels =
+  // SKIN, leg blocks (sy+6) = SHOES. (DISPLAY_BLACK details, if any, untouched.)
   if (jumping) {
-    display.fillRect(sx + 2, sy, 4, 3, DISPLAY_WHITE);
-    display.fillRect(sx + 2, sy + 3, 4, 3, DISPLAY_WHITE);
-    display.drawPixel(sx + 1, sy + 2, DISPLAY_WHITE);
-    display.drawPixel(sx + 6, sy + 2, DISPLAY_WHITE);
-    display.drawPixel(sx + 0, sy + 1, DISPLAY_WHITE);
-    display.drawPixel(sx + 7, sy + 1, DISPLAY_WHITE);
-    display.fillRect(sx + 2, sy + 6, 2, 3, DISPLAY_WHITE);
-    display.fillRect(sx + 4, sy + 6, 2, 3, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy, 4, 3, SPRITE_COLOR(COL_MARIO_HAT));
+    display.fillRect(sx + 2, sy + 3, 4, 3, SPRITE_COLOR(COL_MARIO_OVERALLS));
+    display.drawPixel(sx + 1, sy + 2, SPRITE_COLOR(COL_MARIO_SKIN));
+    display.drawPixel(sx + 6, sy + 2, SPRITE_COLOR(COL_MARIO_SKIN));
+    display.drawPixel(sx + 0, sy + 1, SPRITE_COLOR(COL_MARIO_SKIN));
+    display.drawPixel(sx + 7, sy + 1, SPRITE_COLOR(COL_MARIO_SKIN));
+    display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+    display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
   } else {
-    display.fillRect(sx + 2, sy, 4, 3, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy, 4, 3, SPRITE_COLOR(COL_MARIO_HAT));
     if (facingRight) {
-      display.drawPixel(sx + 6, sy + 1, DISPLAY_WHITE);
+      display.drawPixel(sx + 6, sy + 1, SPRITE_COLOR(COL_MARIO_HAT));
     } else {
-      display.drawPixel(sx + 1, sy + 1, DISPLAY_WHITE);
+      display.drawPixel(sx + 1, sy + 1, SPRITE_COLOR(COL_MARIO_HAT));
     }
 
-    display.fillRect(sx + 2, sy + 3, 4, 3, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 3, 4, 3, SPRITE_COLOR(COL_MARIO_OVERALLS));
 
     if (settings.marioSmoothAnimation) {
       // 4-frame mode: both arms animate in opposite phase
       if (facingRight) {
-        display.drawPixel(sx + 1, sy + 4 - (frame % 2), DISPLAY_WHITE);  // Back arm (opposite phase)
-        display.drawPixel(sx + 6, sy + 3 + (frame % 2), DISPLAY_WHITE);  // Front arm
+        display.drawPixel(sx + 1, sy + 4 - (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Back arm
+        display.drawPixel(sx + 6, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Front arm
       } else {
-        display.drawPixel(sx + 6, sy + 4 - (frame % 2), DISPLAY_WHITE);  // Back arm (opposite phase)
-        display.drawPixel(sx + 1, sy + 3 + (frame % 2), DISPLAY_WHITE);  // Front arm
+        display.drawPixel(sx + 6, sy + 4 - (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Back arm
+        display.drawPixel(sx + 1, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));  // Front arm
       }
 
       // 4-frame walk cycle for smoother animation
       switch (frame % 4) {
         case 0:  // Legs together (neutral)
-          display.fillRect(sx + 2, sy + 6, 2, 3, DISPLAY_WHITE);
-          display.fillRect(sx + 4, sy + 6, 2, 3, DISPLAY_WHITE);
+          display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+          display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
           break;
         case 1:  // Left leg forward
-          display.fillRect(sx + 1, sy + 6, 2, 3, DISPLAY_WHITE);
-          display.fillRect(sx + 4, sy + 6, 2, 3, DISPLAY_WHITE);
+          display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+          display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
           break;
         case 2:  // Legs apart (full stride)
-          display.fillRect(sx + 1, sy + 6, 2, 3, DISPLAY_WHITE);
-          display.fillRect(sx + 5, sy + 6, 2, 3, DISPLAY_WHITE);
+          display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+          display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
           break;
         case 3:  // Right leg forward
-          display.fillRect(sx + 2, sy + 6, 2, 3, DISPLAY_WHITE);
-          display.fillRect(sx + 5, sy + 6, 2, 3, DISPLAY_WHITE);
+          display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+          display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
           break;
       }
     } else {
       // 2-frame mode (original): back arm static, front arm moves
       if (facingRight) {
-        display.drawPixel(sx + 1, sy + 4, DISPLAY_WHITE);
-        display.drawPixel(sx + 6, sy + 3 + (frame % 2), DISPLAY_WHITE);
+        display.drawPixel(sx + 1, sy + 4, SPRITE_COLOR(COL_MARIO_SKIN));
+        display.drawPixel(sx + 6, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));
       } else {
-        display.drawPixel(sx + 6, sy + 4, DISPLAY_WHITE);
-        display.drawPixel(sx + 1, sy + 3 + (frame % 2), DISPLAY_WHITE);
+        display.drawPixel(sx + 6, sy + 4, SPRITE_COLOR(COL_MARIO_SKIN));
+        display.drawPixel(sx + 1, sy + 3 + (frame % 2), SPRITE_COLOR(COL_MARIO_SKIN));
       }
 
       // 2-frame walk cycle (original)
       if (frame == 0) {
-        display.fillRect(sx + 2, sy + 6, 2, 3, DISPLAY_WHITE);
-        display.fillRect(sx + 4, sy + 6, 2, 3, DISPLAY_WHITE);
+        display.fillRect(sx + 2, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+        display.fillRect(sx + 4, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
       } else {
-        display.fillRect(sx + 1, sy + 6, 2, 3, DISPLAY_WHITE);
-        display.fillRect(sx + 5, sy + 6, 2, 3, DISPLAY_WHITE);
+        display.fillRect(sx + 1, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
+        display.fillRect(sx + 5, sy + 6, 2, 3, SPRITE_COLOR(COL_MARIO_SHOES));
       }
     }
   }

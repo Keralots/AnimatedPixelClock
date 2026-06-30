@@ -58,7 +58,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <div class="nav-label">Configuration</div>
         <button type="button" class="nav-item active" data-nav="clock">Clock</button>
         <button type="button" class="nav-item" data-nav="display">Display</button>
-        %SPRITE_COLORS_NAV%
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
       </div>
@@ -131,6 +130,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
             <!-- Mario -->
             <div class="subcard" id="marioSettings" style="display:%DSP_CLOCKSTYLE_0%">
+              %COLORS_MARIO%
               <div class="grid-2">
                 <div class="field" style="margin-bottom:0">
                   <label class="field-label" for="marioBounceHeight">Bounce height</label>
@@ -287,6 +287,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
             <!-- Pac-Man (style 6) -->
             <div class="subcard" id="pacmanSettings" style="display:%DSP_CLOCKSTYLE_6%">
+              %COLORS_PACMAN%
               <div class="grid-2">
                 <div class="field" style="margin-bottom:0">
                   <label class="field-label" for="pacmanSpeed">Patrol speed</label>
@@ -547,6 +548,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               </div>
             </div>
           </div>
+          %COLOR_GLOBAL%
         </section>
 
         <!-- DISPLAY -->
@@ -648,8 +650,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             </div>
           </div>
         </section>
-
-        %SPRITE_COLORS_SECTION%
 
         <!-- DISPLAY LAYOUT -->
         <section class="page" data-page="layout">

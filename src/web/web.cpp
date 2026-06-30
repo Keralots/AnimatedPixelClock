@@ -312,36 +312,29 @@ static String rgb565ToHex(uint16_t c) {
   return String(buf);
 }
 
-// One row per editable sprite element, grouped by mode. APPEND new rows as
-// modes are colored (the slot enum is in config/color_slots.h).
-struct SpriteColorRow { uint8_t slot; const char* group; const char* label; };
+// One editable color per row. `style` = the clock style this element belongs to
+// (its picker shows inside that style's settings subcard), or -1 = global (shown
+// always, e.g. the digits color). APPEND rows as modes are colored.
+struct SpriteColorRow { uint8_t slot; int style; const char* label; };
 static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
-    {COL_DIGITS, "Digits", "Time digits + colon"},
-    {COL_MARIO_HAT, "Mario", "Hat"},
-    {COL_MARIO_OVERALLS, "Mario", "Overalls"},
-    {COL_MARIO_SKIN, "Mario", "Skin"},
-    {COL_MARIO_SHOES, "Mario", "Shoes"},
-    {COL_PACMAN, "Pac-Man", "Pac-Man"},
-    {COL_PELLET, "Pac-Man", "Pellets"},
-    {COL_SNAKE, "Snake", "Snake"},
-    {COL_INVADER, "Space Invaders", "Invader"},
-    {COL_LASER, "Space Invaders", "Laser / explosion"},
+    {COL_DIGITS, -1, "Time digits + colon"},
+    {COL_MARIO_HAT, 0, "Hat"},
+    {COL_MARIO_OVERALLS, 0, "Overalls"},
+    {COL_MARIO_SKIN, 0, "Skin"},
+    {COL_MARIO_SHOES, 0, "Shoes"},
+    {COL_PACMAN, 6, "Pac-Man"},
+    {COL_PELLET, 6, "Pellets"},
+    {COL_SNAKE, 7, "Snake"},
+    {COL_INVADER, 3, "Invader"},
+    {COL_LASER, 3, "Laser / explosion"},
 };
 
-static String buildSpriteColorsSection() {
-  String s = F("<section class=\"page\" data-page=\"colors\"><div class=\"page-header\">"
-               "<h1 class=\"page-h1\">Sprite colors</h1>"
-               "<p class=\"page-lede\">Pick a color for each clock element. Applies live on save and is stored on the device.</p>"
-               "</div><div class=\"card\">");
-  const char* curGroup = nullptr;
+// Emit <input type=color> rows for one clock style (-1 = global). "" if none.
+static String buildColorRows(int style) {
+  String s;
   for (size_t i = 0; i < sizeof(SPRITE_COLOR_ROWS) / sizeof(SPRITE_COLOR_ROWS[0]); i++) {
     const SpriteColorRow& r = SPRITE_COLOR_ROWS[i];
-    if (curGroup == nullptr || strcmp(curGroup, r.group) != 0) {
-      curGroup = r.group;
-      s += F("<div style=\"font-weight:600;margin:14px 0 4px\">");
-      s += r.group;
-      s += F("</div>");
-    }
+    if (r.style != style) continue;
     s += F("<label style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0\"><span>");
     s += r.label;
     s += F("</span><input type=\"color\" name=\"color_");
@@ -350,10 +343,15 @@ static String buildSpriteColorsSection() {
     s += rgb565ToHex(settings.spriteColors[r.slot]);
     s += F("\"></label>");
   }
-  s += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:16px\">"
-         "<input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all colors to defaults on save</label>");
-  s += F("</div></section>");
   return s;
+}
+
+// A labelled "Colors" block to drop inside a clock-style settings subcard.
+static String buildColorSubblock(int style) {
+  String rows = buildColorRows(style);
+  if (rows.length() == 0) return String();
+  return String(F("<div style=\"margin-top:14px\"><div style=\"font-weight:600;margin-bottom:4px\">Colors</div>"))
+         + rows + F("</div>");
 }
 #endif  // DISPLAY_HUB75
 
@@ -376,16 +374,26 @@ static bool resolvePlaceholder(const char* n, String& out) {
 #endif
     return true;
   }
-  // Sprite-colors nav button + section (HUB75 only; resolve to "" on OLED).
-  if (!strcmp(n, "SPRITE_COLORS_NAV")) {
+  // Per-style color pickers (rendered inside each clock-style subcard) + the
+  // global block (digits + reset). HUB75-only; resolve to "" on OLED.
+  if (!strcmp(n, "COLORS_MARIO")) {
 #if DISPLAY_HUB75
-    out = F("<button type=\"button\" class=\"nav-item\" data-nav=\"colors\">Colors</button>");
+    out = buildColorSubblock(0);
 #endif
     return true;
   }
-  if (!strcmp(n, "SPRITE_COLORS_SECTION")) {
+  if (!strcmp(n, "COLORS_PACMAN")) {
 #if DISPLAY_HUB75
-    out = buildSpriteColorsSection();
+    out = buildColorSubblock(6);
+#endif
+    return true;
+  }
+  if (!strcmp(n, "COLOR_GLOBAL")) {
+#if DISPLAY_HUB75
+    out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
+    out += buildColorRows(-1);
+    out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
+    out += F("</div>");
 #endif
     return true;
   }
