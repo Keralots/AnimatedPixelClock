@@ -20,3 +20,6 @@ nul
 
 # Claude Code local files (plans, notes, settings) - not synced
 .claude/
+
+# Local working notes - not committed
+NEXT_SESSION.md
