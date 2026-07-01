@@ -313,11 +313,15 @@ static String rgb565ToHex(uint16_t c) {
 }
 
 // One editable color per row. `style` = the clock style this element belongs to
-// (its picker shows inside that style's settings subcard), or -1 = global (shown
-// always, e.g. the digits color). APPEND rows as modes are colored.
+// (its picker shows inside that style's settings subcard), -1 = global (shown
+// always, e.g. the digits color), -2 = PC-monitor stats (own always-visible
+// group, not a clock style). APPEND rows as modes are colored.
 struct SpriteColorRow { uint8_t slot; int style; const char* label; };
 static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_DIGITS, -1, "Time digits + colon"},
+    {COL_STAT_TEXT, -2, "Metric text"},
+    {COL_STAT_BAR, -2, "Bar fill"},
+    {COL_STAT_BAR_BG, -2, "Bar outline"},
     {COL_MARIO_HAT, 0, "Hat"},
     {COL_MARIO_OVERALLS, 0, "Overalls"},
     {COL_MARIO_SKIN, 0, "Skin"},
@@ -395,6 +399,11 @@ static String buildColorsCard() {
     out += F("</div>");
   }
   out += buildColorRows(-1);  // global Time-digits row, always visible
+  String statRows = buildColorRows(-2);  // PC-monitor stats rows, always visible
+  if (statRows.length()) {
+    out += F("<div style=\"margin-top:14px;font-weight:600;opacity:.75\">PC Monitor</div>");
+    out += statRows;
+  }
   out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
   out += F("</div>");
   return out;

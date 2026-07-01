@@ -58,6 +58,10 @@ enum ColorSlot {
   COL_STAR,
   COL_MUSHROOM,
   COL_FIREBALL,
+  // PC-monitor stats screen (not a clock style)
+  COL_STAT_TEXT,     // metric lines, clock timestamp, config hints
+  COL_STAT_BAR,      // progress-bar fill
+  COL_STAT_BAR_BG,   // progress-bar outline
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

@@ -17,6 +17,7 @@ void displayStatsCompactGrid() {
   int textHeight = isLargeTextMode ? 16 : 8;
 
   display.setTextSize(textSize);
+  display.setTextColor(SPRITE_COLOR(COL_STAT_TEXT));
 
   if (isLargeTextMode) {
     // ===== Large text modes: single-column layout =====
@@ -357,15 +358,18 @@ void drawProgressBar(int x, int y, int width, Metric* m) {
   int barHeight = (settings.displayRowMode >= 2) ? 16 : 8;
 
   // Draw bar outline
-  display.drawRect(actualX, y, actualWidth, barHeight, DISPLAY_WHITE);
+  display.drawRect(actualX, y, actualWidth, barHeight, SPRITE_COLOR(COL_STAT_BAR_BG));
 
   // Fill bar based on value
   if (fillWidth > 0) {
-    display.fillRect(actualX + 1, y + 1, fillWidth, barHeight - 2, DISPLAY_WHITE);
+    display.fillRect(actualX + 1, y + 1, fillWidth, barHeight - 2, SPRITE_COLOR(COL_STAT_BAR));
   }
 }
 
 // Main display function - always uses compact grid layout
 void displayStats() {
   displayStatsCompactGrid();   // Compact 2-column grid layout
+  // Restore white so nothing drawn after the stats screen inherits the stats
+  // text color (matches the per-clock reset pattern).
+  display.setTextColor(DISPLAY_WHITE);
 }
