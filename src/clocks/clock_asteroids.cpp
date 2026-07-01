@@ -55,6 +55,7 @@ struct AstRock {
 
 struct AstShard {
   bool active;
+  bool fromDigit;                // true = digit shatter (COL_DIGITS), false = rock burst (COL_AST_ROCK)
   float x, y, vx, vy;
   float angle, spin;
   float life;                    // seconds remaining
@@ -187,6 +188,7 @@ static void astSpawnBurst(float x, float y, int count, float speedScale) {
     if (ast_shards[s].active) continue;
     AstShard &sh = ast_shards[s];
     sh.active = true;
+    sh.fromDigit = false;  // rock-burst debris
     sh.x = x;
     sh.y = y;
     float ang = astRandf(0, TWO_PI);
@@ -257,6 +259,7 @@ static void astShatterDigit(int digitIdx) {
     AstShard &sh = ast_shards[s];
     int src = (spawned * litN) / target;
     sh.active = true;
+    sh.fromDigit = true;  // digit-shatter debris
     sh.x = litX[src];
     sh.y = litY[src];
     // Fly outward from the digit centre, plus a little randomness
@@ -580,20 +583,21 @@ static void updateAsteroidsAnimation(struct tm *timeinfo) {
 
 // ========== Drawing ==========
 static void drawAstShip() {
+  uint16_t col = SPRITE_COLOR(COL_AST_SHIP);
   // Classic Asteroids triangle: nose + two rear corners around the centre
   float c = cosf(ast_ship_heading), s = sinf(ast_ship_heading);
   float nx = ast_ship_x + c * 5.0f,            ny = ast_ship_y + s * 5.0f;
   float lx = ast_ship_x - c * 4.0f - s * 3.5f, ly = ast_ship_y - s * 4.0f + c * 3.5f;
   float rx = ast_ship_x - c * 4.0f + s * 3.5f, ry = ast_ship_y - s * 4.0f - c * 3.5f;
-  display.drawLine((int)nx, (int)ny, (int)lx, (int)ly, DISPLAY_WHITE);
-  display.drawLine((int)nx, (int)ny, (int)rx, (int)ry, DISPLAY_WHITE);
-  display.drawLine((int)lx, (int)ly, (int)rx, (int)ry, DISPLAY_WHITE);
+  display.drawLine((int)nx, (int)ny, (int)lx, (int)ly, col);
+  display.drawLine((int)nx, (int)ny, (int)rx, (int)ry, col);
+  display.drawLine((int)lx, (int)ly, (int)rx, (int)ry, col);
 
   // Flickering thrust flame out the back
   if (ast_thrusting && (millis() / 60) % 2 == 0) {
     float fx = ast_ship_x - c * 8.0f, fy = ast_ship_y - s * 8.0f;
     float bx = ast_ship_x - c * 4.0f, by = ast_ship_y - s * 4.0f;
-    display.drawLine((int)bx, (int)by, (int)fx, (int)fy, DISPLAY_WHITE);
+    display.drawLine((int)bx, (int)by, (int)fx, (int)fy, col);
   }
 }
 
@@ -605,7 +609,7 @@ static void drawAstRock(const AstRock &r) {
     float a = r.angle + (TWO_PI * idx) / AST_ROCK_VERTS;
     int x = (int)(r.x + cosf(a) * r.vertRadius[idx]);
     int y = (int)(r.y + sinf(a) * r.vertRadius[idx]);
-    if (v > 0) display.drawLine(px, py, x, y, DISPLAY_WHITE);
+    if (v > 0) display.drawLine(px, py, x, y, SPRITE_COLOR(COL_AST_ROCK));
     px = x; py = y;
   }
 }
@@ -619,7 +623,8 @@ static void drawAstShards() {
     if (halfLen < 0.5f) halfLen = 0.5f;
     float c = cosf(sh.angle) * halfLen, s = sinf(sh.angle) * halfLen;
     display.drawLine((int)(sh.x - c), (int)(sh.y - s),
-                     (int)(sh.x + c), (int)(sh.y + s), DISPLAY_WHITE);
+                     (int)(sh.x + c), (int)(sh.y + s),
+                     sh.fromDigit ? SPRITE_COLOR(COL_DIGITS) : SPRITE_COLOR(COL_AST_ROCK));
   }
 }
 
@@ -653,6 +658,7 @@ void displayClockWithAsteroids() {
   // reads as flying *behind* the time, then print the glyph. The digit
   // being shattered stays hidden until its debris clears.
   display.setTextSize(3);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -676,13 +682,15 @@ void displayClockWithAsteroids() {
     display.setCursor(dx, dy);
     display.print(dch[i]);
   }
+  display.setTextColor(DISPLAY_WHITE);  // restore for date chrome
 
   // Bullet drawn over the plates as a 2px tracer, so a shot crossing the
   // time never blinks out of existence mid-flight
   if (ast_bullet_active) {
-    display.drawPixel((int)ast_bullet_x, (int)ast_bullet_y, DISPLAY_WHITE);
+    uint16_t bcol = SPRITE_COLOR(COL_AST_SHIP);  // ship's shot
+    display.drawPixel((int)ast_bullet_x, (int)ast_bullet_y, bcol);
     display.drawPixel((int)(ast_bullet_x - ast_bullet_vx * 0.01f),
-                      (int)(ast_bullet_y - ast_bullet_vy * 0.01f), DISPLAY_WHITE);
+                      (int)(ast_bullet_y - ast_bullet_vy * 0.01f), bcol);
   }
 
   // Optional date row (top), kept above the action

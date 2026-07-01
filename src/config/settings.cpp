@@ -39,6 +39,8 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DINO_PTERO     */ 0xFFFF,  // white
     /* COL_DINO_GROUND    */ 0xFFFF,  // white
     /* COL_DINO_CLOUD     */ 0xFFFF,  // white
+    /* COL_AST_SHIP       */ 0x07FF,  // cyan
+    /* COL_AST_ROCK       */ 0xA145,  // tan
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
