@@ -10,6 +10,34 @@
 #include "clocks.h"
 #include "clock_globals.h"
 
+// 5x7 numeral glyphs (same font as the Snake/Tetris/Asteroids pellet placement).
+// Used to sample the shattering/assembling digit shape so the effect does not
+// depend on display.getBuffer() (nullptr on HUB75). Bit 4 = leftmost column.
+static const uint8_t pongDigitGlyph[10][7] = {
+  {0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110},
+  {0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110},
+  {0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111},
+  {0b01110, 0b10001, 0b00001, 0b00110, 0b00001, 0b10001, 0b01110},
+  {0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010},
+  {0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110},
+  {0b00110, 0b01000, 0b10000, 0b10110, 0b10001, 0b10001, 0b01110},
+  {0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000},
+  {0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110},
+  {0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100}
+};
+
+// Maps a pixel offset inside the size-3 digit box (dx 0..14, dy 0..20) to its
+// 5x7 glyph cell. Replaces the old display.getBuffer() pixel read so the digit
+// shatter/reassemble works on HUB75 (and still on OLED, glyph approximates the
+// rendered font). Returns false for dy >= 21 (past the 7-row glyph).
+static bool pongDigitPixelLit(char c, int dx, int dy) {
+  if (c < '0' || c > '9') return false;
+  int gx = dx / 3;   // 0..4 (5 cols * 3px = 15px wide)
+  int gy = dy / 3;   // 0..6 (7 rows * 3px = 21px tall)
+  if (gx > 4 || gy > 6) return false;
+  return (pongDigitGlyph[c - '0'][gy] >> (4 - gx)) & 0x01;
+}
+
 // Fragment pool helper functions
 SpaceFragment* findFreePongFragment() {
   for (int i = 0; i < MAX_PONG_FRAGMENTS; i++) {
@@ -212,7 +240,7 @@ void drawPongFragments() {
     if (pong_fragments[i].active) {
       int fx = (int)pong_fragments[i].x;
       int fy = (int)pong_fragments[i].y;
-      display.fillRect(fx, fy, 2, 2, SPRITE_COLOR(COL_DIGITS));  // digit debris (OLED only; getBuffer null on HUB75)
+      display.fillRect(fx, fy, 2, 2, SPRITE_COLOR(COL_DIGITS));  // digit debris
     }
   }
 }
@@ -237,53 +265,8 @@ void spawnPongBallHitFragments(int x, int y) {
   }
 }
 
-// Spawn pixel-accurate fragments from breaking digit (TRUE PIXEL SAMPLING)
-void spawnDigitBreakFragments(int digitIndex, char oldChar) {
-  uint8_t* buffer = display.getBuffer();
-  if (!buffer) return;  // Safety check
-
-  int digit_x = DIGIT_X[digitIndex];
-  int digit_y = PONG_TIME_Y;
-
-  // Sample every 2nd pixel to limit fragment count
-  // Use random sampling: only spawn fragment for ~37.5% of lit pixels
-  for (int dy = 0; dy < 24; dy += 2) {
-    for (int dx = 0; dx < 15; dx += 2) {
-      int px = digit_x + dx;
-      int py = digit_y + dy;
-
-      // Read pixel from buffer (1 bit per pixel, organized in 8-pixel pages)
-      int page = py / 8;
-      int bit = py % 8;
-      int index = px + (page * 128);
-      bool pixel_lit = (buffer[index] >> bit) & 0x01;
-
-      if (pixel_lit && random(0, 8) < 3) {  // 37.5% spawn rate
-        SpaceFragment* f = findFreePongFragment();
-        if (!f) break;
-
-        f->x = px;
-        f->y = py;
-
-        // Velocity: outward from digit center + randomization
-        float dx_center = px - (digit_x + 7);
-        float dy_center = py - (digit_y + 12);
-        float angle = atan2(dy_center, dx_center) + random(-30, 30) / 100.0;
-        float speed = PONG_FRAG_SPEED + random(-50, 50) / 100.0;
-
-        f->vx = cos(angle) * speed;
-        f->vy = sin(angle) * speed - 0.5;  // Slight upward bias
-        f->active = true;
-      }
-    }
-  }
-}
-
 // Spawn progressive fragments (25%, 50%, or 25% based on hit number)
 void spawnProgressiveFragments(int digitIndex, char oldChar, int hitNumber) {
-  uint8_t* buffer = display.getBuffer();
-  if (!buffer) return;
-
   int digit_x = DIGIT_X[digitIndex];
   int digit_y = PONG_TIME_Y;
 
@@ -291,16 +274,13 @@ void spawnProgressiveFragments(int digitIndex, char oldChar, int hitNumber) {
   float spawn_percent = FRAGMENT_SPAWN_PERCENT[hitNumber];
   int spawn_chance = (int)(spawn_percent * 8);  // 0-8 scale for random check
 
-  // Sample pixels and spawn fragments
+  // Sample the old digit's glyph and spawn fragments (framebuffer-free, works on HUB75)
   for (int dy = 0; dy < 24; dy += 2) {
     for (int dx = 0; dx < 15; dx += 2) {
       int px = digit_x + dx;
       int py = digit_y + dy;
 
-      int page = py / 8;
-      int bit = py % 8;
-      int index = px + (page * 128);
-      bool pixel_lit = (buffer[index] >> bit) & 0x01;
+      bool pixel_lit = pongDigitPixelLit(oldChar, dx, dy);
 
       if (pixel_lit && random(0, 8) < spawn_chance) {
         SpaceFragment* f = findFreePongFragment();
@@ -325,23 +305,16 @@ void spawnProgressiveFragments(int digitIndex, char oldChar, int hitNumber) {
 
 // Spawn assembly fragments (fragments that will converge to form new digit)
 void spawnAssemblyFragments(int digitIndex, char newChar) {
-  // Temporarily render new digit to sample its pixels
-  uint8_t* buffer = display.getBuffer();
-  if (!buffer) return;
-
   int digit_x = DIGIT_X[digitIndex];
   int digit_y = PONG_TIME_Y;
 
-  // Sample every 2nd pixel from new digit
+  // Sample the new digit's glyph so fragments converge into its shape
   for (int dy = 0; dy < 24; dy += 2) {
     for (int dx = 0; dx < 15; dx += 2) {
       int px = digit_x + dx;
       int py = digit_y + dy;
 
-      int page = py / 8;
-      int bit = py % 8;
-      int index = px + (page * SCREEN_WIDTH);
-      bool pixel_lit = (buffer[index] >> bit) & 0x01;
+      bool pixel_lit = pongDigitPixelLit(newChar, dx, dy);
 
       if (pixel_lit && random(0, 8) < 4) {  // 50% spawn rate
         SpaceFragment* f = findFreePongFragment();
@@ -409,13 +382,6 @@ void updateAssemblyFragments() {
       pong_fragments[i].y += pong_fragments[i].vy;
     }
   }
-}
-
-// Check if ball is inside a digit hole (stub for now - complex feature)
-bool checkDigitHoleCollision(int ballIndex, int digitIndex) {
-  // TODO: Implement digit hole detection using pixel sampling
-  // For now, return false (no hole collision)
-  return false;
 }
 
 // Update ball position and physics
@@ -557,22 +523,6 @@ void updatePongBall(int ballIndex) {
       pong_balls[ballIndex].vy = (pong_balls[ballIndex].vy >= 0) ? 8 : -8;
     }
   }
-}
-
-// Helper: Check if pixel is lit in display buffer (for pixel-perfect collision)
-bool isPixelLit(int x, int y) {
-  if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
-    return false;
-  }
-
-  uint8_t* buffer = display.getBuffer();
-  if (!buffer) return false;
-
-  int page = y / 8;
-  int bit = y % 8;
-  int index = x + (page * SCREEN_WIDTH);
-
-  return (buffer[index] >> bit) & 0x01;
 }
 
 // Check ball-digit collisions (pixel-perfect with progressive fragmentation)
