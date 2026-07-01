@@ -89,6 +89,13 @@ static const int TET_WELL_TOP = TET_TIME_Y_CENTER + TET_GRID_H * TET_PITCH + 1; 
 
 enum TetGamePhase { TG_DELAY, TG_MOVING, TG_CLEARING };
 static uint32_t tet_well[TET_WELL_ROWS];  // bit c set = filled; row 0 = top of well
+// Piece index (0-6, I..L) that filled each settled cell - drives per-piece color.
+// Only meaningful where the matching tet_well bit is set.
+static uint8_t tet_well_col[TET_WELL_ROWS][TET_WELL_COLS];
+// The 7 piece colors are read as COL_TET_I + pieceIndex, so the slots must be
+// contiguous in I,O,T,S,Z,J,L order. Fail the build if a future enum edit breaks it.
+static_assert(COL_TET_L - COL_TET_I == 6,
+              "Tetris piece color slots must stay contiguous in I,O,T,S,Z,J,L order");
 static TetGamePhase tet_game_phase = TG_DELAY;
 static int tet_pc_rot = 0, tet_pc_destCol = 0, tet_pc_destOy = 0;
 static int tet_pc_piece = 0;      // which of the 7 pieces is falling
@@ -169,7 +176,7 @@ static void tetDrawCells(int idx, uint8_t val, int rowStart, int rowEnd, int yOf
       if ((bits >> (TET_GRID_W - 1 - col)) & 1) {
         int px = DIGIT_X[idx] + col * TET_PITCH;
         int py = tetTimeY() + row * TET_PITCH + yOff;
-        display.fillRect(px, py, bs, bs, DISPLAY_WHITE);
+        display.fillRect(px, py, bs, bs, SPRITE_COLOR(COL_DIGITS));
       }
     }
   }
@@ -221,6 +228,7 @@ static void tetUpdateFrags() {
 // ----- Idle Tetris game logic -----
 static void tetGameReset() {
   for (int r = 0; r < TET_WELL_ROWS; r++) tet_well[r] = 0;
+  memset(tet_well_col, 0, sizeof(tet_well_col));
   tet_game_phase = TG_DELAY;
   tet_game_timer = millis() + 400;
   tet_clear_mask = 0;
@@ -367,9 +375,15 @@ static void tetGameClearRows() {
   int writeR = TET_WELL_ROWS - 1;
   for (int r = TET_WELL_ROWS - 1; r >= 0; r--) {
     if (tet_clear_mask & (1 << r)) continue;
-    tet_well[writeR--] = tet_well[r];
+    int dst = writeR--;  // capture before decrement so the color copy matches
+    tet_well[dst] = tet_well[r];
+    memcpy(tet_well_col[dst], tet_well_col[r], TET_WELL_COLS);
   }
-  while (writeR >= 0) tet_well[writeR--] = 0;
+  while (writeR >= 0) {
+    tet_well[writeR] = 0;
+    memset(tet_well_col[writeR], 0, TET_WELL_COLS);
+    writeR--;
+  }
   tet_clear_mask = 0;
 }
 
@@ -378,6 +392,7 @@ static void tetGameUpdate() {
     if (millis() >= tet_game_timer) {
       if (!tetGamePickPiece()) {           // nothing fits -> clear the well
         for (int r = 0; r < TET_WELL_ROWS; r++) tet_well[r] = 0;
+        memset(tet_well_col, 0, sizeof(tet_well_col));
         tet_game_timer = millis() + 600;
       }
     }
@@ -427,8 +442,12 @@ static void tetGameUpdate() {
     tet_pc_py = landingPy;
     if (tet_pc_curCol != (float)tet_pc_destCol) return;  // finish aligning first
     const TetRot &p = TET_ROTS[tet_pc_rot];
-    for (int k = 0; k < 4; k++)
-      tet_well[tet_pc_destOy + p.cy[k]] |= (1u << (tet_pc_destCol + p.cx[k]));
+    for (int k = 0; k < 4; k++) {
+      int rr = tet_pc_destOy + p.cy[k];
+      int cc = tet_pc_destCol + p.cx[k];
+      tet_well[rr] |= (1u << cc);
+      tet_well_col[rr][cc] = tet_pc_piece;  // remember which piece for its color
+    }
     tet_clear_mask = 0;
     for (int r = 0; r < TET_WELL_ROWS; r++)
       if (tet_well[r] == TET_FULLROW) tet_clear_mask |= (1 << r);
@@ -621,7 +640,8 @@ static void tetGameDraw() {
     if (!row) continue;
     for (int c = 0; c < TET_WELL_COLS; c++)
       if (row & (1u << c))
-        display.fillRect(c * TET_WELL_CELL, TET_WELL_TOP + r * TET_WELL_CELL, 3, 3, DISPLAY_WHITE);
+        display.fillRect(c * TET_WELL_CELL, TET_WELL_TOP + r * TET_WELL_CELL, 3, 3,
+                         SPRITE_COLOR(COL_TET_I + tet_well_col[r][c]));
   }
   // The piece currently falling in (absolute screen Y, so it shows while
   // passing through the digit area on its way down)
@@ -633,7 +653,7 @@ static void tetGameDraw() {
       int cx = pcCol + p.cx[k];
       int py = pyTop + p.cy[k] * TET_WELL_CELL;
       if (cx >= 0 && cx < TET_WELL_COLS && py >= 0 && py < SCREEN_HEIGHT)
-        display.fillRect(cx * TET_WELL_CELL, py, 3, 3, DISPLAY_WHITE);
+        display.fillRect(cx * TET_WELL_CELL, py, 3, 3, SPRITE_COLOR(COL_TET_I + tet_pc_piece));
     }
   }
 }
@@ -646,7 +666,7 @@ static void tetDrawActiveDigit(int i) {
     for (int k = 0; k < dot_n; k++) {
       if (dot_frame < dot_delay[k]) continue;  // not yet appeared
       int y = dot_locked[k] ? dot_ty[k] : (int)dot_cy[k];
-      display.fillRect(dot_tx[k], y, bs, bs, DISPLAY_WHITE);
+      display.fillRect(dot_tx[k], y, bs, bs, SPRITE_COLOR(COL_DIGITS));
     }
   } else {
     // Drop-in slabs: settled slabs at rest, the current slab falling in.
@@ -702,8 +722,8 @@ void displayClockWithTetris() {
       // Block colon
       if (shouldShowColon()) {
         int cx = (DIGIT_X[1] + 4 * TET_PITCH + DIGIT_X[3]) / 2;
-        display.fillRect(cx, tetTimeY() + 2 * TET_PITCH, bs, bs, DISPLAY_WHITE);
-        display.fillRect(cx, tetTimeY() + 4 * TET_PITCH, bs, bs, DISPLAY_WHITE);
+        display.fillRect(cx, tetTimeY() + 2 * TET_PITCH, bs, bs, SPRITE_COLOR(COL_DIGITS));
+        display.fillRect(cx, tetTimeY() + 4 * TET_PITCH, bs, bs, SPRITE_COLOR(COL_DIGITS));
       }
       continue;
     }
@@ -718,7 +738,7 @@ void displayClockWithTetris() {
 
   // Fragments from cleared digits (drop-in slab style)
   for (int i = 0; i < TET_MAX_FRAG; i++) {
-    if (tet_frags[i].active) display.fillRect((int)tet_frags[i].x, (int)tet_frags[i].y, 2, 2, DISPLAY_WHITE);
+    if (tet_frags[i].active) display.fillRect((int)tet_frags[i].x, (int)tet_frags[i].y, 2, 2, SPRITE_COLOR(COL_DIGITS));
   }
 
   // Idle Tetris game (bottom well)

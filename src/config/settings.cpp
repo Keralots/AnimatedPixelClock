@@ -27,6 +27,13 @@ const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT] = {
     /* COL_INVADER        */ 0x07E0,  // green
     /* COL_LASER          */ 0xF800,  // red
     /* COL_SNAKE_FOOD     */ 0xF800,  // red
+    /* COL_TET_I          */ 0x07FF,  // cyan
+    /* COL_TET_O          */ 0xFFE0,  // yellow
+    /* COL_TET_T          */ 0x8010,  // purple
+    /* COL_TET_S          */ 0x07E0,  // green
+    /* COL_TET_Z          */ 0xF800,  // red
+    /* COL_TET_J          */ 0x001F,  // blue
+    /* COL_TET_L          */ 0xFC00,  // orange
 };
 #endif
 

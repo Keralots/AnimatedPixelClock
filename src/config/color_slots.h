@@ -28,6 +28,16 @@ enum ColorSlot {
   COL_INVADER,
   COL_LASER,
   COL_SNAKE_FOOD,
+  // Tetris idle-game pieces. MUST stay contiguous and in this exact order
+  // (I,O,T,S,Z,J,L) - clock_tetris.cpp indexes them as COL_TET_I + pieceIndex,
+  // where pieceIndex is random(7) per TET_PIECE_ROT. A static_assert guards it.
+  COL_TET_I,
+  COL_TET_O,
+  COL_TET_T,
+  COL_TET_S,
+  COL_TET_Z,
+  COL_TET_J,
+  COL_TET_L,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };
