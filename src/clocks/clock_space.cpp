@@ -24,46 +24,47 @@ void drawSpaceCharacter(int x, int y, int frame) {
   if (x < -12 || x > SCREEN_WIDTH + 12) return;
   if (y < -10 || y > SCREEN_HEIGHT + 10) return;
 
+  uint16_t col = SPRITE_COLOR(COL_INVADER);  // whole sprite (invader or ship)
   if (settings.spaceCharacterType == 0) {
     // Draw Invader sprite (11x11 pixels, classic invader design)
     int sx = x - 5;
     int sy = y - 4;
 
     // Antennae
-    display.drawPixel(sx + 2, sy, DISPLAY_WHITE);
-    display.drawPixel(sx + 8, sy, DISPLAY_WHITE);
+    display.drawPixel(sx + 2, sy, col);
+    display.drawPixel(sx + 8, sy, col);
 
     // Head
-    display.fillRect(sx + 3, sy + 1, 5, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 3, sy + 1, 5, 1, col);
 
     // Body
-    display.fillRect(sx + 2, sy + 2, 7, 1, DISPLAY_WHITE);
-    display.fillRect(sx + 1, sy + 3, 9, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 2, 7, 1, col);
+    display.fillRect(sx + 1, sy + 3, 9, 1, col);
 
     // Eyes
-    display.fillRect(sx, sy + 4, 3, 1, DISPLAY_WHITE);
-    display.drawPixel(sx + 5, sy + 4, DISPLAY_WHITE);
-    display.fillRect(sx + 8, sy + 4, 3, 1, DISPLAY_WHITE);
+    display.fillRect(sx, sy + 4, 3, 1, col);
+    display.drawPixel(sx + 5, sy + 4, col);
+    display.fillRect(sx + 8, sy + 4, 3, 1, col);
 
     // Mouth
-    display.fillRect(sx, sy + 5, 11, 1, DISPLAY_WHITE);
+    display.fillRect(sx, sy + 5, 11, 1, col);
 
     // Legs (frame-dependent)
     if (frame == 0) {
       // Legs down
-      display.drawPixel(sx + 1, sy + 6, DISPLAY_WHITE);
-      display.fillRect(sx + 4, sy + 6, 3, 1, DISPLAY_WHITE);
-      display.drawPixel(sx + 9, sy + 6, DISPLAY_WHITE);
-      display.fillRect(sx, sy + 7, 2, 1, DISPLAY_WHITE);
-      display.drawPixel(sx + 5, sy + 7, DISPLAY_WHITE);
-      display.fillRect(sx + 9, sy + 7, 2, 1, DISPLAY_WHITE);
+      display.drawPixel(sx + 1, sy + 6, col);
+      display.fillRect(sx + 4, sy + 6, 3, 1, col);
+      display.drawPixel(sx + 9, sy + 6, col);
+      display.fillRect(sx, sy + 7, 2, 1, col);
+      display.drawPixel(sx + 5, sy + 7, col);
+      display.fillRect(sx + 9, sy + 7, 2, 1, col);
     } else {
       // Legs up
-      display.fillRect(sx + 2, sy + 6, 7, 1, DISPLAY_WHITE);
-      display.drawPixel(sx + 1, sy + 7, DISPLAY_WHITE);
-      display.drawPixel(sx + 9, sy + 7, DISPLAY_WHITE);
-      display.fillRect(sx, sy + 8, 2, 1, DISPLAY_WHITE);
-      display.fillRect(sx + 9, sy + 8, 2, 1, DISPLAY_WHITE);
+      display.fillRect(sx + 2, sy + 6, 7, 1, col);
+      display.drawPixel(sx + 1, sy + 7, col);
+      display.drawPixel(sx + 9, sy + 7, col);
+      display.fillRect(sx, sy + 8, 2, 1, col);
+      display.fillRect(sx + 9, sy + 8, 2, 1, col);
     }
   } else {
     // Draw Ship sprite (11x7 pixels, classic ship design)
@@ -71,29 +72,29 @@ void drawSpaceCharacter(int x, int y, int frame) {
     int sy = y - 3;
 
     // Top point
-    display.drawPixel(sx + 5, sy, DISPLAY_WHITE);
+    display.drawPixel(sx + 5, sy, col);
 
     // Upper body
-    display.fillRect(sx + 4, sy + 1, 3, 1, DISPLAY_WHITE);
-    display.fillRect(sx + 3, sy + 2, 5, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 4, sy + 1, 3, 1, col);
+    display.fillRect(sx + 3, sy + 2, 5, 1, col);
 
     // Main body
-    display.fillRect(sx + 1, sy + 3, 9, 1, DISPLAY_WHITE);
-    display.fillRect(sx, sy + 4, 11, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 3, 9, 1, col);
+    display.fillRect(sx, sy + 4, 11, 1, col);
 
     // Wings - animate between two frames for thruster effect
     if (frame == 0) {
       // Wings down
-      display.fillRect(sx, sy + 5, 3, 1, DISPLAY_WHITE);
-      display.fillRect(sx + 8, sy + 5, 3, 1, DISPLAY_WHITE);
-      display.drawPixel(sx, sy + 6, DISPLAY_WHITE);
-      display.drawPixel(sx + 10, sy + 6, DISPLAY_WHITE);
+      display.fillRect(sx, sy + 5, 3, 1, col);
+      display.fillRect(sx + 8, sy + 5, 3, 1, col);
+      display.drawPixel(sx, sy + 6, col);
+      display.drawPixel(sx + 10, sy + 6, col);
     } else {
       // Wings up (thruster pulse)
-      display.fillRect(sx + 1, sy + 5, 2, 1, DISPLAY_WHITE);
-      display.fillRect(sx + 8, sy + 5, 2, 1, DISPLAY_WHITE);
-      display.drawPixel(sx + 1, sy + 6, DISPLAY_WHITE);
-      display.drawPixel(sx + 9, sy + 6, DISPLAY_WHITE);
+      display.fillRect(sx + 1, sy + 5, 2, 1, col);
+      display.fillRect(sx + 8, sy + 5, 2, 1, col);
+      display.drawPixel(sx + 1, sy + 6, col);
+      display.drawPixel(sx + 9, sy + 6, col);
     }
   }
 }
@@ -194,20 +195,22 @@ void handleSpaceReturningState() {
 void drawSpaceLaser(Laser* laser) {
   if (!laser->active) return;
 
+  uint16_t col = SPRITE_COLOR(COL_LASER);  // beam only (explosion uses COL_DIGITS)
+
   // Vertical laser beam shooting UPWARD
   for (int i = 0; i < (int)laser->length; i += 2) {
     int ly = (int)laser->y - i;  // Subtract to go upward
     if (ly >= 0 && ly < SCREEN_HEIGHT) {
-      display.drawPixel((int)laser->x, ly, DISPLAY_WHITE);
-      display.drawPixel((int)laser->x + 1, ly, DISPLAY_WHITE);
+      display.drawPixel((int)laser->x, ly, col);
+      display.drawPixel((int)laser->x + 1, ly, col);
     }
   }
 
   // Impact flash at end (top of beam)
   int end_y = (int)(laser->y - laser->length);
   if (end_y >= 0 && end_y < SCREEN_HEIGHT) {
-    display.drawPixel((int)laser->x - 1, end_y, DISPLAY_WHITE);
-    display.drawPixel((int)laser->x + 2, end_y, DISPLAY_WHITE);
+    display.drawPixel((int)laser->x - 1, end_y, col);
+    display.drawPixel((int)laser->x + 2, end_y, col);
   }
 }
 
@@ -290,8 +293,9 @@ void updateSpaceFragments() {
 void drawSpaceFragments() {
   for (int i = 0; i < MAX_SPACE_FRAGMENTS; i++) {
     if (space_fragments[i].active) {
+      // Digit blown apart -> digit color (matches Snake/Tetris/Asteroids debris).
       display.fillRect((int)space_fragments[i].x,
-                      (int)space_fragments[i].y, 2, 2, DISPLAY_WHITE);
+                      (int)space_fragments[i].y, 2, 2, SPRITE_COLOR(COL_DIGITS));
     }
   }
 }
@@ -426,10 +430,12 @@ void displayClockWithSpaceInvader() {
   digits[3] = '0' + (displayed_min / 10);
   digits[4] = '0' + (displayed_min % 10);
 
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   for (int i = 0; i < 5; i++) {
     display.setCursor(DIGIT_X[i], SPACE_TIME_Y);
     display.print(digits[i]);
   }
+  display.setTextColor(DISPLAY_WHITE);  // restore for chrome next frame
 
   // Render space character (ALWAYS visible - either patrolling or attacking)
   drawSpaceCharacter((int)space_x, (int)space_y, space_anim_frame);
