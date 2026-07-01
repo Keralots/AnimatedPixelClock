@@ -27,6 +27,7 @@ enum ColorSlot {
   COL_SNAKE,
   COL_INVADER,
   COL_LASER,
+  COL_SNAKE_FOOD,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

@@ -568,6 +568,7 @@ void displayClockWithSnake() {
   // Time digits (size 3). The digit being eaten is shown as its leftover
   // pellets; the digit being vacated is left blank until the snake clears it.
   display.setTextSize(3);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -588,30 +589,32 @@ void displayClockWithSnake() {
     display.setCursor(DIGIT_X[i], gy + (int)digit_offset_y[i]);
     display.print(dch[i]);
   }
+  display.setTextColor(DISPLAY_WHITE);  // restore for date/AM-PM chrome next frame
 
   // Pellets left from the digit being eaten - drawn just like the food the
-  // snake normally chases (same 3px size, same blink).
+  // snake normally chases (same 3px size, same blink). These are the dissolving
+  // old digit, so they take the digit color (matches Pac-Man).
   if (snake_phase == SNAKE_EAT && (millis() / 300) % 2 == 0) {
     for (int i = 0; i < snake_pellet_count; i++) {
       if (snake_pellets[i].active)
-        display.fillRect(snake_pellets[i].px, snake_pellets[i].py, 3, 3, DISPLAY_WHITE);
+        display.fillRect(snake_pellets[i].px, snake_pellets[i].py, 3, 3, SPRITE_COLOR(COL_DIGITS));
     }
   }
 
   // Food (blinking) while roaming
   if (snake_food_active && snake_phase == SNAKE_ROAM && (millis() / 300) % 2 == 0) {
-    display.fillRect(snake_food_cx * SCELL, snake_food_cy * SCELL, 3, 3, DISPLAY_WHITE);
+    display.fillRect(snake_food_cx * SCELL, snake_food_cy * SCELL, 3, 3, SPRITE_COLOR(COL_SNAKE_FOOD));
   }
 
   // Body (tail first so the head sits on top)
   for (int i = snake_body_len - 1; i >= 1; i--) {
-    display.fillRect(snake_body[i].cx * SCELL, snake_body[i].cy * SCELL, 3, 3, DISPLAY_WHITE);
+    display.fillRect(snake_body[i].cx * SCELL, snake_body[i].cy * SCELL, 3, 3, SPRITE_COLOR(COL_SNAKE));
   }
 
   // Head + eye
   int hx = snake_body[0].cx * SCELL;
   int hy = snake_body[0].cy * SCELL;
-  display.fillRect(hx, hy, 3, 3, DISPLAY_WHITE);
+  display.fillRect(hx, hy, 3, 3, SPRITE_COLOR(COL_SNAKE));
   display.drawPixel(hx + 1 + snake_dir_x, hy + 1 + snake_dir_y, DISPLAY_BLACK);
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);

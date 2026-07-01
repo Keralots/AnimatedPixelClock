@@ -26,6 +26,7 @@ const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT] = {
     /* COL_SNAKE          */ 0x07E0,  // green
     /* COL_INVADER        */ 0x07E0,  // green
     /* COL_LASER          */ 0xF800,  // red
+    /* COL_SNAKE_FOOD     */ 0xF800,  // red
 };
 #endif
 

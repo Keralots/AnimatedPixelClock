@@ -325,6 +325,7 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_PACMAN, 6, "Pac-Man"},
     {COL_PELLET, 6, "Pellets"},
     {COL_SNAKE, 7, "Snake"},
+    {COL_SNAKE_FOOD, 7, "Food"},
     {COL_INVADER, 3, "Invader"},
     {COL_LASER, 3, "Laser / explosion"},
 };
