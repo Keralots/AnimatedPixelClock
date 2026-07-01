@@ -47,6 +47,9 @@ enum ColorSlot {
   // Asteroids (style 10)
   COL_AST_SHIP,
   COL_AST_ROCK,
+  // Pong / Arkanoid (style 5)
+  COL_PONG_BALL,
+  COL_PONG_PADDLE,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

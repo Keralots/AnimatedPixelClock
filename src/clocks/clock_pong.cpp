@@ -185,7 +185,7 @@ void drawBreakoutPaddle() {
   int paddle_left = breakout_paddle.x - (breakout_paddle.width / 2);
   int paddle_right = paddle_left + breakout_paddle.width;
 
-  display.fillRect(paddle_left, BREAKOUT_PADDLE_Y, breakout_paddle.width, BREAKOUT_PADDLE_HEIGHT, DISPLAY_WHITE);
+  display.fillRect(paddle_left, BREAKOUT_PADDLE_Y, breakout_paddle.width, BREAKOUT_PADDLE_HEIGHT, SPRITE_COLOR(COL_PONG_PADDLE));
 }
 
 // Update fragment physics (gravity, boundaries)
@@ -212,7 +212,7 @@ void drawPongFragments() {
     if (pong_fragments[i].active) {
       int fx = (int)pong_fragments[i].x;
       int fy = (int)pong_fragments[i].y;
-      display.fillRect(fx, fy, 2, 2, DISPLAY_WHITE);
+      display.fillRect(fx, fy, 2, 2, SPRITE_COLOR(COL_DIGITS));  // digit debris (OLED only; getBuffer null on HUB75)
     }
   }
 }
@@ -786,10 +786,10 @@ void drawPongBall() {
     if (pong_balls[i].state == PONG_BALL_SPAWNING) {
       // Flash ball during spawn (blink effect)
       if ((millis() / 100) % 2 == 0) {
-        display.fillRect(ball_px, ball_py, PONG_BALL_SIZE, PONG_BALL_SIZE, DISPLAY_WHITE);
+        display.fillRect(ball_px, ball_py, PONG_BALL_SIZE, PONG_BALL_SIZE, SPRITE_COLOR(COL_PONG_BALL));
       }
     } else {
-      display.fillRect(ball_px, ball_py, PONG_BALL_SIZE, PONG_BALL_SIZE, DISPLAY_WHITE);
+      display.fillRect(ball_px, ball_py, PONG_BALL_SIZE, PONG_BALL_SIZE, SPRITE_COLOR(COL_PONG_BALL));
     }
   }
 }
@@ -797,7 +797,7 @@ void drawPongBall() {
 // Draw Pong clock digits with custom pop-in animation
 void drawPongDigits() {
   display.setTextSize(3);
-  display.setTextColor(DISPLAY_WHITE);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
 
   // Build digit string
   char digits[6];
@@ -847,6 +847,9 @@ void drawPongDigits() {
       display.print(digits[i]);
     }
   }
+  // Restore white: the date is drawn BEFORE this function each frame and would
+  // otherwise inherit the previous frame's digit color.
+  display.setTextColor(DISPLAY_WHITE);
 }
 
 // Spring-based bounce for Pong clock (delta-time independent oscillating physics)
