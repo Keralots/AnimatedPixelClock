@@ -335,6 +335,11 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_TET_Z, 8, "Z piece"},
     {COL_TET_J, 8, "J piece"},
     {COL_TET_L, 8, "L piece"},
+    {COL_DINO, 11, "Dino"},
+    {COL_DINO_CACTUS, 11, "Cactus"},
+    {COL_DINO_PTERO, 11, "Pterodactyl"},
+    {COL_DINO_GROUND, 11, "Ground"},
+    {COL_DINO_CLOUD, 11, "Clouds"},
 };
 
 // Emit <input type=color> rows for one clock style (-1 = global). "" if none.

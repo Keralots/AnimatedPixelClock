@@ -339,68 +339,72 @@ static void updateDinoAnimation(struct tm *timeinfo) {
 // ~12x12 procedural T-Rex, feet at (x, groundY), facing right.
 static void drawDino(int x, int groundY) {
   int top = groundY - 12 + (int)dino_jump_y;
+  uint16_t col = SPRITE_COLOR(COL_DINO);
 
   // Head (with a bite of jaw) and eye
-  display.fillRect(x + 6, top, 6, 4, DISPLAY_WHITE);
+  display.fillRect(x + 6, top, 6, 4, col);
   display.drawPixel(x + 8, top + 1, DISPLAY_BLACK);     // eye
-  display.fillRect(x + 6, top + 3, 4, 1, DISPLAY_WHITE);
+  display.fillRect(x + 6, top + 3, 4, 1, col);
 
   // Neck + body
-  display.fillRect(x + 4, top + 2, 4, 6, DISPLAY_WHITE);
-  display.fillRect(x + 1, top + 4, 6, 5, DISPLAY_WHITE);
+  display.fillRect(x + 4, top + 2, 4, 6, col);
+  display.fillRect(x + 1, top + 4, 6, 5, col);
 
   // Tail kicked up to the left
-  display.fillRect(x - 1, top + 3, 2, 3, DISPLAY_WHITE);
+  display.fillRect(x - 1, top + 3, 2, 3, col);
 
   // Tiny forearm
-  display.drawPixel(x + 7, top + 5, DISPLAY_WHITE);
+  display.drawPixel(x + 7, top + 5, col);
 
   // Legs: alternate while running, both tucked when airborne
   if (dino_airborne) {
-    display.fillRect(x + 2, top + 9, 2, 2, DISPLAY_WHITE);
-    display.fillRect(x + 5, top + 9, 2, 2, DISPLAY_WHITE);
+    display.fillRect(x + 2, top + 9, 2, 2, col);
+    display.fillRect(x + 5, top + 9, 2, 2, col);
   } else if (dino_leg_frame == 0) {
-    display.fillRect(x + 2, top + 9, 2, 3, DISPLAY_WHITE);
-    display.fillRect(x + 5, top + 9, 2, 2, DISPLAY_WHITE);
+    display.fillRect(x + 2, top + 9, 2, 3, col);
+    display.fillRect(x + 5, top + 9, 2, 2, col);
   } else {
-    display.fillRect(x + 2, top + 9, 2, 2, DISPLAY_WHITE);
-    display.fillRect(x + 5, top + 9, 2, 3, DISPLAY_WHITE);
+    display.fillRect(x + 2, top + 9, 2, 2, col);
+    display.fillRect(x + 5, top + 9, 2, 3, col);
   }
 }
 
 static void drawCactus(const DinoCactus &c) {
   int x = (int)c.x;
+  uint16_t col = SPRITE_COLOR(COL_DINO_CACTUS);
   if (c.tall) {
-    display.fillRect(x + 2, DINO_GROUND_Y - 12, 2, 12, DISPLAY_WHITE);
-    display.fillRect(x, DINO_GROUND_Y - 9, 2, 4, DISPLAY_WHITE);      // left arm
-    display.drawPixel(x + 1, DINO_GROUND_Y - 10, DISPLAY_WHITE);
-    display.fillRect(x + 4, DINO_GROUND_Y - 7, 2, 3, DISPLAY_WHITE);  // right arm
+    display.fillRect(x + 2, DINO_GROUND_Y - 12, 2, 12, col);
+    display.fillRect(x, DINO_GROUND_Y - 9, 2, 4, col);      // left arm
+    display.drawPixel(x + 1, DINO_GROUND_Y - 10, col);
+    display.fillRect(x + 4, DINO_GROUND_Y - 7, 2, 3, col);  // right arm
   } else {
-    display.fillRect(x + 1, DINO_GROUND_Y - 8, 2, 8, DISPLAY_WHITE);
-    display.drawPixel(x, DINO_GROUND_Y - 6, DISPLAY_WHITE);
-    display.drawPixel(x + 3, DINO_GROUND_Y - 5, DISPLAY_WHITE);
+    display.fillRect(x + 1, DINO_GROUND_Y - 8, 2, 8, col);
+    display.drawPixel(x, DINO_GROUND_Y - 6, col);
+    display.drawPixel(x + 3, DINO_GROUND_Y - 5, col);
   }
 }
 
 static void drawPtero(int x, int y) {
+  uint16_t col = SPRITE_COLOR(COL_DINO_PTERO);
   // Body + beak
-  display.drawLine(x - 4, y, x + 5, y, DISPLAY_WHITE);
-  display.drawPixel(x + 6, y - 1, DISPLAY_WHITE);
+  display.drawLine(x - 4, y, x + 5, y, col);
+  display.drawPixel(x + 6, y - 1, col);
   // Wings flap between up and down strokes
   if (ptero_wing_frame == 0) {
-    display.drawLine(x, y, x - 3, y - 4, DISPLAY_WHITE);
-    display.drawLine(x, y, x + 2, y - 3, DISPLAY_WHITE);
+    display.drawLine(x, y, x - 3, y - 4, col);
+    display.drawLine(x, y, x + 2, y - 3, col);
   } else {
-    display.drawLine(x, y, x - 3, y + 3, DISPLAY_WHITE);
-    display.drawLine(x, y, x + 2, y + 2, DISPLAY_WHITE);
+    display.drawLine(x, y, x - 3, y + 3, col);
+    display.drawLine(x, y, x + 2, y + 2, col);
   }
 }
 
 static void drawCloud(const DinoCloud &c) {
   int x = (int)c.x;
-  display.drawFastHLine(x + 3, c.y, 7, DISPLAY_WHITE);
-  display.drawFastHLine(x + 1, c.y + 1, 12, DISPLAY_WHITE);
-  display.drawFastHLine(x + 4, c.y + 2, 6, DISPLAY_WHITE);
+  uint16_t col = SPRITE_COLOR(COL_DINO_CLOUD);
+  display.drawFastHLine(x + 3, c.y, 7, col);
+  display.drawFastHLine(x + 1, c.y + 1, 12, col);
+  display.drawFastHLine(x + 4, c.y + 2, 6, col);
 }
 
 void displayClockWithDino() {
@@ -427,10 +431,11 @@ void displayClockWithDino() {
   }
 
   // Ground: solid line plus scrolling dash marks below it
-  display.drawFastHLine(0, DINO_GROUND_Y, SCREEN_WIDTH, DISPLAY_WHITE);
+  uint16_t groundCol = SPRITE_COLOR(COL_DINO_GROUND);
+  display.drawFastHLine(0, DINO_GROUND_Y, SCREEN_WIDTH, groundCol);
   for (int gx = -(int)dino_ground_phase; gx < SCREEN_WIDTH; gx += 16) {
-    display.drawFastHLine(gx + 4, DINO_GROUND_Y + 3, 4, DISPLAY_WHITE);
-    display.drawFastHLine(gx + 11, DINO_GROUND_Y + 2, 2, DISPLAY_WHITE);
+    display.drawFastHLine(gx + 4, DINO_GROUND_Y + 3, 4, groundCol);
+    display.drawFastHLine(gx + 11, DINO_GROUND_Y + 2, 2, groundCol);
   }
 
   for (int i = 0; i < DINO_MAX_CACTI; i++) {
@@ -440,7 +445,7 @@ void displayClockWithDino() {
 
   for (int i = 0; i < DINO_MAX_DUST; i++) {
     if (dino_dust[i].active) {
-      display.drawPixel((int)dino_dust[i].x, (int)dino_dust[i].y, DISPLAY_WHITE);
+      display.drawPixel((int)dino_dust[i].x, (int)dino_dust[i].y, groundCol);
     }
   }
 
@@ -448,6 +453,7 @@ void displayClockWithDino() {
   // the pterodactyl instead of in its slot; the slot stays empty until the
   // new digit drops in from above.
   display.setTextSize(3);
+  display.setTextColor(SPRITE_COLOR(COL_DIGITS));  // kept through the carried ptero digit
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -475,6 +481,7 @@ void displayClockWithDino() {
       display.print(dch[carryIdx]);
     }
   }
+  display.setTextColor(DISPLAY_WHITE);  // restore for date/meridiem chrome
 
   // Optional date row (top)
   if (settings.dinoShowDate) {

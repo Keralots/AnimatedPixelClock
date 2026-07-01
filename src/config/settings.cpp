@@ -15,7 +15,7 @@ Preferences preferences;
 #if DISPLAY_HUB75
 // Default sprite-color palette (RGB565), indexed by ColorSlot (color_slots.h).
 // Real definition for the header's extern. APPEND-ONLY: keep in sync with the enum.
-const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT] = {
+const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DIGITS         */ 0xFFFF,  // white
     /* COL_MARIO_HAT      */ 0xF800,  // red
     /* COL_MARIO_OVERALLS */ 0x001F,  // blue
@@ -34,7 +34,15 @@ const uint16_t SPRITE_COLOR_DEFAULTS[COL_COUNT] = {
     /* COL_TET_Z          */ 0xF800,  // red
     /* COL_TET_J          */ 0x001F,  // blue
     /* COL_TET_L          */ 0xFC00,  // orange
+    /* COL_DINO           */ 0xFFFF,  // white
+    /* COL_DINO_CACTUS    */ 0x07E0,  // green
+    /* COL_DINO_PTERO     */ 0xFFFF,  // white
+    /* COL_DINO_GROUND    */ 0xFFFF,  // white
+    /* COL_DINO_CLOUD     */ 0xFFFF,  // white
 };
+// Every ColorSlot must have a default here, else it silently defaults to black.
+static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
+              "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
 #endif
 
 uint8_t sanitizeBrightnessValue(uint8_t value) {

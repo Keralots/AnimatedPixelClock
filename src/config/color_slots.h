@@ -38,6 +38,12 @@ enum ColorSlot {
   COL_TET_Z,
   COL_TET_J,
   COL_TET_L,
+  // Dino Runner (style 11)
+  COL_DINO,
+  COL_DINO_CACTUS,
+  COL_DINO_PTERO,
+  COL_DINO_GROUND,
+  COL_DINO_CLOUD,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };
