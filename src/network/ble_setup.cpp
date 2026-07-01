@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - BLE WiFi Provisioning
+ * AnimatedPixelClock - BLE WiFi Provisioning
  *
  * GATT service UUIDs (SmallOLED provisioning service):
  *   Service:   4FAFC201-1FB5-459E-8FCC-C5C9C3319100

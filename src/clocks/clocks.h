@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Clock Display Module
+ * AnimatedPixelClock - Clock Display Module
  *
  * All clock style implementations (Mario, Standard, Space, Pong, Pac-Man).
  */

@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Utility Functions
+ * AnimatedPixelClock - Utility Functions
  *
  * String manipulation, validation, and helper functions.
  */

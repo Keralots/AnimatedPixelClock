@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Tetris Clock (clockStyle 8)
+ * AnimatedPixelClock - Tetris Clock (clockStyle 8)
  *
  * Digits are drawn as a 5x7 block grid, sat low on the screen so the rebuild
  * animation above them is easy to see. The idle look is calm: static block

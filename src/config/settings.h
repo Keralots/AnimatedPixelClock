@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Settings Module Header
+ * AnimatedPixelClock - Settings Module Header
  *
  * Declarations for settings persistence functions.
  */

@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Common Clock Helpers
+ * AnimatedPixelClock - Common Clock Helpers
  *
  * Shared helper functions used by multiple clock implementations.
  */

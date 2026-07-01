@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Space Invaders Clock
+ * AnimatedPixelClock - Space Invaders Clock
  *
  * Clock style 3: Space character (Invader or Ship) patrols and shoots
  * laser at digits when minute changes. 

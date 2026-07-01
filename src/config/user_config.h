@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - User Configuration
+ * AnimatedPixelClock - User Configuration
  *
  * ============================================
  *   THIS IS THE ONLY FILE YOU NEED TO EDIT

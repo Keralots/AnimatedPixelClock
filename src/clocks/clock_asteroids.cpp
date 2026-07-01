@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Asteroids Clock (clockStyle 10)
+ * AnimatedPixelClock - Asteroids Clock (clockStyle 10)
  *
  * A vector-style wireframe homage to Asteroids. A triangular ship drifts
  * around the screen with real inertia (thrust bursts, slow turns, screen

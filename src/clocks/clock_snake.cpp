@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Snake Clock (clockStyle 7)
+ * AnimatedPixelClock - Snake Clock (clockStyle 7)
  *
  * A Nokia-style snake lives on a 4px grid. It moves one cell at a time in the
  * four cardinal directions, never reverses onto its neck, and steers around

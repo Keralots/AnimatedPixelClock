@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Animation Detection
+ * AnimatedPixelClock - Animation Detection
  *
  * Detects if any clock animation is currently active.
  * Used for adaptive refresh rate boosting.

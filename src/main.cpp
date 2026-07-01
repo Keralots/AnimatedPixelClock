@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Main Entry Point
+ * AnimatedPixelClock - Main Entry Point
  *
  * ESP32-C3 with SSD1306/SH1106 OLED display
  * Dual-mode: PC monitoring metrics OR animated clock displays

@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Mario Clock Implementation
+ * AnimatedPixelClock - Mario Clock Implementation
  *
  * Mario clock style with animated Mario character that jumps to change digits.
  */

@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Arkanoid Clock
+ * AnimatedPixelClock - Arkanoid Clock
  *
  * Breakout/Arkanoid-style clock with ball physics, paddle, and digit transitions.
  * Ball bounces off walls and digits, breaking them on time changes.

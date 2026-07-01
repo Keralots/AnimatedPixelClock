@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Global Configuration
+ * AnimatedPixelClock - Global Configuration
  *
  * All structs, constants, enums, and extern global declarations.
  * Include this file in any module that needs access to shared types/globals.

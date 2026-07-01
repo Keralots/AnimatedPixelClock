@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Pac-Man Clock Implementation
+ * AnimatedPixelClock - Pac-Man Clock Implementation
  *
  * Pac-Man clock style with pellet-based digit display and eating animations.
  */

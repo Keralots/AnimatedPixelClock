@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Network Module
+ * AnimatedPixelClock - Network Module
  *
  * WiFi connection management, UDP packet handling, and NTP sync.
  */

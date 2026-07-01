@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Web Server Module
+ * AnimatedPixelClock - Web Server Module
  *
  * Web server handlers for configuration interface.
  */

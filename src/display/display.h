@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Display Module
+ * AnimatedPixelClock - Display Module
  *
  * Display initialization and global display object.
  * Supports both SSD1306 and SH1106 displays via compile-time selection.

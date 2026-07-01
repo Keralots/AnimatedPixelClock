@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Clock Global State Definitions
+ * AnimatedPixelClock - Clock Global State Definitions
  *
  * Definitions for all clock-specific global variables.
  * These variables are used across multiple clock implementations.

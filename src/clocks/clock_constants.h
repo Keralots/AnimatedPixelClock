@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Clock Animation Constants
+ * AnimatedPixelClock - Clock Animation Constants
  *
  * Named constants for clock animation values.
  * These values are tuned for specific animation behaviors.

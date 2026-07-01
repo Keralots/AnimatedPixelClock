@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Utility Functions
+ * AnimatedPixelClock - Utility Functions
  */
 
 #include "utils.h"

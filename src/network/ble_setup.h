@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - BLE WiFi Provisioning
+ * AnimatedPixelClock - BLE WiFi Provisioning
  *
  * Enables the Android app to push WiFi credentials to the device via Bluetooth
  * instead of the traditional WiFiManager AP portal. Active only on first boot

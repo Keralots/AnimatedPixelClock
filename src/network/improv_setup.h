@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Improv-Serial WiFi Provisioning (Web Flasher)
+ * AnimatedPixelClock - Improv-Serial WiFi Provisioning (Web Flasher)
  *
  * Non-blocking Improv-Serial setup window used by the browser web flasher
  * (docs/). After flashing, ESP Web Tools probes the device for

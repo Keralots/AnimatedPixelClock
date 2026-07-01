@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Clock Global State
+ * AnimatedPixelClock - Clock Global State
  *
  * All global variables for clock animations.
  * This header declares the clock-specific state used by each clock implementation.

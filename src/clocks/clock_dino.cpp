@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Dino Runner Clock (clockStyle 11)
+ * AnimatedPixelClock - Dino Runner Clock (clockStyle 11)
  *
  * Chrome T-Rex homage. The dino runs in place near the bottom of the screen
  * while the world scrolls past: dashed ground, drifting parallax clouds and

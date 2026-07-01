@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Metrics Display Module
+ * AnimatedPixelClock - Metrics Display Module
  *
  * Functions for displaying PC stats metrics on the OLED display.
  */

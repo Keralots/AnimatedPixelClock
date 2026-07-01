@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - Settings Module
+ * AnimatedPixelClock - Settings Module
  *
  * Load and save settings to ESP32 Preferences (flash storage).
  */

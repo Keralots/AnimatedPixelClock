@@ -1,5 +1,5 @@
 /*
- * SmallOLED-PCMonitor - CH1116 Display Driver
+ * AnimatedPixelClock - CH1116 Display Driver
  *
  * The CH1116 (used on some 1.54" 128x64 OLED panels) is an SH1106-compatible
  * controller: same command set, same 132-column GDDRAM, same init sequence.
