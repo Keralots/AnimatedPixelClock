@@ -50,6 +50,14 @@ enum ColorSlot {
   // Pong / Arkanoid (style 5)
   COL_PONG_BALL,
   COL_PONG_PADDLE,
+  // Mario idle-encounter sprites (style 0)
+  COL_GOOMBA,
+  COL_SPINY,
+  COL_KOOPA,
+  COL_COIN,
+  COL_STAR,
+  COL_MUSHROOM,
+  COL_FIREBALL,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

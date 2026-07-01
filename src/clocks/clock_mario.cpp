@@ -145,11 +145,12 @@ void displayClockWithMario() {
   // SMB1-style coin counter (top-left, only when encounters enabled)
   if (settings.marioIdleEncounters) {
     // Mini coin icon (5x6 oval)
-    display.fillRect(1, 5, 4, 4, DISPLAY_WHITE);
-    display.drawPixel(2, 4, DISPLAY_WHITE);
-    display.drawPixel(3, 4, DISPLAY_WHITE);
-    display.drawPixel(2, 9, DISPLAY_WHITE);
-    display.drawPixel(3, 9, DISPLAY_WHITE);
+    uint16_t coinCol = SPRITE_COLOR(COL_COIN);
+    display.fillRect(1, 5, 4, 4, coinCol);
+    display.drawPixel(2, 4, coinCol);
+    display.drawPixel(3, 4, coinCol);
+    display.drawPixel(2, 9, coinCol);
+    display.drawPixel(3, 9, coinCol);
     display.drawPixel(2, 6, DISPLAY_BLACK);  // Center hole
     display.drawPixel(3, 6, DISPLAY_BLACK);
     display.drawPixel(2, 7, DISPLAY_BLACK);
@@ -497,14 +498,15 @@ static void drawCoin(MarioCoin& c) {
   if (!c.active) return;
   int cx = (int)c.x;
   int cy = (int)c.y;
+  uint16_t col = SPRITE_COLOR(COL_COIN);
   // Spinning coin: alternates between wide and narrow
   if ((c.frame / 3) % 2 == 0) {
     // Wide phase (4x6)
-    display.fillRect(cx, cy + 1, 4, 4, DISPLAY_WHITE);
-    display.fillRect(cx + 1, cy, 2, 6, DISPLAY_WHITE);
+    display.fillRect(cx, cy + 1, 4, 4, col);
+    display.fillRect(cx + 1, cy, 2, 6, col);
   } else {
     // Narrow phase (2x6)
-    display.fillRect(cx + 1, cy, 2, 6, DISPLAY_WHITE);
+    display.fillRect(cx + 1, cy, 2, 6, col);
   }
 }
 
@@ -1105,23 +1107,24 @@ void updateMarioFireball() {
 void drawGoomba(int x, int y, int frame, bool squashing) {
   int sx = x - 5;
   int sy = y - 10;
+  uint16_t col = SPRITE_COLOR(COL_GOOMBA);
 
   if (squashing) {
     // Flattened — wide and short (classic SMB1 squash)
-    display.fillRect(sx - 1, y - 2, 12, 2, DISPLAY_WHITE);
+    display.fillRect(sx - 1, y - 2, 12, 2, col);
     return;
   }
 
   // NES SMB1 Goomba: mushroom cap with angry eyebrows
   // Cap top (narrow)
-  display.fillRect(sx + 2, sy, 6, 1, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy, 6, 1, col);
   // Cap middle
-  display.fillRect(sx + 1, sy + 1, 8, 1, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 1, 8, 1, col);
   // Cap brim (full width)
-  display.fillRect(sx, sy + 2, 10, 2, DISPLAY_WHITE);
+  display.fillRect(sx, sy + 2, 10, 2, col);
 
   // Face with angry V-shaped eyebrows (NES signature look)
-  display.fillRect(sx + 1, sy + 4, 8, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 4, 8, 3, col);
   // Angry brows: diagonal dark marks pointing inward-down
   display.drawPixel(sx + 1, sy + 4, DISPLAY_BLACK);  // Left brow outer-top
   display.drawPixel(sx + 2, sy + 5, DISPLAY_BLACK);  // Left brow inner-low
@@ -1132,66 +1135,67 @@ void drawGoomba(int x, int y, int frame, bool squashing) {
   display.drawPixel(sx + 6, sy + 5, DISPLAY_BLACK);  // Right eye
 
   // Narrow body
-  display.fillRect(sx + 2, sy + 7, 6, 1, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy + 7, 6, 1, col);
 
   // Walking feet (alternating)
   if ((frame / 4) % 2 == 0) {
-    display.fillRect(sx + 1, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 6, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 8, 3, 2, col);
+    display.fillRect(sx + 6, sy + 8, 3, 2, col);
   } else {
-    display.fillRect(sx + 2, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 5, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 8, 3, 2, col);
+    display.fillRect(sx + 5, sy + 8, 3, 2, col);
   }
 }
 
 void drawSpiny(int x, int y, int frame, bool hit) {
   int sx = x - 5;
   int sy = y - 10;
+  uint16_t col = SPRITE_COLOR(COL_SPINY);
 
   if (hit) {
     // Flipped upside-down (NES death: shell up, feet in air)
     // Feet pointing up
-    display.fillRect(sx + 2, sy + 1, 2, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 6, sy + 1, 2, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 1, 2, 2, col);
+    display.fillRect(sx + 6, sy + 1, 2, 2, col);
     // Body upside-down
-    display.fillRect(sx + 1, sy + 3, 8, 4, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 3, 8, 4, col);
     // Spikes pointing down
-    display.drawPixel(sx + 1, sy + 7, DISPLAY_WHITE);
-    display.drawPixel(sx + 2, sy + 8, DISPLAY_WHITE);
-    display.drawPixel(sx + 4, sy + 7, DISPLAY_WHITE);
-    display.drawPixel(sx + 5, sy + 8, DISPLAY_WHITE);
-    display.drawPixel(sx + 7, sy + 7, DISPLAY_WHITE);
-    display.drawPixel(sx + 8, sy + 8, DISPLAY_WHITE);
+    display.drawPixel(sx + 1, sy + 7, col);
+    display.drawPixel(sx + 2, sy + 8, col);
+    display.drawPixel(sx + 4, sy + 7, col);
+    display.drawPixel(sx + 5, sy + 8, col);
+    display.drawPixel(sx + 7, sy + 7, col);
+    display.drawPixel(sx + 8, sy + 8, col);
     return;
   }
 
   // NES SMB1 Spiny: triangular spikes on dome shell (10px tall)
   // Triangular spikes (3 spikes, 2px tall each)
-  display.drawPixel(sx + 1, sy + 1, DISPLAY_WHITE);
-  display.drawPixel(sx + 2, sy, DISPLAY_WHITE);   // Spike 1 tip
-  display.drawPixel(sx + 4, sy + 1, DISPLAY_WHITE);
-  display.drawPixel(sx + 5, sy, DISPLAY_WHITE);   // Spike 2 tip
-  display.drawPixel(sx + 7, sy + 1, DISPLAY_WHITE);
-  display.drawPixel(sx + 8, sy, DISPLAY_WHITE);   // Spike 3 tip
+  display.drawPixel(sx + 1, sy + 1, col);
+  display.drawPixel(sx + 2, sy, col);   // Spike 1 tip
+  display.drawPixel(sx + 4, sy + 1, col);
+  display.drawPixel(sx + 5, sy, col);   // Spike 2 tip
+  display.drawPixel(sx + 7, sy + 1, col);
+  display.drawPixel(sx + 8, sy, col);   // Spike 3 tip
 
   // Dome shell (wider at bottom)
-  display.fillRect(sx + 1, sy + 2, 8, 2, DISPLAY_WHITE);
-  display.fillRect(sx, sy + 4, 10, 2, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 2, 8, 2, col);
+  display.fillRect(sx, sy + 4, 10, 2, col);
 
   // Eyes (two dark pixels in lower shell)
   display.drawPixel(sx + 2, sy + 4, DISPLAY_BLACK);
   display.drawPixel(sx + 4, sy + 4, DISPLAY_BLACK);
 
   // Lower body
-  display.fillRect(sx + 1, sy + 6, 8, 2, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 6, 8, 2, col);
 
   // Walking feet (alternating, aligned with Goomba at sy+8-9)
   if ((frame / 4) % 2 == 0) {
-    display.fillRect(sx + 1, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 6, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 8, 3, 2, col);
+    display.fillRect(sx + 6, sy + 8, 3, 2, col);
   } else {
-    display.fillRect(sx + 2, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 5, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 8, 3, 2, col);
+    display.fillRect(sx + 5, sy + 8, 3, 2, col);
   }
 }
 
@@ -1221,22 +1225,24 @@ void drawMarioFireball(MarioFireball& fb) {
   if (!fb.active) return;
   int fx = (int)fb.x;
   int fy = (int)fb.y;
+  uint16_t col = SPRITE_COLOR(COL_FIREBALL);
   // 4x4 diamond/circle shape
-  display.fillRect(fx + 1, fy, 2, 1, DISPLAY_WHITE);
-  display.fillRect(fx, fy + 1, 4, 2, DISPLAY_WHITE);
-  display.fillRect(fx + 1, fy + 3, 2, 1, DISPLAY_WHITE);
+  display.fillRect(fx + 1, fy, 2, 1, col);
+  display.fillRect(fx, fy + 1, 4, 2, col);
+  display.fillRect(fx + 1, fy + 3, 2, 1, col);
 }
 
 // NES SMB1 Koopa Troopa (10px tall, turtle with shell)
 void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
   int sx = x - 5;
   int sy = y - 10;
+  uint16_t col = SPRITE_COLOR(COL_KOOPA);
 
   if (shellOnly) {
     // Shell only (after stomp) — compact rounded shell sliding
-    display.fillRect(sx + 1, sy + 4, 8, 4, DISPLAY_WHITE);
-    display.fillRect(sx + 2, sy + 3, 6, 1, DISPLAY_WHITE);
-    display.fillRect(sx + 2, sy + 8, 6, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 4, 8, 4, col);
+    display.fillRect(sx + 2, sy + 3, 6, 1, col);
+    display.fillRect(sx + 2, sy + 8, 6, 1, col);
     // Shell pattern (dark lines)
     display.drawPixel(sx + 4, sy + 5, DISPLAY_BLACK);
     display.drawPixel(sx + 5, sy + 5, DISPLAY_BLACK);
@@ -1247,16 +1253,16 @@ void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
 
   // Head (poking out from shell)
   if (facingRight) {
-    display.fillRect(sx + 7, sy, 3, 3, DISPLAY_WHITE);
+    display.fillRect(sx + 7, sy, 3, 3, col);
     display.drawPixel(sx + 8, sy + 1, DISPLAY_BLACK);  // Eye
   } else {
-    display.fillRect(sx, sy, 3, 3, DISPLAY_WHITE);
+    display.fillRect(sx, sy, 3, 3, col);
     display.drawPixel(sx + 1, sy + 1, DISPLAY_BLACK);  // Eye
   }
 
   // Shell (dome shape)
-  display.fillRect(sx + 2, sy + 2, 6, 2, DISPLAY_WHITE);
-  display.fillRect(sx + 1, sy + 4, 8, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy + 2, 6, 2, col);
+  display.fillRect(sx + 1, sy + 4, 8, 3, col);
   // Shell pattern
   if (facingRight) {
     display.drawPixel(sx + 3, sy + 4, DISPLAY_BLACK);
@@ -1269,15 +1275,15 @@ void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
   }
 
   // Lower body
-  display.fillRect(sx + 2, sy + 7, 6, 1, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy + 7, 6, 1, col);
 
   // Walking feet (alternating)
   if ((frame / 4) % 2 == 0) {
-    display.fillRect(sx + 1, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 6, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 8, 3, 2, col);
+    display.fillRect(sx + 6, sy + 8, 3, 2, col);
   } else {
-    display.fillRect(sx + 2, sy + 8, 3, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 5, sy + 8, 3, 2, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy + 8, 3, 2, col);
+    display.fillRect(sx + 5, sy + 8, 3, 2, col);
   }
 }
 
@@ -1285,24 +1291,25 @@ void drawKoopa(int x, int y, int frame, bool shellOnly, bool facingRight) {
 static void drawStarSprite(int x, int y, uint8_t frame) {
   int sx = x - 3;
   int sy = (int)y - 3;
+  uint16_t col = SPRITE_COLOR(COL_STAR);
   // Rotate between two star shapes for spin effect
   if ((frame / 4) % 2 == 0) {
     // Star shape 1: classic 5-point
-    display.drawPixel(sx + 3, sy, DISPLAY_WHITE);      // Top point
-    display.fillRect(sx + 1, sy + 1, 5, 1, DISPLAY_WHITE);
-    display.fillRect(sx, sy + 2, 7, 2, DISPLAY_WHITE);
-    display.fillRect(sx + 1, sy + 4, 5, 1, DISPLAY_WHITE);
-    display.drawPixel(sx + 1, sy + 5, DISPLAY_WHITE);  // Bottom-left point
-    display.drawPixel(sx + 5, sy + 5, DISPLAY_WHITE);  // Bottom-right point
+    display.drawPixel(sx + 3, sy, col);      // Top point
+    display.fillRect(sx + 1, sy + 1, 5, 1, col);
+    display.fillRect(sx, sy + 2, 7, 2, col);
+    display.fillRect(sx + 1, sy + 4, 5, 1, col);
+    display.drawPixel(sx + 1, sy + 5, col);  // Bottom-left point
+    display.drawPixel(sx + 5, sy + 5, col);  // Bottom-right point
     // Center hole
     display.drawPixel(sx + 3, sy + 2, DISPLAY_BLACK);
   } else {
     // Star shape 2: rotated slightly
-    display.fillRect(sx + 2, sy, 3, 1, DISPLAY_WHITE);
-    display.fillRect(sx, sy + 1, 7, 1, DISPLAY_WHITE);
-    display.fillRect(sx + 1, sy + 2, 5, 2, DISPLAY_WHITE);
-    display.fillRect(sx, sy + 4, 7, 1, DISPLAY_WHITE);
-    display.fillRect(sx + 2, sy + 5, 3, 1, DISPLAY_WHITE);
+    display.fillRect(sx + 2, sy, 3, 1, col);
+    display.fillRect(sx, sy + 1, 7, 1, col);
+    display.fillRect(sx + 1, sy + 2, 5, 2, col);
+    display.fillRect(sx, sy + 4, 7, 1, col);
+    display.fillRect(sx + 2, sy + 5, 3, 1, col);
     display.drawPixel(sx + 3, sy + 3, DISPLAY_BLACK);
   }
 }
@@ -1311,21 +1318,22 @@ static void drawStarSprite(int x, int y, uint8_t frame) {
 static void drawMushroomSprite(int x, int y, uint8_t frame) {
   int sx = x - 4;
   int sy = y - 10;
+  uint16_t col = SPRITE_COLOR(COL_MUSHROOM);
   // Cap (dome shape)
-  display.fillRect(sx + 2, sy, 4, 1, DISPLAY_WHITE);
-  display.fillRect(sx + 1, sy + 1, 6, 1, DISPLAY_WHITE);
-  display.fillRect(sx, sy + 2, 8, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy, 4, 1, col);
+  display.fillRect(sx + 1, sy + 1, 6, 1, col);
+  display.fillRect(sx, sy + 2, 8, 3, col);
   // Cap spots (dark)
   display.drawPixel(sx + 3, sy + 2, DISPLAY_BLACK);
   display.drawPixel(sx + 4, sy + 2, DISPLAY_BLACK);
   display.drawPixel(sx + 3, sy + 3, DISPLAY_BLACK);
   display.drawPixel(sx + 4, sy + 3, DISPLAY_BLACK);
   // Eyes
-  display.fillRect(sx + 1, sy + 5, 6, 2, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 5, 6, 2, col);
   display.drawPixel(sx + 2, sy + 5, DISPLAY_BLACK);
   display.drawPixel(sx + 4, sy + 5, DISPLAY_BLACK);
   // Stem
-  display.fillRect(sx + 2, sy + 7, 4, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy + 7, 4, 3, col);
 }
 
 // Big Mario sprite (used during star power and mushroom growth)
@@ -1334,35 +1342,41 @@ static void drawBigMario(int x, int y, bool facingRight, int frame) {
   int sx = x - 5;
   int sy = y - 13;  // Taller sprite (13px instead of 10)
 
+  // Reuse the normal Mario palette so big Mario matches small Mario.
+  uint16_t hat = SPRITE_COLOR(COL_MARIO_HAT);
+  uint16_t skin = SPRITE_COLOR(COL_MARIO_SKIN);
+  uint16_t overalls = SPRITE_COLOR(COL_MARIO_OVERALLS);
+  uint16_t shoes = SPRITE_COLOR(COL_MARIO_SHOES);
+
   // Hat (wider)
-  display.fillRect(sx + 2, sy, 6, 2, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy, 6, 2, hat);
   if (facingRight) {
-    display.drawPixel(sx + 8, sy + 1, DISPLAY_WHITE);
+    display.drawPixel(sx + 8, sy + 1, hat);
   } else {
-    display.drawPixel(sx + 1, sy + 1, DISPLAY_WHITE);
+    display.drawPixel(sx + 1, sy + 1, hat);
   }
 
   // Head
-  display.fillRect(sx + 2, sy + 2, 6, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 2, sy + 2, 6, 3, skin);
 
   // Body (wider)
-  display.fillRect(sx + 1, sy + 5, 8, 3, DISPLAY_WHITE);
+  display.fillRect(sx + 1, sy + 5, 8, 3, overalls);
 
   // Arms
   if (facingRight) {
-    display.drawPixel(sx, sy + 6, DISPLAY_WHITE);
-    display.drawPixel(sx + 9, sy + 5 + (frame % 2), DISPLAY_WHITE);
+    display.drawPixel(sx, sy + 6, skin);
+    display.drawPixel(sx + 9, sy + 5 + (frame % 2), skin);
   } else {
-    display.drawPixel(sx + 9, sy + 6, DISPLAY_WHITE);
-    display.drawPixel(sx, sy + 5 + (frame % 2), DISPLAY_WHITE);
+    display.drawPixel(sx + 9, sy + 6, skin);
+    display.drawPixel(sx, sy + 5 + (frame % 2), skin);
   }
 
   // Legs (wider stance)
   if (frame % 2 == 0) {
-    display.fillRect(sx + 1, sy + 8, 3, 4, DISPLAY_WHITE);
-    display.fillRect(sx + 5, sy + 8, 3, 4, DISPLAY_WHITE);
+    display.fillRect(sx + 1, sy + 8, 3, 4, shoes);
+    display.fillRect(sx + 5, sy + 8, 3, 4, shoes);
   } else {
-    display.fillRect(sx, sy + 8, 3, 4, DISPLAY_WHITE);
-    display.fillRect(sx + 6, sy + 8, 3, 4, DISPLAY_WHITE);
+    display.fillRect(sx, sy + 8, 3, 4, shoes);
+    display.fillRect(sx + 6, sy + 8, 3, 4, shoes);
   }
 }

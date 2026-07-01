@@ -344,6 +344,13 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_AST_ROCK, 10, "Rocks"},
     {COL_PONG_BALL, 5, "Ball"},
     {COL_PONG_PADDLE, 5, "Paddle"},
+    {COL_GOOMBA, 0, "Goomba"},
+    {COL_SPINY, 0, "Spiny"},
+    {COL_KOOPA, 0, "Koopa"},
+    {COL_COIN, 0, "Coin"},
+    {COL_STAR, 0, "Star"},
+    {COL_MUSHROOM, 0, "Mushroom"},
+    {COL_FIREBALL, 0, "Fireball"},
 };
 
 // Emit <input type=color> rows for one clock style (-1 = global). "" if none.
