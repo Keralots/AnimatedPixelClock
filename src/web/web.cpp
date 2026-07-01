@@ -420,6 +420,14 @@ static bool resolvePlaceholder(const char* n, String& out) {
 #endif
     return true;
   }
+  if (!strcmp(n, "BOARDNAME")) {
+#if DISPLAY_HUB75
+    out = "ESP32-S3";
+#else
+    out = "ESP32-C3";
+#endif
+    return true;
+  }
   // The single per-page "Colors" card (contextual: the selected style's pickers
   // + global digits + reset). HUB75-only; resolves to "" on OLED.
   if (!strcmp(n, "COLOR_GLOBAL")) {

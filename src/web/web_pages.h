@@ -597,7 +597,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             </div>
             <div class="note">
               <span class="note-k">auto</span>
-              <div>Adaptive mode runs static clocks at <strong>2&nbsp;Hz</strong>, idle animations at <strong>20&nbsp;Hz</strong>, and active scenes up to <strong>40&nbsp;Hz</strong> - a blinking colon roughly doubles OLED lifespan.</div>
+              <div>Adaptive mode runs static clocks at <strong>2&nbsp;Hz</strong>, idle animations at <strong>20&nbsp;Hz</strong>, and active scenes up to <strong>40&nbsp;Hz</strong> - a blinking colon reduces static burn-in.</div>
             </div>
           </div>
 
@@ -653,7 +653,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <section class="page" data-page="layout">
           <div class="page-header">
             <h1 class="page-h1">Display layout</h1>
-            <p class="page-lede">How metrics are arranged on the OLED when the PC monitor is streaming. Applies to PC-monitor mode only.</p>
+            <p class="page-lede">How metrics are arranged on the display when the PC monitor is streaming. Applies to PC-monitor mode only.</p>
           </div>
 
           <div class="card">
@@ -714,11 +714,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <section class="page" data-page="metrics">
           <div class="page-header">
             <h1 class="page-h1">Visible metrics</h1>
-            <p class="page-lede">Assign each metric to a position on the OLED. Applies to PC-monitor mode only.</p>
+            <p class="page-lede">Assign each metric to a position on the display. Applies to PC-monitor mode only.</p>
           </div>
 
           <div class="card">
-            <h2 class="card-title">OLED preview</h2>
+            <h2 class="card-title">Display preview</h2>
             <div class="crt oled-preview">
               <div class="oled-pv-head">
                 <span class="ttl">preview</span>
@@ -784,7 +784,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             <label class="check-row standalone" style="margin-top:16px">
               <input type="checkbox" name="showIPAtBoot" id="showIPAtBoot" value="1" %CHK_SHOWIPATBOOT%>
               <span class="check-box" aria-hidden="true"></span>
-              <span class="check-text"><strong>Show IP at startup</strong><span class="ct-hint">Display the IP address on the OLED for 5 seconds after boot.</span></span>
+              <span class="check-text"><strong>Show IP at startup</strong><span class="ct-hint">Display the IP address on the screen for 5 seconds after boot.</span></span>
             </label>
           </div>
         </section>
@@ -817,7 +817,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           <div class="card">
             <h2 class="card-title">Update over the air</h2>
             <div class="crt oled-preview" style="max-width:360px">
-              <div class="oled-pv-head"><span class="ttl">installed</span><span class="meta">ESP32-C3 &middot; %DISPLAYMODEL%</span></div>
+              <div class="oled-pv-head"><span class="ttl">installed</span><span class="meta">%BOARDNAME% &middot; %DISPLAYMODEL%</span></div>
               <dl class="sr-rows" style="position:relative;z-index:1">
                 <div class="sr-row"><dt>version</dt><dd>v%VER%</dd></div>
                 <div class="sr-row"><dt>built</dt><dd>%BUILT%</dd></div>
