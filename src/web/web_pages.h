@@ -130,7 +130,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
             <!-- Mario -->
             <div class="subcard" id="marioSettings" style="display:%DSP_CLOCKSTYLE_0%">
-              %COLORS_MARIO%
               <div class="grid-2">
                 <div class="field" style="margin-bottom:0">
                   <label class="field-label" for="marioBounceHeight">Bounce height</label>
@@ -287,7 +286,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
             <!-- Pac-Man (style 6) -->
             <div class="subcard" id="pacmanSettings" style="display:%DSP_CLOCKSTYLE_6%">
-              %COLORS_PACMAN%
               <div class="grid-2">
                 <div class="field" style="margin-bottom:0">
                   <label class="field-label" for="pacmanSpeed">Patrol speed</label>
@@ -971,9 +969,15 @@ var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings'
 var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
-ALL_PANELS.forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+ALL_PANELS.forEach(function (id) {
+var el = document.getElementById(id); if (el) el.style.display = 'none';
+var c = document.getElementById(id + 'Colors'); if (c) c.style.display = 'none';
+});
 var show = STYLE_PANELS[clockStyle.value];
-if (show) { var e = document.getElementById(show); if (e) e.style.display = ''; }
+if (show) {
+var e = document.getElementById(show); if (e) e.style.display = '';
+var c = document.getElementById(show + 'Colors'); if (c) c.style.display = '';
+}
 }
 if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
 var dn = $('#deviceName');

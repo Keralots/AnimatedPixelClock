@@ -346,12 +346,34 @@ static String buildColorRows(int style) {
   return s;
 }
 
-// A labelled "Colors" block to drop inside a clock-style settings subcard.
-static String buildColorSubblock(int style) {
-  String rows = buildColorRows(style);
-  if (rows.length() == 0) return String();
-  return String(F("<div style=\"margin-top:14px\"><div style=\"font-weight:600;margin-bottom:4px\">Colors</div>"))
-         + rows + F("</div>");
+// Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
+// each style's color rows in a <div id="<panelId>Colors"> that syncClockPanels()
+// shows/hides alongside the matching subcard. panelId MUST match STYLE_PANELS[]
+// in web_pages.h - a mismatch would silently hide that style's color rows.
+struct StyleCard { int style; const char* panelId; };
+static const StyleCard STYLE_CARDS[] = {
+    {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},
+    {6, "pacmanSettings"},  {7, "snakeSettings"},  {8, "tetrisSettings"},
+    {10, "asteroidsSettings"}, {11, "dinoSettings"},
+};
+
+// The single per-page "Colors" card: the selected style's rows (hidden until
+// syncClockPanels reveals the block), then the always-shown global rows + reset.
+static String buildColorsCard() {
+  String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
+  for (size_t i = 0; i < sizeof(STYLE_CARDS) / sizeof(STYLE_CARDS[0]); i++) {
+    String rows = buildColorRows(STYLE_CARDS[i].style);
+    if (rows.length() == 0) continue;  // this style has no color rows yet
+    out += F("<div id=\"");
+    out += STYLE_CARDS[i].panelId;
+    out += F("Colors\" style=\"display:none\">");
+    out += rows;
+    out += F("</div>");
+  }
+  out += buildColorRows(-1);  // global Time-digits row, always visible
+  out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
+  out += F("</div>");
+  return out;
 }
 #endif  // DISPLAY_HUB75
 
@@ -374,26 +396,11 @@ static bool resolvePlaceholder(const char* n, String& out) {
 #endif
     return true;
   }
-  // Per-style color pickers (rendered inside each clock-style subcard) + the
-  // global block (digits + reset). HUB75-only; resolve to "" on OLED.
-  if (!strcmp(n, "COLORS_MARIO")) {
-#if DISPLAY_HUB75
-    out = buildColorSubblock(0);
-#endif
-    return true;
-  }
-  if (!strcmp(n, "COLORS_PACMAN")) {
-#if DISPLAY_HUB75
-    out = buildColorSubblock(6);
-#endif
-    return true;
-  }
+  // The single per-page "Colors" card (contextual: the selected style's pickers
+  // + global digits + reset). HUB75-only; resolves to "" on OLED.
   if (!strcmp(n, "COLOR_GLOBAL")) {
 #if DISPLAY_HUB75
-    out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
-    out += buildColorRows(-1);
-    out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
-    out += F("</div>");
+    out = buildColorsCard();
 #endif
     return true;
   }
