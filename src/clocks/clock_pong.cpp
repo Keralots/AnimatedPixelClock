@@ -454,8 +454,12 @@ void updatePongBall(int ballIndex) {
   int ball_px = pong_balls[ballIndex].x / 16;
   int ball_py = pong_balls[ballIndex].y / 16;
 
-  // Top wall collision (bounce down)
-  if (ball_py <= PONG_PLAY_AREA_TOP) {
+  // Top wall collision (bounce down). Only bounce while moving up: at
+  // sub-pixel speeds (|vy| < 16 fixed-point per tick) the ball is still on
+  // row PONG_PLAY_AREA_TOP one tick after the bounce, and an unconditional
+  // check would re-clamp y forever - the ball glides horizontally along the
+  // top wall instead of coming back down.
+  if (ball_py <= PONG_PLAY_AREA_TOP && pong_balls[ballIndex].vy < 0) {
     ball_py = PONG_PLAY_AREA_TOP;
     pong_balls[ballIndex].y = ball_py * 16;
     pong_balls[ballIndex].vy = abs(pong_balls[ballIndex].vy);  // Force downward
@@ -494,13 +498,14 @@ void updatePongBall(int ballIndex) {
     }
   }
 
-  // Left/right wall collisions (bounce horizontally)
-  if (ball_px < 0) {
+  // Left/right wall collisions (bounce horizontally, same moving-toward-wall
+  // guard as the top wall)
+  if (ball_px < 0 && pong_balls[ballIndex].vx < 0) {
     ball_px = 0;
     pong_balls[ballIndex].x = ball_px * 16;
     pong_balls[ballIndex].vx = abs(pong_balls[ballIndex].vx);  // Force right
   }
-  if (ball_px + PONG_BALL_SIZE > SCREEN_WIDTH) {
+  if (ball_px + PONG_BALL_SIZE > SCREEN_WIDTH && pong_balls[ballIndex].vx > 0) {
     ball_px = SCREEN_WIDTH - PONG_BALL_SIZE;
     pong_balls[ballIndex].x = ball_px * 16;
     pong_balls[ballIndex].vx = -abs(pong_balls[ballIndex].vx);  // Force left
