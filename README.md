@@ -9,6 +9,8 @@ An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3
 
 [![AnimatedPixelClock example animation video](https://img.youtube.com/vi/dw6Jv9x7Knw/hqdefault.jpg)](https://youtu.be/dw6Jv9x7Knw)
 
+[![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20example%20animation-FF0000?logo=youtube&logoColor=white)](https://youtu.be/dw6Jv9x7Knw)
+
 Fourteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
 Runner, Matrix Rain, Missile Command and more), fully configurable from a built-in web
 interface: per-element sprite
