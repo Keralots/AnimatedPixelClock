@@ -8,9 +8,7 @@ a drag-and-drop layout editor.
 v4 is a single always-running app: the config UI is a native window (Microsoft
 Edge **WebView2**, via [pywebview](https://pywebview.flowrl.com/)) backed by a
 tiny `127.0.0.1` web server. Closing the window hides it to the system tray; the
-monitor keeps sending in the background. It is derived from v3 (left untouched in
-`../PC-Companion-App-v3-beta/`) and reuses the same sensor discovery, UDP
-protocol, autostart and single-instance machinery.
+monitor keeps sending in the background.
 
 ---
 
