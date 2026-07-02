@@ -228,7 +228,13 @@ void updateMarioAnimation(struct tm* timeinfo) {
   if (currentMillis - last_mario_update < animSpeed) {
     return;
   }
-  last_mario_update = currentMillis;
+  // Advance by the tick (not to "now") so the tick period does not quantize to
+  // whole render frames and beat against the frame rate. Resync after gaps.
+  if (currentMillis - last_mario_update > animSpeed * 5) {
+    last_mario_update = currentMillis;
+  } else {
+    last_mario_update += animSpeed;
+  }
 
   int seconds = timeinfo->tm_sec;
   int current_minute = timeinfo->tm_min;

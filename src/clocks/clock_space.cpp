@@ -101,7 +101,7 @@ void drawSpaceCharacter(int x, int y, int frame) {
 
 // Handle patrol state - slow left-right drift
 void handleSpacePatrolState() {
-  space_x += (settings.spacePatrolSpeed / 20.0) * space_patrol_direction;
+  space_x += (settings.spacePatrolSpeed / 31.25) * space_patrol_direction;
 
   // Reverse direction at boundaries
   if (space_x <= SPACE_PATROL_LEFT) {
@@ -120,10 +120,10 @@ void handleSpaceSlidingState() {
   // Slide horizontally to target
   if (abs(space_x - target_x) > MOVEMENT_THRESHOLD) {
     if (space_x < target_x) {
-      space_x += (settings.spaceAttackSpeed / 20.0);
+      space_x += (settings.spaceAttackSpeed / 31.25);
       if (space_x > target_x) space_x = target_x;
     } else {
-      space_x -= (settings.spaceAttackSpeed / 20.0);
+      space_x -= (settings.spaceAttackSpeed / 31.25);
       if (space_x < target_x) space_x = target_x;
     }
   } else {
@@ -159,10 +159,10 @@ void handleSpaceMovingNextState() {
 
   if (abs(space_x - target_x) > MOVEMENT_THRESHOLD) {
     if (space_x < target_x) {
-      space_x += (settings.spaceAttackSpeed / 20.0);
+      space_x += (settings.spaceAttackSpeed / 31.25);
       if (space_x > target_x) space_x = target_x;
     } else {
-      space_x -= (settings.spaceAttackSpeed / 20.0);
+      space_x -= (settings.spaceAttackSpeed / 31.25);
       if (space_x < target_x) space_x = target_x;
     }
   } else {
@@ -178,10 +178,10 @@ void handleSpaceReturningState() {
 
   if (abs(space_x - center_x) > MOVEMENT_THRESHOLD) {
     if (space_x < center_x) {
-      space_x += (settings.spacePatrolSpeed / 20.0);
+      space_x += (settings.spacePatrolSpeed / 31.25);
       if (space_x > center_x) space_x = center_x;
     } else {
-      space_x -= (settings.spacePatrolSpeed / 20.0);
+      space_x -= (settings.spacePatrolSpeed / 31.25);
       if (space_x < center_x) space_x = center_x;
     }
   } else {
@@ -218,7 +218,7 @@ void drawSpaceLaser(Laser* laser) {
 void updateSpaceLaser() {
   if (!space_laser.active) return;
 
-  space_laser.length += (settings.spaceLaserSpeed / 20.0);
+  space_laser.length += (settings.spaceLaserSpeed / 31.25);
 
   // Check if reached digit (bottom of time digits)
   const int SPACE_TIME_Y = 16;
@@ -262,12 +262,12 @@ void spawnSpaceExplosion(int digitIndex) {
     if (!f) break;
 
     float angle = i * angle_step + random(-30, 30) / 100.0;
-    float speed = 1.5 + random(-25, 25) / 100.0;  // Base speed ~1.5 per 25ms tick
+    float speed = 0.96 + random(-25, 25) / 156.0;  // 1.5 px per 25ms tick, rescaled to 16ms
 
     f->x = digit_x + random(-4, 4);
     f->y = digit_y + random(-6, 6);
     f->vx = cos(angle) * speed;
-    f->vy = sin(angle) * speed - 0.5;
+    f->vy = sin(angle) * speed - 0.32;
     f->active = true;
   }
 }
@@ -276,7 +276,7 @@ void spawnSpaceExplosion(int digitIndex) {
 void updateSpaceFragments() {
   for (int i = 0; i < MAX_SPACE_FRAGMENTS; i++) {
     if (space_fragments[i].active) {
-      space_fragments[i].vy += (settings.spaceExplosionGravity / 40.0);
+      space_fragments[i].vy += (settings.spaceExplosionGravity / 97.7);
       space_fragments[i].x += space_fragments[i].vx;
       space_fragments[i].y += space_fragments[i].vy;
 
@@ -320,12 +320,18 @@ SpaceFragment* findFreeSpaceFragment() {
 void updateSpaceAnimation(struct tm* timeinfo) {
   unsigned long currentMillis = millis();
 
-  const int SPACE_ANIM_SPEED = 25;  // 25ms = 40 FPS (speeds below are per-tick,
-                                    // halved from the original 50ms tuning)
+  const int SPACE_ANIM_SPEED = 16;  // ms; matches the 60 Hz render frame (per-tick
+                                    // speeds above are rescaled from the 25ms tuning)
   const int SPRITE_TOGGLE_SPEED = 200;  // Slow retro animation
 
   if (currentMillis - last_space_update < SPACE_ANIM_SPEED) return;
-  last_space_update = currentMillis;
+  // Advance by the tick (not to "now") so the tick period does not quantize to
+  // whole render frames and beat against the frame rate. Resync after gaps.
+  if (currentMillis - last_space_update > (unsigned long)(SPACE_ANIM_SPEED * 5)) {
+    last_space_update = currentMillis;
+  } else {
+    last_space_update += SPACE_ANIM_SPEED;
+  }
 
   int seconds = timeinfo->tm_sec;
   int current_minute = timeinfo->tm_min;

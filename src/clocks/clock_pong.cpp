@@ -10,6 +10,11 @@
 #include "clocks.h"
 #include "clock_globals.h"
 
+// settings.pongBallSpeed (web slider 16-30) is tuned as fixed-point px per
+// 20 ms tick; the physics tick is 16 ms now, so scale stored values by 16/20
+// wherever a ball velocity is assigned.
+#define PONG_TICK_BALL_SPEED ((int)((settings.pongBallSpeed * 4 + 2) / 5))
+
 // 5x7 numeral glyphs (same font as the Snake/Tetris/Asteroids pellet placement).
 // Used to sample the shattering/assembling digit shape so the effect does not
 // depend on display.getBuffer() (nullptr on HUB75). Bit 4 = leftmost column.
@@ -66,11 +71,11 @@ void initPongAnimation() {
 
   // Always start upward (negative Y) with random X direction
   if (random(0, 2) == 0) {
-    pong_balls[0].vx = settings.pongBallSpeed;  // Right
+    pong_balls[0].vx = PONG_TICK_BALL_SPEED;  // Right
   } else {
-    pong_balls[0].vx = -settings.pongBallSpeed;  // Left
+    pong_balls[0].vx = -PONG_TICK_BALL_SPEED;  // Left
   }
-  pong_balls[0].vy = -settings.pongBallSpeed;  // Up
+  pong_balls[0].vy = -PONG_TICK_BALL_SPEED;  // Up
 
   pong_balls[0].state = PONG_BALL_SPAWNING;
   pong_balls[0].spawn_timer = millis();
@@ -128,11 +133,11 @@ void spawnPongBall(int ballIndex) {
 
   // Random X direction, always upward
   if (random(0, 2) == 0) {
-    pong_balls[ballIndex].vx = settings.pongBallSpeed;
+    pong_balls[ballIndex].vx = PONG_TICK_BALL_SPEED;
   } else {
-    pong_balls[ballIndex].vx = -settings.pongBallSpeed;
+    pong_balls[ballIndex].vx = -PONG_TICK_BALL_SPEED;
   }
-  pong_balls[ballIndex].vy = -settings.pongBallSpeed;  // Always up
+  pong_balls[ballIndex].vy = -PONG_TICK_BALL_SPEED;  // Always up
 
   pong_balls[ballIndex].state = PONG_BALL_NORMAL;
   pong_balls[ballIndex].active = true;
@@ -421,17 +426,17 @@ void updatePongBall(int ballIndex) {
       // Set horizontal velocity based on paddle movement direction
       if (paddle_velocity > 0) {
         // Paddle moving right - launch ball right
-        pong_balls[ballIndex].vx = settings.pongBallSpeed + (paddle_velocity * PADDLE_MOMENTUM_MULTIPLIER);
+        pong_balls[ballIndex].vx = PONG_TICK_BALL_SPEED + (paddle_velocity * PADDLE_MOMENTUM_MULTIPLIER);
       } else if (paddle_velocity < 0) {
         // Paddle moving left - launch ball left
-        pong_balls[ballIndex].vx = -settings.pongBallSpeed + (paddle_velocity * PADDLE_MOMENTUM_MULTIPLIER);
+        pong_balls[ballIndex].vx = -PONG_TICK_BALL_SPEED + (paddle_velocity * PADDLE_MOMENTUM_MULTIPLIER);
       } else {
         // Paddle stationary - random direction
-        pong_balls[ballIndex].vx = random(0, 2) == 0 ? settings.pongBallSpeed : -settings.pongBallSpeed;
+        pong_balls[ballIndex].vx = random(0, 2) == 0 ? PONG_TICK_BALL_SPEED : -PONG_TICK_BALL_SPEED;
       }
 
       // Always launch upward
-      pong_balls[ballIndex].vy = -settings.pongBallSpeed;
+      pong_balls[ballIndex].vy = -PONG_TICK_BALL_SPEED;
 
       // Add small random variation for natural movement
       pong_balls[ballIndex].vx += random(-BALL_RELEASE_RANDOM_VARIATION, BALL_RELEASE_RANDOM_VARIATION + 1);
@@ -903,11 +908,18 @@ void updateDigitBouncePong() {
 void updatePongAnimation(struct tm* timeinfo) {
   unsigned long currentMillis = millis();
 
-  // Throttle updates to PONG_UPDATE_INTERVAL (50 FPS)
+  // Throttle updates to PONG_UPDATE_INTERVAL (one tick per rendered frame)
   if (currentMillis - last_pong_update < PONG_UPDATE_INTERVAL) {
     return;
   }
-  last_pong_update = currentMillis;
+  // Advance the gate by the tick, not to "now": resetting to now quantizes the
+  // tick period to whole render frames and beats against the frame rate
+  // (periodic skipped/doubled motion steps). Resync only after long gaps.
+  if (currentMillis - last_pong_update > (unsigned long)(PONG_UPDATE_INTERVAL * 5)) {
+    last_pong_update = currentMillis;
+  } else {
+    last_pong_update += PONG_UPDATE_INTERVAL;
+  }
 
   // Update displayed time and detect digit changes
   if (!time_overridden) {
@@ -999,7 +1011,7 @@ void updatePongAnimation(struct tm* timeinfo) {
 
     // Normal speed for ball 0
     if (pong_balls[0].active && pong_balls[0].state == PONG_BALL_NORMAL) {
-      int speed = settings.pongBallSpeed;
+      int speed = PONG_TICK_BALL_SPEED;
       if (pong_balls[0].vx > 0) pong_balls[0].vx = speed;
       else pong_balls[0].vx = -speed;
       if (pong_balls[0].vy > 0) pong_balls[0].vy = speed;

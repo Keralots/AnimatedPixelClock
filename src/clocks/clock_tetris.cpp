@@ -565,7 +565,13 @@ static void updateTetrisAnimation(struct tm *timeinfo) {
   unsigned long now = millis();
   updateDigitBounce();
   if (now - last_tetris_update < TET_ANIM_SPEED) return;
-  last_tetris_update = now;
+  // Advance by the tick (not to "now") so the tick period does not quantize to
+  // whole render frames and beat against the frame rate. Resync after gaps.
+  if (now - last_tetris_update > (unsigned long)(TET_ANIM_SPEED * 5)) {
+    last_tetris_update = now;
+  } else {
+    last_tetris_update += TET_ANIM_SPEED;
+  }
 
   int seconds = timeinfo->tm_sec;
   int minute = timeinfo->tm_min;

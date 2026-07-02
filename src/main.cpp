@@ -301,7 +301,14 @@ void loop() {
   unsigned long frameInterval = 1000 / targetHz;
 
   if (millis() >= nextDisplayUpdate && displayAvailable && !isDisplayForcedOff()) {
-    nextDisplayUpdate = millis() + frameInterval;
+    // Schedule from the previous deadline, not from "now": scheduling from now
+    // adds the loop latency to every frame, so frames drift off the fixed grid
+    // and the animation tick gates beat against them (visible micro-stutter).
+    nextDisplayUpdate += frameInterval;
+    if (millis() >= nextDisplayUpdate) {
+      // Fell behind (stall or refresh-rate change) - resync to now.
+      nextDisplayUpdate = millis() + frameInterval;
+    }
 
     display.clearDisplay();
 

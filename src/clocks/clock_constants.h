@@ -25,8 +25,9 @@
 // Laser offset from character top (where laser starts)
 #define SPACE_LASER_OFFSET_Y 4
 
-// Explosion frames before moving to next target
-#define SPACE_EXPLOSION_FRAMES 10
+// Explosion frames before moving to next target (ticks; 16 x 16ms = ~250ms,
+// same real time as the original 10 x 25ms)
+#define SPACE_EXPLOSION_FRAMES 16
 
 // ========== Digit Positioning ==========
 // Standard digit X positions (18px spacing, starting at 19)

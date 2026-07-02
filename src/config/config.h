@@ -306,14 +306,15 @@ struct FragmentTarget {
 #define PONG_PLAY_AREA_TOP 10          // Above digits (ball can enter date area)
 #define BREAKOUT_PADDLE_Y 60
 #define BREAKOUT_PADDLE_HEIGHT 2
-#define PONG_UPDATE_INTERVAL 20
+#define PONG_UPDATE_INTERVAL 16        // ms; matches the 60 Hz render frame (constants
+                                       // below are per-tick, rescaled from the 20 ms tuning)
 #define BALL_SPAWN_DELAY 500
-#define PONG_FRAG_GRAVITY 0.3
-#define PONG_FRAG_SPEED 1.5
+#define PONG_FRAG_GRAVITY 0.19         // 0.3 * 0.64 (accel scales with tick^2)
+#define PONG_FRAG_SPEED 1.2            // 1.5 * 0.8 (velocity scales with tick)
 #define BALL_HIT_THRESHOLD 3
 #define DIGIT_TRANSITION_TIMEOUT 3000
 #define DIGIT_ASSEMBLY_DURATION 800
-#define PONG_BALL_SPEED_BOOST 28
+#define PONG_BALL_SPEED_BOOST 22       // 28 * 0.8
 #define MULTIBALL_ACTIVATE_SECOND 55
 #define PADDLE_WRONG_DIRECTION_CHANCE 0    // 0 = disabled (smooth tracking), 10-20 = adds chaos
 #define PADDLE_STICK_MIN_DELAY 0
@@ -343,7 +344,8 @@ struct PathStep {
 };
 
 // Pac-Man constants
-#define PACMAN_ANIM_SPEED 15
+#define PACMAN_ANIM_SPEED 16  // ms; matches the 60 Hz render frame (speeds are
+                              // divided by 18.75 instead of 20 to compensate)
 #define PACMAN_PATROL_Y 56
 #define MAX_PATROL_PELLETS 20
 #define TIME_Y_PACMAN 16

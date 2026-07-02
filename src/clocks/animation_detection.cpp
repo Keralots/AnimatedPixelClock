@@ -60,6 +60,12 @@ bool isAnimationActive() {
     return tetrisIsAnimating();
   }
 
+  // Cycle All Styles (clockStyle == 9) - treat as animated so the refresh rate
+  // does not flap when the rotation lands on an animated style
+  if (settings.clockStyle == 9) {
+    return true;
+  }
+
   // Asteroids clock (clockStyle == 10) - ship and rocks always drifting
   if (settings.clockStyle == 10) {
     return true;
