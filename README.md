@@ -1,8 +1,13 @@
 # AnimatedPixelClock
 
+Early beta / work in progress: the project is already working and usable, with more
+information coming over the next weeks and months.
+
 An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3.
 
 ![AnimatedPixelClock - Pac-Man clock on the bench](img/animatedpixelclock.jpg)
+
+[![AnimatedPixelClock example animation video](https://img.youtube.com/vi/dw6Jv9x7Knw/hqdefault.jpg)](https://youtu.be/dw6Jv9x7Knw)
 
 Fourteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
 Runner, Matrix Rain, Missile Command and more), fully configurable from a built-in web
@@ -19,7 +24,7 @@ sent by a desktop companion app.
 | Part | Notes |
 |------|-------|
 | ESP32-S3 board | Developed on an ESP32-S3-WROOM-1 (N16R8) devkit; Waveshare ESP32-S3-Zero also supported |
-| 2x Waveshare P2.5 64x64 HUB75E panels | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
+| 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | 5V PSU, ~10A | Power each panel directly, common ground with the ESP32 |
 
 The panels run fine from the ESP32's 3.3V logic directly, no level shifters needed.
