@@ -2,6 +2,8 @@
 
 An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3.
 
+![AnimatedPixelClock - Pac-Man clock on the bench](img/animatedpixelclock.jpg)
+
 Twelve clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
 Runner and more), fully configurable from a built-in web interface: per-element sprite
 colors, brightness with scheduled night dimming, automatic timezone/DST, OTA updates.
