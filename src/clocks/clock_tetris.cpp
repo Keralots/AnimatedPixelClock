@@ -30,8 +30,9 @@
 #define TET_PITCH 3                  // cell pitch (block + 1px gap)
 #define TET_GRID_W 5
 #define TET_GRID_H 7
-#define TET_ANIM_SPEED 20            // ms (~50 fps physics tick; per-tick motion
-                                     // constants below are scaled to this rate)
+#define TET_ANIM_SPEED 16            // ms; matches the 60 Hz render frame so every
+                                     // rendered frame advances motion (no judder).
+                                     // Per-tick motion constants are scaled to this.
 #define TET_TRIGGER_SECOND 56
 #define TET_START_FALL 26            // how far above a slab starts its drop
 #define TET_MAX_FRAG 36
@@ -199,8 +200,8 @@ static void tetSpawnFrags(int idx, uint8_t oldVal) {
         if (!f) return;
         f->x = DIGIT_X[idx] + col * TET_PITCH;
         f->y = tetTimeY() + row * TET_PITCH;
-        f->vx = random(-10, 11) / 20.0f;
-        f->vy = -(random(5, 20) / 20.0f);
+        f->vx = random(-10, 11) / 25.0f;
+        f->vy = -(random(5, 20) / 25.0f);
         f->active = true;
         spawned++;
       }
@@ -216,7 +217,7 @@ static bool tetAnyFragActive() {
 static void tetUpdateFrags() {
   for (int i = 0; i < TET_MAX_FRAG; i++) {
     if (!tet_frags[i].active) continue;
-    tet_frags[i].vy += 0.075f;
+    tet_frags[i].vy += 0.048f;
     tet_frags[i].x += tet_frags[i].vx;
     tet_frags[i].y += tet_frags[i].vy;
     if (tet_frags[i].y > SCREEN_HEIGHT + 4 || tet_frags[i].x < -4 ||
@@ -412,12 +413,12 @@ static void tetGameUpdate() {
   // TG_MOVING: fall from the top of the screen (through the digits) while
   // sliding to the target column, then land on the stack in the bottom well.
   if (tet_pc_curCol < tet_pc_destCol)
-    tet_pc_curCol = min(tet_pc_curCol + 0.5f, (float)tet_pc_destCol);
+    tet_pc_curCol = min(tet_pc_curCol + 0.4f, (float)tet_pc_destCol);
   else if (tet_pc_curCol > tet_pc_destCol)
-    tet_pc_curCol = max(tet_pc_curCol - 0.5f, (float)tet_pc_destCol);
+    tet_pc_curCol = max(tet_pc_curCol - 0.4f, (float)tet_pc_destCol);
 
-  float vstep = (settings.tetrisFallSpeed / 10.0f) * 0.75f;
-  if (vstep < 0.3f) vstep = 0.3f;
+  float vstep = (settings.tetrisFallSpeed / 10.0f) * 0.6f;
+  if (vstep < 0.24f) vstep = 0.24f;
   tet_pc_py += vstep;
 
   float landingPy = TET_WELL_TOP + tet_pc_destOy * TET_WELL_CELL;
@@ -425,7 +426,7 @@ static void tetGameUpdate() {
   // Cosmetic tumble: spin a few times (max 4) while high, the last tumble
   // settling into the chosen landing orientation.
   if (tet_spin_left > 0 && tet_pc_py < landingPy - TET_WELL_CELL * 2) {
-    if (++tet_spin_timer >= 10) {          // slower than before
+    if (++tet_spin_timer >= 12) {          // slower than before
       tet_spin_timer = 0;
       if (--tet_spin_left <= 0) {
         tet_pc_drawRot = tet_pc_rot;       // final tumble lands in the chosen orientation
@@ -452,7 +453,7 @@ static void tetGameUpdate() {
     tet_clear_mask = 0;
     for (int r = 0; r < TET_WELL_ROWS; r++)
       if (tet_well[r] == TET_FULLROW) tet_clear_mask |= (1 << r);
-    if (tet_clear_mask) { tet_game_phase = TG_CLEARING; tet_clear_flash = 12; }
+    if (tet_clear_mask) { tet_game_phase = TG_CLEARING; tet_clear_flash = 15; }
     else { tet_game_phase = TG_DELAY; tet_game_timer = millis() + 450; }
   }
 }
@@ -488,9 +489,9 @@ static void tetStartDigitAnim(int seqPos) {
     // Release the dots ONE AT A TIME so each falls separately and the digit
     // assembles dot by dot. Dot Fall Speed sets the gap between releases
     // (lower = slower, more separated). Order is bottom-up or random.
-    int gap = (int)(180.0f / settings.tetrisDotSpeed);
-    if (gap < 8) gap = 8;
-    if (gap > 36) gap = 36;
+    int gap = (int)(225.0f / settings.tetrisDotSpeed);
+    if (gap < 10) gap = 10;
+    if (gap > 45) gap = 45;
     int order[TET_MAX_DOTS];
     for (int k = 0; k < dot_n; k++) order[k] = k;
     if (settings.tetrisDotOrder == 1) {           // random build order
@@ -523,8 +524,8 @@ static void tetFinishActiveDigit() {
 
 static void tetUpdateSlab() {
   if (tet_slab >= 3) return;
-  float accel = (settings.tetrisFallSpeed / 10.0f) * 0.105f;
-  if (accel < 0.025f) accel = 0.025f;
+  float accel = (settings.tetrisFallSpeed / 10.0f) * 0.067f;
+  if (accel < 0.016f) accel = 0.016f;
 
   tet_slab_vel += accel;
   tet_slab_off += tet_slab_vel;
@@ -542,8 +543,8 @@ static void tetUpdateSlab() {
 
 static void tetUpdateDots() {
   dot_frame++;
-  float vy = (settings.tetrisDotSpeed / 10.0f) * 1.0f;
-  if (vy < 0.3f) vy = 0.3f;
+  float vy = (settings.tetrisDotSpeed / 10.0f) * 0.8f;
+  if (vy < 0.24f) vy = 0.24f;
 
   bool allDone = true;
   for (int k = 0; k < dot_n; k++) {
@@ -636,7 +637,7 @@ bool tetrisIsAnimating() {
 static void tetGameDraw() {
   // Settled stack (full rows blink while clearing)
   for (int r = 0; r < TET_WELL_ROWS; r++) {
-    if ((tet_clear_mask & (1 << r)) && (tet_clear_flash / 4) % 2 == 0) continue;
+    if ((tet_clear_mask & (1 << r)) && (tet_clear_flash / 5) % 2 == 0) continue;
     uint32_t row = tet_well[r];
     if (!row) continue;
     for (int c = 0; c < TET_WELL_COLS; c++)
