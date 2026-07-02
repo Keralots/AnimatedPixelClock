@@ -1,792 +1,166 @@
-# PC Stats Monitor - ESP32 OLED Display
+# AnimatedPixelClock
 
-[![Youtube Video](https://github.com/user-attachments/assets/d5232fde-a2ae-46ae-b4b4-74f2164f222e)](https://www.youtube.com/watch?v=D6zZIyOvWjY)
+An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3.
 
-3D Printable case:
-0.96": https://makerworld.com/en/models/2051935
+Twelve clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
+Runner and more), fully configurable from a built-in web interface: per-element sprite
+colors, brightness with scheduled night dimming, automatic timezone/DST, OTA updates.
+It can also act as a PC performance monitor, showing live CPU/GPU/RAM/network stats
+sent by a desktop companion app.
 
-1.3": https://makerworld.com/en/models/2185211
+> Looking for the small OLED version? See the sibling project
+> [SmallOLED-PCMonitor](https://github.com/Keralots/SmallOLED-PCMonitor).
 
-2.42" https://makerworld.com/en/models/2341351
+## Hardware
 
-Be aware that there are different sizes of the same SSD1306 (0.96") OLED screen on aliexpress.
-Im using this one "Original" version (do not purchase dual color, it won't work):
-It seems that there is also "New" screen version which comes in another 2 sizes. So be sure to pick correct 3D printable case from link above.
-https://aliexpress.com/item/1005006262908701.html
+| Part | Notes |
+|------|-------|
+| ESP32-S3 board | Developed on an ESP32-S3-WROOM-1 (N16R8) devkit; Waveshare ESP32-S3-Zero also supported |
+| 2x Waveshare P2.5 64x64 HUB75E panels | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
+| 5V PSU, ~10A | Power each panel directly, common ground with the ESP32 |
 
-For 1.3" OLED (SH1106) I have used this version:
-https://aliexpress.com/item/1005009757205826.html
+The panels run fine from the ESP32's 3.3V logic directly, no level shifters needed.
+Full bench wiring, power-up order and first-light checklist:
+**[docs/HUB75_WIRING.md](docs/HUB75_WIRING.md)** (with [pinout diagram](docs/hub75_wiring.svg)).
 
-For 2.42" OLED (SSD1309) I have used this version:
-https://aliexpress.com/item/4000002579405.html
-
-For 1.54" OLED (CH1116) I have used this version:
-https://aliexpress.com/item/1005006579037427.html
-
-ESP32-C3 SuperMini:
-https://aliexpress.com/item/1005008988143743.html
-
-HOW TO Video assembly (you can ignore LED if you are not going to use it):
-
-Version with LED based on 2n2222: https://www.youtube.com/watch?v=umV7xA0mp5I
-
-Version with LED based on LDO6AJSA https://www.youtube.com/watch?v=M2Oa4PDUUgE
-
-
-I have noticed that some of the cheap ESP32-C3 boards have WiFi related issues on hardware level. After some additional implementations to the code in attempt to fix issues (v1.2.1), some of those issues cannot be fixed as they are on hardware level.
-What has helped a bit: Soldering 2 pins to the side of antenna. Check video assembly where I'm sixing that issue.
-Some of those faulty boards have antenna too close to other components. Like in this example (left side with 3.5mm gap is better)
-
-<img width="791" height="200" alt="image" src="https://github.com/user-attachments/assets/0a624a91-db2b-45b0-b637-f3556f7561fb" />
-
-> **Note:** Some ESP32-C3 SuperMini boards (especially the external antenna variant) have a very bright built-in RGB LED (WS2812) on GPIO 8. Since GPIO 8 is used for I2C SDA, this LED cannot be turned off via software. If it bothers you, desolder the LED or cut its data trace on the PCB.
-
-A real-time PC monitoring system that displays CPU, RAM, GPU, and disk stats on a small OLED screen using ESP32 and a companion Python script.
-
-## Features
-
-- **Dual Display Modes:**
-  - **PC Online**: Real-time stats with customizable metrics and positions
-  - **PC Offline**: Animated clock (Mario, Space Invaders, Arkanoid, Pac-Man, Snake, Tetris, Asteroids, Dino Runner, Standard, or Large styles, plus a Cycle All mode)
-- **v2.0 Python GUI**:
-  - Easy graphical configuration - no more editing files!
-  - Select from all available sensors on your system
-  - Support for up to 20 metrics
-  - Custom labels (max 10 characters)
-  - Autostart configuration built-in
-  - Windows and Linux support
-- **Web Configuration Portal**: Customize all settings via browser
-  - 5-row (spacious) or 6-row (compact) display modes
-  - Large 2-row and 3-row modes for readability at a distance
-  - Progress bars for visual representation
-  - Clock styles and animation settings
-  - Automatic timezone with DST support (~50 regions)
-  - Display brightness control and scheduled night dimming
-  - Export/Import configuration
-  - OTA firmware updates
-- **Browser Web Flasher (Preferred)**: Install firmware and push WiFi credentials entirely from the browser over USB - no tools to install
-- **WiFi Portal**: Easy first-time setup without code changes (fallback / build-from-source path)
-- **mDNS Discovery**: Access your device via `http://smalloled.local` (configurable name)
-- **Optimized Performance**: Minimal CPU usage on PC (<1%)
-- **Persistent Settings**: All preferences saved to ESP32 flash memory
-
-## Quick Start for Beginners
-
-**Never done this before? Here's the simple version:**
-
-1. **Flash ESP32** - Open the [SmallOLED Web Flasher](https://keralots.github.io/SmallOLED-PCMonitor/) in desktop Chrome or Edge, pick your OLED, and click Install (no installation needed!)
-2. **Connect ESP32 to WiFi** - Right after flashing, use the flasher's **Configure WiFi** step to send your network to the device over USB. (No web flasher? Join the "PCMonitor-Setup" network and open 192.168.4.1.)
-3. **Install LibreHardwareMonitor** (Windows only) - Download from [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases), run as Admin (needed for temps/fans/GPU/power)
-4. **Get the companion app (v4 beta - recommended on both Windows and Linux):**
-   - **Windows (easiest):** download `pc_stats_monitor_v4.exe` from [`PC-Companion-App-v4-beta/win-companion/dist/`](PC-Companion-App-v4-beta/win-companion/) and double-click it - no Python needed. v4 gives a polished **web-style config window** (1:1 device preview, drag-and-drop layout, sensor picker, number formats, quick templates) that lives in the system tray.
-   - **Linux:** `cd PC-Companion-App-v4-beta/linux-companion`, then `python3 -m pip install -r requirements.txt` and `python3 pc_stats_monitor_v4_linux.py` (no build step). Same UI; opens a native window or your browser.
-   - **Classic scripts (legacy):** the older `pc_stats_monitor_v2.py` (Windows) / `pc_stats_monitor_v2_linux.py` (Linux) and the `PC-Companion-App-v3-beta` app still work if you prefer them.
-5. **Configure in GUI** - Enter ESP32 IP address, select the sensors you want, click "Save & Start"
-6. **Position metrics** - In the v3 beta app click **"Configure OLED screen"**; with the v2 script, open the ESP32 IP in a browser and drag metrics on the preview
-
-Done! Your PC stats will now appear on the OLED display.
-
-For detailed instructions, keep reading below.
-
-## Hardware Requirements
-
-### ESP32 Setup
-- **ESP32-C3 Super Mini** (or compatible ESP32 board)
-- **OLED Display** (128x64, I2C):
-  - SSD1306 0.96" (most common)
-  - SH1106 1.3" (larger, recommended)
-  - CH1116 1.54" (SH1106-compatible, own firmware)
-  - SSD1309 2.42" (largest, uses same firmware as 0.96")
-- **TTP223 Touch Sensor** (optional - for physical button control)
-- **Wiring (I2C):**
-  - SDA → GPIO 8
-  - SCL → GPIO 9
-  - VCC → 3.3V
-  - GND → GND
-  - TTP223 Signal → GPIO 7 (optional)
-  - LED Transistor Base or LDO6AJSA PWM → GPIO 1 (optional)
-
-![Wiring](img/wiring.JPG)
-
-<img width="1129" height="726" alt="image" src="https://github.com/user-attachments/assets/f5283d18-aadc-475a-bbcf-92fd39dc40cc" />
-
-### Touch Button (Optional)
-##### Wiring for optional filament led and TTP223 sensor
-
-This wiring is for 2.42" OLED. Use the same firmware as for 0.96" OLED for flashing.
-No need to change firmware, TTP223 and LED will work.
-
-If you are using 2N2222 and resistors for led here is the wiring:
-<img width="1297" height="905" alt="image" src="https://github.com/user-attachments/assets/35afc555-9f64-4d54-864b-816c04abfd04" />
-
-If you are using LDO6AJSA here is the wiring:
-<img width="941" height="660" alt="image" src="https://github.com/user-attachments/assets/1ff209f1-0437-42a3-b4c9-3db65d4d3e1e" />
-
-
-
-The firmware supports an optional **TTP223 capacitive touch sensor** for physical control of the display and LED night light:
-
-**Button Gestures:**
-
-| Gesture | Duration | Action |
-|---------|----------|--------|
-| Quick tap | < 500ms | **PC online:** Toggle metrics/clock. **PC offline:** Cycle clock styles |
-| Medium press | 500ms-1s, release | Toggle LED night light on/off |
-| Long hold | > 1s, keep holding | Ramp LED brightness up (if off) or down (if on). Release to keep. |
-
-**Hardware Setup:**
-- Connect TTP223 signal pin to GPIO 7
-- Power the TTP223 with 3.3V and GND
-
-**Configuration** (in `src/config/user_config.h`):
-```cpp
-#define TOUCH_BUTTON_ENABLED 1      // 1 = enabled, 0 = disabled
-#define TOUCH_BUTTON_PIN 7          // GPIO pin (default: 7)
-#define TOUCH_DEBOUNCE_MS 50       // Debounce delay (default: 100ms)
-#define TOUCH_ACTIVE_LEVEL HIGH     // HIGH for TTP223 (active HIGH)
-```
-
-## Software Setup
-
-### 1. ESP32 Firmware
-
-#### Option A: SmallOLED Web Flasher (Preferred - No Installation Needed)
-
-A dedicated browser flasher that picks the right firmware for your OLED, installs it over USB, and then hands your WiFi to the device in the same tab. No separate flashing tool and no captive portal needed.
-
-1. Open the **[SmallOLED Web Flasher](https://keralots.github.io/SmallOLED-PCMonitor/)** in desktop **Chrome or Edge** (Web Serial is required, so Firefox, Safari and mobile won't work).
-2. Connect your ESP32-C3 via USB. If it constantly connects/disconnects, hold the **BOOT** button, connect to USB while still holding it, then release after connecting. Alternatively, hold **BOOT**, press **RESET** while holding **BOOT**, then release both buttons.
-3. Pick your OLED (0.96" SSD1306, 1.3" SH1106, 1.54" CH1116, or 2.42" SSD1309) and click **Install**. It erases and writes the full image at `0x0` in ~30 seconds.
-4. When the install finishes, use the **Configure WiFi** step to send your home network to the device over USB. If you miss it, join the **PCMonitor-Setup** hotspot and open `192.168.4.1` instead.
-5. The device reboots, joins your WiFi, and shows its IP address on the OLED.
-
-> The same page has a built-in serial monitor (section 04) for grabbing boot logs if you ever need them for a bug report.
-
-#### Option B: Manual Pre-built Binary (Optional)
-
-Prefer to flash the raw binary with your own tool? Download it from the latest release and flash the full image at `0x0`.
-
-**Download the latest release**: [v1.6.0](release/v1.6.0/)
-
-**Generic web flasher (esptool-js):**
-1. Visit [ESP Web Flasher](https://espressif.github.io/esptool-js/)
-2. Connect your ESP32-C3 via USB (use the BOOT/RESET trick above if it won't stay connected).
-3. Click **"Connect"** and select your port
-4. Click **"Choose File"** and select the full image for your display, e.g. `firmware-v1.6.0-OLED_0.96inch.bin`
-5. Make sure you pick firmware for correct OLED size version! It may initially work but you will get black screen after you reconnect device.
-6. Set **Flash Address** to `0x0`
-7. Click **"Program"** and wait ~30 seconds
-8. Done! Then set up WiFi via the **PCMonitor-Setup** hotspot (see below).
-
-**Other methods:**
-- **Windows**: Run `flash.bat` and follow prompts
-- **Linux/Mac**: Run `./flash.sh` and follow prompts
-- **Manual**: `esptool.py --chip esp32c3 --port COM3 --baud 460800 write_flash 0x0 firmware-v1.6.0-OLED_0.96inch.bin`
-
-#### Option C: Build from Source
-
-**Prerequisites:**
-- [PlatformIO](https://platformio.org/) (or Arduino IDE)
-
-**Installation:**
-1. Clone this repository
-2. Open the project in PlatformIO
-3. Connect your ESP32 via USB
-4. Build and upload:
-   ```bash
-   pio run --target upload
-   ```
-
-#### First-Time WiFi Setup
-
-> Flashed with the SmallOLED Web Flasher (Option A)? You can skip this - set WiFi from the browser's **Configure WiFi** step right after flashing. The access-point method below is the fallback, and the path when you build from source.
-
-1. After uploading, the ESP32 will create a WiFi access point
-2. Connect to the network: **PCMonitor-Setup**
-3. Open your browser to `192.168.4.1`
-4. Configure your WiFi credentials
-5. The ESP32 will connect and display its IP address on the OLED
-
-#### Web Configuration Portal
-Once connected to WiFi, access the full configuration page:
-1. Open a browser and navigate to the ESP32's IP address (shown on OLED) or `http://smalloled.local`
-
-![ESP32 Web Portal - Clock Settings](img/ESP-WEBPortal1.png)
-
-2. **Clock Settings:**
-   - Idle clock style (Mario, Space Invaders, Arkanoid, Pac-Man, Snake, Tetris, Asteroids, Dino Runner, Standard, or Large, plus a Cycle All mode)
-   - Time format (12/24 hour)
-   - Date format (DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD)
-
-3. **Display Layout:**
-   - Choose between 5-row (spacious, 13px) or 6-row (compact, 10px) modes
-   - Large 2-row and 3-row modes for double-size text
-   - Enable progress bars for visual representation
-   - Row 6 positions automatically hidden in 5-row mode
-4. **Timezone:**
-   - Select your region from ~50 timezone presets
-   - Automatic DST transitions (no manual toggle needed)
-5. **Visible metrics (custom labels & placement):**
-   - Give each metric a custom label (max 10 chars) shown on the OLED - e.g. relabel a pump RPM sensor as "PUMP", "FAN" or "COOLER"
-   - Drag a metric chip onto the live OLED preview (or tap a chip then a slot) to place it
-   - Pair two metrics on one row and add progress bars
-   - Labels can also be set from the companion app
-6. **Configuration:**
-   - Export configuration to JSON file (backup)
-   - Import configuration from JSON file (restore)
-   - Reset to factory defaults
-
-### 2. PC Stats Sender
-
-> **Recommended (v4 beta, Windows + Linux):** the v4 companion gives a web-style
-> config window that mirrors the device portal 1:1 - live OLED preview, drag-and-drop
-> layout, sensor picker, number formats, quick templates, pull/push and backup -
-> all from the desktop, hosted in a native window + system tray.
-> - **Windows:** prebuilt **`pc_stats_monitor_v4.exe`** in [`PC-Companion-App-v4-beta/win-companion/dist/`](PC-Companion-App-v4-beta/win-companion/) - no Python needed.
-> - **Linux:** run from source in [`PC-Companion-App-v4-beta/linux-companion/`](PC-Companion-App-v4-beta/linux-companion/) (`pip install -r requirements.txt` then `python3 pc_stats_monitor_v4_linux.py`).
->
-> **Legacy:** the `PC-Companion-App-v3-beta` app and the classic **`pc_stats_monitor_v2.py`** /
-> **`pc_stats_monitor_v2_linux.py`** scripts below still work if you prefer them.
-
-#### Prerequisites (v2 script)
-- **Python 3.7+**
-- **LibreHardwareMonitor** (for hardware sensor monitoring)
-- **Note:** LibreHardwareMonitor 0.9.5+ changed its WMI backend. The Python script automatically detects this and falls back to the REST API. If using 0.9.5+, enable "Options > Remote Web Server > Run" in LibreHardwareMonitor.
-
-#### Installing Python:
-For windows download [e.g. this version](https://www.python.org/ftp/python/3.14.2/python-3.14.2-amd64.exe)
-Check both checkboxes on installation screen (to use admin rights and add python.exe to PATH)
-
-<img width="654" height="414" alt="Screenshot 2025-12-07 132252" src="https://github.com/user-attachments/assets/07d958e6-9776-4981-8971-c11d7d23d59a" />
-
-At the end of installation, if asked to remove characters limit for path, agree on it.
-
-#### Installing LibreHardwareMonitor
-1. Download from [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
-2. Extract and run `LibreHardwareMonitor.exe` as Administrator
-3. Windows defender may block it from running. This is false/positive, just add it to exception.
-4. Check following options. First 4 from the top:
-<img width="442" height="627" alt="Screenshot 2025-12-07 132802" src="https://github.com/user-attachments/assets/983e41c4-9854-4d59-8ccc-4779315444d0" />
-
-For version 0.9.5 and above check Web server option:
-![lhw-webserver](img/LHW-WEBSERVER.png)
-
-
-#### Python Script Setup (v2.0 - New GUI Version!)
-
-The v2.0 script now includes a **graphical interface** that makes configuration easy - no more editing files manually!
-
-##### Step 1: Install Python Dependencies
-
-**For Windows:**
-```bash
-pip install psutil pywin32 wmi pystray pillow
-```
-
-**For Linux:**
-```bash
-pip install psutil tk
-or (if above is not working)
-sudo apt install python3-pip -y
-sudo apt install python3-tk -y
+### Pin map
 
 ```
-
-##### Step 2: Run the Script for First Time
-
-**Windows:**
-```bash
-python pc_stats_monitor_v2.py
+R1=1   G1=2   B1=4     R2=5   G2=6   B2=7
+A=8    B=9    C=10     D=11   E=12
+CLK=13 LAT=14 OE=38
 ```
 
-**Linux:**
-```bash
-python3 pc_stats_monitor_v2_linux.py
-```
+The E line is required for 64x64 (1/32 scan) panels.
 
-The GUI will automatically open if no configuration exists.
+## Clock styles
 
-##### Step 3: Configure in the GUI
+| ID | Style | Description |
+|----|-------|-------------|
+| 0 | Mario | Mario jumps to bounce changed digits; optional idle enemy encounters |
+| 1 | Standard | Traditional digital clock with date |
+| 2 | Large | Extra-large digits |
+| 3 | Space Invaders | Invader ship shoots lasers to change digits |
+| 4 | Space Ship | Reserved variant of style 3 |
+| 5 | Pong / Arkanoid | Breakout-style ball physics, digits shatter and reassemble |
+| 6 | Pac-Man | Pac-Man eats pellet-based digits |
+| 7 | Snake | Nokia-style snake hunts pellets left by changed digits |
+| 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors |
+| 9 | Cycle All Styles | Rotates through every style every 5 minutes |
+| 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
+| 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 
-![Python GUI Screenshot](img/pcmonitorGUI.png)
+Every style's sprite colors are individually editable in the web interface (digits,
+characters, effects, backgrounds), so each clock can match your setup.
 
-The configuration window lets you:
+## Web interface
 
-1. **Enter ESP32 IP Address** - Find this on your OLED display after WiFi setup
-2. **Set UDP Port** (default: 4210) - Leave this unless you changed it
-3. **Update Interval** (default: 3 seconds) - How often to send stats
-4. **Select Metrics to Monitor**:
-   - Browse through categories: System, Temperatures, Fans, Loads, Clocks, Power, Network Data, Network Throughput
-   - Check the boxes next to sensors you want to monitor
-   - You can select up to 20 metrics
-   - **Current values are shown** to help you identify sensors
-   - Use the **Search** box to quickly find specific sensors
-5. **Custom Labels** (optional):
-   - Each sensor has a "Label" field
-   - Enter a custom name (max 10 characters) to display on ESP32
-   - Leave empty to use auto-generated names
-6. **Click "Save & Start Monitoring"** when done
+Once on WiFi, open the device's IP address or `http://pixelclock.local` in a browser:
 
-##### Step 4: Position Metrics on ESP32 Display
+- **Clock settings**: style, 12/24 hour, date format, position, per-style animation
+  options, per-element colors with one-click reset to defaults
+- **Display**: brightness (live slider), colon blink mode/rate, adaptive refresh rate,
+  scheduled night dimming (start/end hour + dim level)
+- **Timezone**: ~76 regions with automatic DST transitions (POSIX TZ database, no
+  manual toggles)
+- **Network**: DHCP or static IP, device name (mDNS), show IP at boot
+- **PC monitor layout**: which metrics are visible and where, 5-row / 6-row / large
+  text modes, progress bars, drag-and-drop placement on a live preview
+- **Config export/import** as JSON (includes the color palette)
+- **Firmware update**: upload a `.bin` over the air
 
-After the Python script starts sending data:
+## PC monitor mode (optional)
 
-1. Open your ESP32's IP address in a web browser
-2. Open the **Visible metrics** page
-3. You'll see all metrics received from your PC as draggable chips under a live OLED preview
-4. Drag a chip onto a slot (or tap a chip then a slot) to place it; optionally pair it with a companion metric. E.g. **"CPU: 10% 40C"** > shows usage and temperature of CPU.
-5. Use **progress bars** for visual representation (optional)
-6. Choose between **5-row** (more spacing) or **6-row** (compact) display modes on the Display layout page
+With the companion app running on your PC, the display switches to live hardware
+stats (CPU/GPU temps and loads, RAM, disks, fans, network throughput; up to 20
+metrics) and returns to the clock when the PC goes offline.
 
-**TIP:** Start with 1-2 metrics initially and slowly build entire layout.
+**Companion app v4** (Windows + Linux) lives in
+[`PC-Companion-App-v4-beta/`](PC-Companion-App-v4-beta/): a tray app with a
+web-style config window, live device preview, drag-and-drop layout editor and
+sensor picker.
 
-![ESP32 Web Portal - Metrics](img/ESP-WEBPortal3.png)
+- **Windows**: run the prebuilt
+  [`win-companion/dist/pc_stats_monitor_v4.exe`](PC-Companion-App-v4-beta/win-companion/),
+  no Python needed. Install
+  [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
+  and run it as Administrator for temperature/fan/power sensors (on 0.9.5+ enable
+  Options > Remote Web Server > Run).
+- **Linux**: `cd PC-Companion-App-v4-beta/linux-companion`, then
+  `python3 -m pip install -r requirements.txt` and
+  `python3 pc_stats_monitor_v4_linux.py`.
 
-The display will update in real-time as you arrange metrics!
+Data is sent over local UDP (port 4210) as JSON, a few times per second at <1% CPU.
 
-##### Step 5: Enable Autostart (Optional)
+## Building and flashing
 
-**Windows:**
-```bash
-python pc_stats_monitor_v2.py --autostart enable
-```
-
-This will:
-- Create a startup entry in Windows
-- Run minimized to system tray on boot
-- Right-click tray icon to configure or quit
-
-**Linux (systemd):**
-```bash
-python3 pc_stats_monitor_v2_linux.py --autostart enable
-```
-
-This creates a systemd user service that:
-- Starts automatically on boot
-- Restarts if it crashes
-- Check status: `systemctl --user status pc-monitor`
-- View logs: `journalctl --user -u pc-monitor -f`
-
-##### Common Commands
-
-**Edit Configuration:**
-```bash
-# Windows
-python pc_stats_monitor_v2.py --edit
-
-# Linux
-python3 pc_stats_monitor_v2_linux.py --edit
-```
-
-**Run in Background (Windows only):**
-```bash
-python pc_stats_monitor_v2.py --minimized
-```
-
-**Disable Autostart:**
-```bash
-# Windows
-python pc_stats_monitor_v2.py --autostart disable
-
-# Linux
-python3 pc_stats_monitor_v2_linux.py --autostart disable
-```
-
-##### Understanding Display Modes
-
-The firmware supports multiple display layouts:
-
-**5-Row Mode (Recommended):**
-- More spacing (13px between rows)
-- Better readability
-- Positions 0-9 available
-- 11px spacing with centered clock
-
-![5-Row Display](img/5rows.jpg)
-
-**6-Row Mode (Compact):**
-- Tighter spacing (10px between rows)
-- Fits more metrics
-- Positions 0-11 available
-
-![6-Row Display](img/6rows.jpg)
-
-**Large 2-Row / 3-Row Modes:**
-- Double-size text for readability at a distance
-- Single-column layout
-- Best for desk setups where you want a quick glance
-
-You can switch between modes in the ESP32 web interface under "Display Layout Settings".
-
-#### Legacy Script (Older Versions)
-
-If you're using firmware versions below 1.3.0, use the legacy scripts:
-- [pc_stats_monitor.py](old/pc_stats_monitor.py) for Windows
-- [pc_stats_monitor_linux.py](old/pc_stats_monitor_linux.py) for Linux
-
-These require manual configuration by editing the ESP32_IP in the script file.
-
-## Usage
-
-### Normal Operation
-1. **ESP32** should be powered and connected to WiFi
-2. **LibreHardwareMonitor** must be running on your PC
-3. **Python script** should be running
-
-The OLED will display:
-- **PC Online**: Real-time stats (CPU, RAM, GPU temp, disk, fan speed)
-- **PC Offline**: Animated clock (choose from 10 styles in the web portal, or a Cycle All mode that rotates through them)
-
-### Display Modes
-
-**When PC is Online (receiving stats):**
-- Real-time monitoring display with customizable labels
-- Shows CPU usage/temp, RAM usage, GPU temp, Disk usage, Fan/Pump speed
-- Progress bars for visual representation
-- Automatically switches when PC sends data
-
-**When PC is Offline (idle mode):**
-- **Mario Clock**: Animated pixel Mario that jumps to "hit" digits when time changes
-- **Space Invaders Clock**: Invader/ship shoots lasers to change digits
-- **Arkanoid Clock**: Breakout-style ball physics destroy and rebuild digits
-- **Pac-Man Clock**: Pac-Man eats pellet-based digits
-- **Snake Clock**: A Nokia-style snake roams the screen chasing food and steering around the digits and its own body. On each minute change the changed digits crumble into pellets that the snake hunts down one by one before the new digit drops in. Optional arena border and date row.
-- **Tetris Clock**: Block-grid digits sit low on the screen with the occasional tumbling tetromino. On each minute change the changed digits are rebuilt one at a time, either as drop-in slabs or as falling dots. Optional date row at the top or bottom.
-- **Asteroids Clock**: A wireframe vector clock - the ship drifts with inertia and splits tumbling rocks while idle, then aims at and shoots each changed digit into spinning line shards at the minute change. Optional date row.
-- **Dino Runner Clock**: A Chrome T-Rex homage - the dino runs and auto-jumps cacti over a scrolling ground with parallax clouds; at the minute change a pterodactyl swoops in, carries off the old digit, and the new one drops in from above. Optional clouds and date row.
-- **Standard Clock**: Simple centered clock with date and day of week
-- **Large Clock**: Extra-large time display with date
-- **Cycle All Styles**: Rotates through every clock style automatically, switching every 5 minutes.
-
-Change clock style anytime via the web portal or touch button!
-
-### Customizing Display Labels
-
-**Via Web Portal (Recommended):**
-1. Open ESP32's IP address in browser
-2. Go to the **Visible metrics** page
-3. Expand a metric and set its **Custom label** to match your setup:
-   - relabel a pump RPM sensor "PUMP", "FAN" or "COOLER"
-   - give CPU, RAM, GPU, Disk metrics your own labels too
-4. Changes apply live in the preview; click **Save & apply** to keep them
-
-### Customizing Monitored Sensors (v2.0)
-
-With the v2.0 GUI, you can easily select any sensors available on your system:
-
-**Available Sensor Categories:**
-- **System Metrics**: CPU%, RAM%, Disk usage (using psutil)
-- **Temperatures**: CPU cores, GPU, motherboard, drives
-- **Fans & Cooling**: All detected fan speeds
-- **Loads**: CPU/GPU load percentages
-- **Clocks**: CPU/GPU clock speeds
-- **Power**: Power consumption sensors
-- **Network Data**: Total uploaded/downloaded (in GB)
-- **Network Throughput**: Current upload/download speeds (in KB/s or MB/s)
-
-**How to Select Sensors:**
-1. Make sure **LibreHardwareMonitor is running** (Windows only)
-2. Run `python pc_stats_monitor_v2.py --edit`
-3. Browse through sensor categories
-4. **Current values are displayed** next to each sensor to help you identify them
-5. Check boxes for sensors you want to monitor
-6. Set custom labels if desired (max 10 characters)
-7. Save and start monitoring
-
-![ESP32 Web Portal Example](img/ESP-WEBPortal1.png)
-
-**Tips:**
-- The GUI shows live sensor values when you open it
-- Use the search box to quickly find specific sensors
-- Network metrics automatically distinguish between upload and download
-- You can select up to 20 different metrics
-- Labels set in Python GUI will override default names on ESP32
-
-## HTTP Control API
-
-The firmware exposes a small set of HTTP endpoints for remote control and home automation (e.g. Home Assistant, Node-RED, or a simple `curl` from a script). This is handy for **turning the display off while you're away to extend OLED lifetime**, forcing the clock display, dimming on your own schedule, or rebooting the device remotely.
-
-All endpoints are plain **HTTP GET** (easy to call from any tool), return JSON, and have **no authentication** - anyone on your local network can call them, so keep the device on a trusted LAN.
-
-> **Note:** These controls are **runtime-only** - they are *not* saved to flash and reset to your normal configured behavior after a reboot or power cycle. This is intentional: it avoids flash wear from automations toggling frequently, and lets an external scheduler own the state. To change defaults permanently, use the web configuration portal.
-
-Replace `smalloled.local` in the examples with your device's mDNS name (configurable) or its IP address.
-
-### Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/status` | Return current display/mode state as JSON |
-| GET | `/api/display/off` | Turn the display off (panel powered down) |
-| GET | `/api/display/on` | Turn the display back on |
-| GET | `/api/display/brightness?value=0-100` | Set display brightness (percent) |
-| GET | `/api/mode/clock` | Force the animated clock, even when the PC is online |
-| GET | `/api/mode/auto` | Resume automatic mode (PC stats when online, clock when offline) |
-| GET | `/api/clock/style?id=0-11` | Switch the clock animation |
-| GET | `/api/reboot` | Soft-restart the device (does **not** erase settings) |
-
-**Clock style IDs:** `0` = Mario, `1` = Standard, `2` = Large, `3` = Space Invaders, `5` = Arkanoid/Pong, `6` = Pac-Man, `7` = Snake, `8` = Tetris, `9` = Cycle All Styles, `10` = Asteroids, `11` = Dino Runner.
-
-### Examples
+Built with [PlatformIO](https://platformio.org/).
 
 ```bash
-# Turn the display off (e.g. when leaving home) and back on
-curl http://smalloled.local/api/display/off
-curl http://smalloled.local/api/display/on
+# ESP32-S3-WROOM devkit (default)
+pio run -e matrix-s3-wroom -t upload
 
-# Dim the display to 30%
-curl "http://smalloled.local/api/display/brightness?value=30"
-
-# Always show the clock, then go back to automatic
-curl http://smalloled.local/api/mode/clock
-curl http://smalloled.local/api/mode/auto
-
-# Switch to the Pac-Man clock
-curl "http://smalloled.local/api/clock/style?id=6"
-
-# Check current state
-curl http://smalloled.local/api/status
+# Waveshare ESP32-S3-Zero
+pio run -e matrix-s3
 ```
 
-A `/api/status` response looks like:
+The S3-Zero has no USB-UART chip: for the first flash hold BOOT while plugging in
+USB, then use OTA. The `matrix-s3-bringup` / `matrix-wroom-bringup` environments
+build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six test
+patterns, useful for verifying wiring before flashing the full firmware.
 
-```json
-{
-  "displayOn": true,
-  "forcedOff": false,
-  "mode": "clock",
-  "forcedClock": true,
-  "brightness": 100,
-  "clockStyle": 0,
-  "pcOnline": false
-}
+### First-time WiFi setup
+
+On first boot the device opens an access point named **PixelClock-Setup**. Join it
+and a captive portal (or `192.168.4.1`) lets you enter your WiFi credentials.
+Improv-Serial provisioning over USB is also supported.
+
+### OTA updates
+
+After the initial flash, update over WiFi from the web interface's Firmware Update
+section, or from the command line:
+
+```bash
+curl -F "firmware=@.pio/build/matrix-s3-wroom/firmware.bin" http://<device-ip>/update
 ```
 
-| Field | Meaning |
-|-------|---------|
-| `displayOn` | `false` when the panel is off (forced off, or brightness 0) |
-| `forcedOff` | `true` if the display was turned off via `/api/display/off` |
-| `mode` | `"metrics"` or `"clock"` - what is currently being shown |
-| `forcedClock` | `true` if clock mode is being forced via `/api/mode/clock` |
-| `brightness` | Current brightness, 0-100% |
-| `clockStyle` | Active clock style ID (see list above) |
-| `pcOnline` | `true` if the PC sender is currently sending stats |
+## HTTP control API
 
-### Home Assistant example
+Simple GET endpoints for home automation (Home Assistant, Node-RED, cron + curl).
+All controls are runtime-only: they reset to the configured behavior after a reboot,
+which avoids flash wear from frequent automation toggles. No authentication, so keep
+the device on a trusted LAN.
 
-Add this to your `configuration.yaml` to expose the display on/off controls as commands:
+| Endpoint | Description |
+|----------|-------------|
+| `/api/status` | Current display/mode state as JSON |
+| `/api/display/off` / `/api/display/on` | Blank / restore the panel |
+| `/api/display/brightness?value=0-100` | Set brightness (percent) |
+| `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
+| `/api/clock/style?id=0-11` | Switch the clock style (IDs in the table above) |
+| `/api/reboot` | Soft-restart (settings kept) |
+
+```bash
+curl http://pixelclock.local/api/display/off
+curl "http://pixelclock.local/api/display/brightness?value=30"
+curl "http://pixelclock.local/api/clock/style?id=8"
+```
+
+Home Assistant example:
 
 ```yaml
 rest_command:
-  oled_display_off:
-    url: "http://smalloled.local/api/display/off"
-  oled_display_on:
-    url: "http://smalloled.local/api/display/on"
+  clock_display_off:
+    url: "http://pixelclock.local/api/display/off"
+  clock_display_on:
+    url: "http://pixelclock.local/api/display/on"
 ```
 
-You can then call `rest_command.oled_display_off` / `oled_display_on` from an automation - for example, turn the display off when everyone leaves home and back on when someone arrives.
+## Libraries
 
-## Troubleshooting
-
-### ESP32 Issues
-
-**Display not working**
-- Check I2C wiring (SDA=GPIO8, SCL=GPIO9)
-- Verify I2C address is 0x3C (common for SSD1306)
-- For SH1106 (1.3"): change `DEFAULT_DISPLAY_TYPE` to `1` in `user_config.h`
-- For CH1116 (1.54"): change `DEFAULT_DISPLAY_TYPE` to `2` in `user_config.h`
-- For SSD1309 (2.42"): use `DEFAULT_DISPLAY_TYPE` `0` (same as 0.96", no change needed)
-
-**Can't connect to WiFi portal**
-- Make sure you're connected to "PCMonitor-Setup" network
-- Try accessing `192.168.4.1` in your browser
-- Reset WiFi settings via web interface
-
-**ESP32 keeps restarting**
-- Check power supply (use quality USB cable)
-- Monitor serial output at 115200 baud for error messages
-
-### Python Script Issues (v2.0)
-
-**"No configuration found" - GUI won't open**
-- Make sure you have Tkinter installed (comes with Python on Windows)
-- Linux: Install with `sudo apt-get install python3-tk`
-- Check that you're running Python 3.7 or newer
-
-**"WMI not found" or hardware sensor errors (Windows)**
-- Make sure **LibreHardwareMonitor is running as Administrator**
-- Install dependencies: `pip install pywin32 wmi`
-- Check that WMI service is running: `services.msc` → Windows Management Instrumentation
-
-**No sensors showing in GUI (Windows)**
-- Run LibreHardwareMonitor **before** starting the Python script
-- If using LibreHardwareMonitor 0.9.5+, enable: Options → Remote Web Server → Run
-- The script will auto-detect and use the REST API when WMI is unavailable
-- Wait a few seconds after launching LibreHardwareMonitor before running Python script
-
-**No data on ESP32 display**
-- Verify ESP32 IP address in Python GUI matches actual IP (shown on OLED)
-- Check Windows Firewall isn't blocking UDP port 4210
-- Ensure both PC and ESP32 are on the same network
-- Open ESP32 web interface and check the **Visible metrics** page
-- Try running: `python pc_stats_monitor_v2.py` (not minimized) to see console output
-
-**Autostart not working (Windows)**
-- Make sure `pywin32` is installed: `pip install pywin32`
-- Check Windows Startup folder: Press `Win + R`, type `shell:startup`
-- Look for "PC Monitor.lnk" shortcut
-- For system tray mode, install: `pip install pystray pillow`
-
-**Autostart not working (Linux)**
-- Check service status: `systemctl --user status pc-monitor`
-- View logs: `journalctl --user -u pc-monitor -f`
-- Make sure systemd is available on your system
-- Enable lingering (optional): `loginctl enable-linger $USER`
-
-**Network metrics not showing (Linux)**
-- Network metrics use psutil's `net_io_counters()`
-- Upload/download speeds are calculated from byte deltas
-- First reading will always be 0, wait for next update cycle
-
-**Custom labels not appearing on ESP32**
-- Labels are set in Python GUI, not ESP32 web interface
-- Run `python pc_stats_monitor_v2.py --edit` to modify labels
-- ESP32 receives the label name from Python script
-- Check that Python script successfully connects (see console output)
-
-## Technical Details
-
-### Communication
-- **Protocol**: UDP
-- **Port**: 4210 (configurable)
-- **Format**: JSON
-- **Update Rate**: 3 seconds (configurable via GUI)
-- **Max Metrics**: 20 (increased from 12 in v1.x)
-
-### v2.0 Improvements
-- **JSON-based configuration** stored in `monitor_config.json` (Windows) or `monitor_config_linux.json` (Linux)
-- **Dynamic sensor discovery** - automatically detects all available sensors
-- **REST API fallback** - automatic support for LibreHardwareMonitor 0.9.5+ (broken WMI)
-- **Network metrics** calculated in real-time (upload/download speeds)
-- **5-row/6-row display modes** with optimized spacing (13px vs 10px)
-- **Export/Import** configuration for easy backup and sharing
-- **Systemd integration** (Linux) for proper service management
-
-### Libraries Used
-
-**ESP32:**
-- WiFiManager (tzapu)
-- Adafruit SSD1306 / Adafruit SH110X
-- Adafruit GFX
-- ArduinoJson
-
-**Python (Windows):**
-- psutil (system stats & network)
-- pywin32/wmi (LibreHardwareMonitor integration)
-- tkinter (GUI - included with Python)
-- pystray/pillow (system tray - optional)
-
-**Python (Linux):**
-- psutil (system stats, temps, fans, network)
-- tkinter (GUI)
-
-### File Structure
-```
-pc_stats_monitor_v2.py          # Windows version with GUI
-pc_stats_monitor_v2_linux.py    # Linux version with GUI
-monitor_config.json              # Windows config (auto-generated)
-monitor_config_linux.json        # Linux config (auto-generated)
-pc_stats_monitor.py              # Legacy Windows script (v1.x)
-pc_stats_monitor_linux.py        # Legacy Linux script (v1.x)
-```
-
-## Advanced / Optional Features
-
-These features are **disabled by default** and require recompilation. They are configured in `src/config/user_config.h` and are intended for advanced users who build from source.
-
-### Display Type Selection
-
-Change `DEFAULT_DISPLAY_TYPE` to match your OLED:
-
-| Value | Display | Size | Notes |
-|-------|---------|------|-------|
-| `0` | SSD1306 | 0.96" / 2.42" | Default. Works for both 0.96" SSD1306 and 2.42" SSD1309 |
-| `1` | SH1106 | 1.3" | 132x64 RAM with 2-column offset |
-| `2` | CH1116 | 1.54" | SH1106-compatible, no column offset ([example panel](https://aliexpress.com/item/1005006579037427.html)) |
-
-### SPI Display Interface
-
-By default, displays connect via I2C (2 wires). For faster refresh rates (useful for smooth animations), you can use SPI instead.
-
-```cpp
-#define DISPLAY_INTERFACE 1          // 0 = I2C (default), 1 = SPI
-```
-
-**SPI pin assignments** (ESP32-C3):
-| Signal | GPIO | Notes |
-|--------|------|-------|
-| MOSI (SDA) | 6 | Data |
-| SCK | 4 | SPI Clock |
-| CS | 5 | Chip Select |
-| DC | 3 | Data/Command |
-| RST | 10 | Reset (-1 if not connected) |
-
-### LED PWM Night Light
-
-Drive a filament LED (or any LED) via a 2N2222 transistor on GPIO 1. Controlled via TTP223 touch gestures (medium press toggles, long hold ramps brightness with gamma correction).
-
-```cpp
-#define LED_PWM_ENABLED 1            // 0 = disabled (default), 1 = enabled
-#define LED_PWM_PIN 1                // GPIO pin (default: 1)
-```
-
-See the [wiring diagram](img/circuit_image.png) for the transistor circuit.
-
-### QR Code WiFi Setup
-
-Show a scannable QR code on the OLED during WiFi AP setup instead of text instructions. Useful for mobile phone setup.
-
-```cpp
-#define QR_SETUP_ENABLED 1           // 0 = text instructions (default), 1 = QR code
-```
-
-### BLE WiFi Provisioning (Experimental)
-
-Bluetooth Low Energy setup for the **SmallOLED Android app** (currently in development). Instead of the WiFi AP portal, the ESP32 advertises as a BLE device. The Android app discovers it, sends WiFi credentials over BLE, and the device connects automatically.
-
-```cpp
-#define BLE_SETUP_ENABLED 1          // 0 = AP mode (default), 1 = BLE provisioning
-#define BLE_DEVICE_NAME "SmallOLED"  // BLE advertised name
-```
-
-**How it works:**
-1. On first boot (no saved WiFi), device starts BLE advertising
-2. Android app scans and finds "SmallOLED"
-3. App sends your home WiFi SSID + password over BLE
-4. Device connects to WiFi and saves credentials
-5. Subsequent boots connect silently (no BLE needed)
-6. If BLE times out (2 min) or fails, falls back to AP mode automatically
-
-**Requirements:**
-- `min_spiffs.csv` partition table (already set in `platformio.ini`)
-- NimBLE library (already included in `platformio.ini`)
-- Android app (in development, not yet publicly released)
-
-### Scheduled Display Dimming
-
-Automatically dim the display during nighttime hours. Configured via the web interface under Display Settings:
-- **Enable/disable** scheduled dimming
-- **Start/end hours** (e.g., 10 PM to 7 AM)
-- **Dim brightness level** (0-255)
-
-### OTA Firmware Updates
-
-Upload new firmware wirelessly through the web interface at `http://<device-ip>/update`. No need to physically connect USB after the initial flash.
+- [ESP32-HUB75-MatrixPanel-DMA](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-I2S-DMA) (matrix driver)
+- Adafruit GFX, WiFiManager (tzapu), ArduinoJson, Improv-Serial
 
 ## License
 
-This project is open source. Feel free to modify and share!
-
-## Credits
-
-Created for monitoring PC stats on a small OLED display. Mario animation inspired by classic pixel art.
+Open source. Feel free to modify and share.
