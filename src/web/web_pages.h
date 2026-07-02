@@ -19,7 +19,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmallOLED - Config Portal v%VER%</title>
+<title>AnimatedPixelClock - Config Portal v%VER%</title>
 <meta name="theme-color" content="#f4f0e7">
 <script>(function(){try{var a=localStorage.getItem('soled_accent');if(a)document.documentElement.setAttribute('data-accent',a);var m=localStorage.getItem('soled_mode');if(m){document.documentElement.setAttribute('data-mode',m);var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute('content',m==='dark'?'#161512':'#f4f0e7');}}catch(e){}})();</script>
 <link rel="stylesheet" href="/portal.css?v=%ASSETVER%">
@@ -31,7 +31,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
   <button type="button" class="hamburger" id="navToggle" aria-label="Toggle navigation" aria-expanded="false"><span></span></button>
   <div class="tb-brand">
     <span class="brand-mark" aria-hidden="true"></span>
-    <span class="tb-name">SmallOLED</span>
+    <span class="tb-name">PixelClock</span>
     <span class="tb-ver">v%VER%</span>
   </div>
   <span class="tb-sep" aria-hidden="true"></span>
@@ -91,8 +91,8 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
     </div>
 
     <div class="about">
-      <span class="line">SmallOLED PC-Monitor &middot; <b>v%VER%</b></span>
-      <a href="https://github.com/Keralots/SmallOLED-PCMonitor" target="_blank" rel="noopener"><span class="gh" aria-hidden="true"></span>github.com/Keralots</a>
+      <span class="line">AnimatedPixelClock &middot; <b>v%VER%</b></span>
+      <a href="https://github.com/Keralots/AnimatedPixelClock" target="_blank" rel="noopener"><span class="gh" aria-hidden="true"></span>github.com/Keralots</a>
     </div>
   </aside>
 
@@ -977,7 +977,7 @@ var c = document.getElementById(show + 'Colors'); if (c) c.style.display = '';
 if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
 var dn = $('#deviceName');
 if (dn) dn.addEventListener('input', function () {
-var v = dn.value.toLowerCase() || 'smalloled';
+var v = dn.value.toLowerCase() || 'pixelclock';
 var hp = $('#hostPreview'); if (hp) hp.textContent = v;
 var sh = $('#srHost'); if (sh) sh.textContent = v;
 });
@@ -1366,7 +1366,7 @@ $('#exportBtn').addEventListener('click', function () {
 fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
 var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 var url = URL.createObjectURL(blob);
-var a = document.createElement('a'); a.href = url; a.download = 'smalloled-config.json';
+var a = document.createElement('a'); a.href = url; a.download = 'animatedpixelclock-config.json';
 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }).catch(function (err) { alert('Error exporting configuration: ' + err); });
 });

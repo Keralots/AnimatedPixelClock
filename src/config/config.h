@@ -13,7 +13,7 @@
 #include "color_slots.h"
 
 // ========== Version ==========
-#define FIRMWARE_VERSION "1.6.1"
+#define FIRMWARE_VERSION "2.0.0"
 
 // ========== Constants ==========
 #define MAX_METRICS 20
@@ -87,7 +87,7 @@ struct Settings {
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s
 
   // Network settings
-  char deviceName[32];          // Device name for mDNS and app (default: "smalloled")
+  char deviceName[32];          // Device name for mDNS and app (default: "pixelclock")
   bool showIPAtBoot;          // Show IP address on the panel at startup (default: true)
   bool useStaticIP;
   char staticIP[16];

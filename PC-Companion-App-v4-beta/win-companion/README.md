@@ -1,6 +1,6 @@
 # PC Companion App v4 (Windows) - BETA
 
-Sends your PC's sensor readings to a SmallOLED-PCMonitor device over your local
+Sends your PC's sensor readings to an AnimatedPixelClock device over your local
 network (UDP), and gives you a **web-based configuration window** that mirrors the
 device's own config portal 1:1 - including a live pixel-accurate OLED preview and
 a drag-and-drop layout editor.

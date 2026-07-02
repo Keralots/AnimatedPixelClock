@@ -91,7 +91,7 @@ void loadSettings() {
     settings.displayRowMode = 0;         // Default: 5 rows with more spacing
     settings.useRpmKFormat = false;      // Default: Full RPM format (1800RPM)
     settings.useNetworkMBFormat = false; // Default: Full KB/s format
-    strcpy(settings.deviceName, "smalloled");
+    strcpy(settings.deviceName, "pixelclock");
     settings.colonBlinkMode = 1;         // Default: Blink
     settings.colonBlinkRate = 10; // Default: 1.0 Hz (10 = 1.0Hz in tenths)
     settings.refreshRateMode = 0; // Default: Auto
@@ -394,7 +394,7 @@ void loadSettings() {
   }
 
   // Load network configuration
-  String loadedDeviceName = preferences.getString("deviceName", "smalloled");
+  String loadedDeviceName = preferences.getString("deviceName", "pixelclock");
   strncpy(settings.deviceName, loadedDeviceName.c_str(), 31);
   settings.deviceName[31] = '\0';
   settings.showIPAtBoot =

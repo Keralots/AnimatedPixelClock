@@ -289,7 +289,7 @@ def run(core, start_hidden=False, notify_startup=False):
 
     tray_icon = _make_tray()
     _window = webview.create_window(
-        "SmallOLED PC Companion", url,
+        "AnimatedPixelClock PC Companion", url,
         width=1180, height=820, min_size=(900, 600), hidden=start_hidden,
         js_api=_JsApi())
 

@@ -1,6 +1,6 @@
 # PC Companion App v3 (Windows)
 
-Sends your PC's sensor readings to a SmallOLED-PCMonitor device over your local
+Sends your PC's sensor readings to an AnimatedPixelClock device over your local
 network (UDP). This folder is the **Windows companion**, packaged as a single
 `pc_stats_monitor_v3.exe` so end users do not need Python installed.
 

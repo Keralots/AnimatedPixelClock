@@ -28,7 +28,7 @@ static ImprovTypes::ChipFamily detectChipFamily() {
 static String buildDeviceName() {
   uint32_t mac = (uint32_t)(ESP.getEfuseMac() & 0xFFFF);
   char buf[32];
-  snprintf(buf, sizeof(buf), "SmallOLED-%04X", mac);
+  snprintf(buf, sizeof(buf), "PixelClock-%04X", mac);
   return String(buf);
 }
 
@@ -66,7 +66,7 @@ void improvSetupBegin(uint32_t windowMs) {
   String deviceName = buildDeviceName();
   improvSerial.setDeviceInfo(
       detectChipFamily(),
-      "SmallOLED PC-Monitor",
+      "AnimatedPixelClock",
       FIRMWARE_VERSION,
       deviceName.c_str(),
       "http://{LOCAL_IPV4}/");

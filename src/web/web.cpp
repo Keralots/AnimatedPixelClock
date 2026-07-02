@@ -134,7 +134,7 @@ void handleDeviceInfo() {
  doc["rssi"] = WiFi.RSSI();
  doc["uptime"] = millis() / 1000;
  doc["freeHeap"] = ESP.getFreeHeap();
- doc["model"] = "SmallOLED";
+ doc["model"] = "AnimatedPixelClock";
 
  String json;
  serializeJson(doc, json);
@@ -1226,7 +1226,7 @@ void handleSave() {
 
 void handleReset() {
  String html = R"rawliteral(
-<!DOCTYPE html><html><head><title>Factory Reset</title><style> body{font-family:Arial;background:#1a1a2e;color:#e94560;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.msg{text-align:center}</style></head><body><div class="msg"><h1>&#128260;</h1><p>Factory reset in progress...<br>All settings erased.<br>Connect to "PCMonitor-Setup" to reconfigure.</p></div></body></html>
+<!DOCTYPE html><html><head><title>Factory Reset</title><style> body{font-family:Arial;background:#1a1a2e;color:#e94560;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.msg{text-align:center}</style></head><body><div class="msg"><h1>&#128260;</h1><p>Factory reset in progress...<br>All settings erased.<br>Connect to "PixelClock-Setup" to reconfigure.</p></div></body></html>
 )rawliteral";
 
  // Send HTML (small page)

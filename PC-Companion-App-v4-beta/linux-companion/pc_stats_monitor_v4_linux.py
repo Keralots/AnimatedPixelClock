@@ -218,7 +218,7 @@ def setup_autostart(enable=True):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             unit = (
                 "[Unit]\n"
-                "Description=PC Stats Monitor (SmallOLED companion)\n"
+                "Description=PC Stats Monitor (AnimatedPixelClock companion)\n"
                 "After=graphical-session.target\n\n"
                 "[Service]\n"
                 "Type=simple\n"

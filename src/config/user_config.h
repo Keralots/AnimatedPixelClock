@@ -22,7 +22,7 @@
 // Access Point name for initial setup.
 // AP_PASSWORD: leave as "" for an open (passwordless) AP — easiest for users.
 //              Set a password string to require one (e.g. "monitor123").
-#define AP_NAME "PCMonitor-Setup"
+#define AP_NAME "PixelClock-Setup"
 #define AP_PASSWORD ""
 
 // ========== Optional Hardcoded WiFi Credentials ==========

@@ -1,6 +1,6 @@
 # PC Companion App v4 (beta)
 
-The v4 desktop companion for SmallOLED-PCMonitor. It brings the device's own
+The v4 desktop companion for AnimatedPixelClock. It brings the device's own
 config portal to the PC: a web-style window (1:1 OLED preview, drag-and-drop
 layout, sensor picker, number formats, quick templates, pull/push, backup),
 hosted in a native window + system tray, sending sensor readings to the device

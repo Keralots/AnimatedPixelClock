@@ -8,7 +8,7 @@
  *
  * The window runs cooperatively while the WiFiManager AP captive portal stays
  * up in parallel, so users who don't catch the browser dialog still get the
- * PCMonitor-Setup hotspot fallback without any extra wait.
+ * PixelClock-Setup hotspot fallback without any extra wait.
  *
  * Enabled via IMPROV_SETUP_ENABLED in src/config/user_config.h.
  *

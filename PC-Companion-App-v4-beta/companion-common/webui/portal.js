@@ -79,7 +79,7 @@ if (show) { var e = document.getElementById(show); if (e) e.style.display = ''; 
 if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
 var dn = $('#deviceName');
 if (dn) dn.addEventListener('input', function () {
-var v = dn.value.toLowerCase() || 'smalloled';
+var v = dn.value.toLowerCase() || 'pixelclock';
 var hp = $('#hostPreview'); if (hp) hp.textContent = v;
 var sh = $('#srHost'); if (sh) sh.textContent = v;
 });
