@@ -50,12 +50,14 @@ static void setDisplayContrast(uint8_t brightness) {
 #endif
 }
 
+// Applies a raw brightness value. Callers pass either an already-sanitized
+// settings value or an intentional 0 (forced off / 0%): sanitizing here would
+// turn that 0 into 1 on builds where zero brightness is not user-selectable,
+// leaving the panel faintly lit instead of off.
 static void applyBrightnessLevel(uint8_t brightness) {
   if (!displayAvailable) {
     return;
   }
-
-  brightness = sanitizeBrightnessValue(brightness);
 
   if (brightness == 0) {
     setDisplayPower(false);
