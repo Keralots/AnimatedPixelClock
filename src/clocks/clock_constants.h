@@ -26,7 +26,7 @@
 #define SPACE_LASER_OFFSET_Y 4
 
 // Explosion frames before moving to next target
-#define SPACE_EXPLOSION_FRAMES 5
+#define SPACE_EXPLOSION_FRAMES 10
 
 // ========== Digit Positioning ==========
 // Standard digit X positions (18px spacing, starting at 19)

@@ -208,6 +208,15 @@ void displayClockWithMario() {
   }
 }
 
+// Walk-cycle sprite frames were tuned for the original 35 ms tick; at the
+// 16 ms tick advance the frame only every other update to keep the leg
+// cadence unchanged.
+static bool advanceWalkFrameThisTick() {
+  static uint8_t walk_frame_divider = 0;
+  walk_frame_divider ^= 1;
+  return walk_frame_divider == 0;
+}
+
 // ========== Update Mario Animation ==========
 void updateMarioAnimation(struct tm* timeinfo) {
   unsigned long currentMillis = millis();
@@ -274,7 +283,7 @@ void updateMarioAnimation(struct tm* timeinfo) {
         int target = target_x_positions[current_target_index];
 
         if (abs(mario_x - target) > MARIO_TARGET_PROXIMITY) {
-          float walkSpeed = settings.marioWalkSpeed / 10.0f;
+          float walkSpeed = (settings.marioWalkSpeed / 10.0f) * MARIO_TICK_SCALE;
           if (mario_x < target) {
             mario_x += walkSpeed;
             mario_facing_right = true;
@@ -282,12 +291,14 @@ void updateMarioAnimation(struct tm* timeinfo) {
             mario_x -= walkSpeed;
             mario_facing_right = false;
           }
-          int frameCount = settings.marioSmoothAnimation ? 4 : 2;
-          mario_walk_frame = (mario_walk_frame + 1) % frameCount;
+          if (advanceWalkFrameThisTick()) {
+            int frameCount = settings.marioSmoothAnimation ? 4 : 2;
+            mario_walk_frame = (mario_walk_frame + 1) % frameCount;
+          }
         } else {
           mario_x = target;
           mario_state = MARIO_JUMPING;
-          jump_velocity = JUMP_POWER;
+          jump_velocity = JUMP_POWER * MARIO_TICK_SCALE;
           mario_jump_y = 0;
           digit_bounce_triggered = false;
         }
@@ -299,7 +310,7 @@ void updateMarioAnimation(struct tm* timeinfo) {
 
     case MARIO_JUMPING:
       {
-        jump_velocity += GRAVITY;
+        jump_velocity += GRAVITY * MARIO_TICK_SCALE * MARIO_TICK_SCALE;
         mario_jump_y += jump_velocity;
 
         int mario_head_y = mario_base_y + (int)mario_jump_y - MARIO_HEAD_OFFSET;
@@ -312,7 +323,7 @@ void updateMarioAnimation(struct tm* timeinfo) {
           updateDisplayedTimeDigit(target_digit_index[current_target_index],
                                    target_digit_values[current_target_index]);
 
-          jump_velocity = MARIO_BOUNCE_VELOCITY;
+          jump_velocity = MARIO_BOUNCE_VELOCITY * MARIO_TICK_SCALE;
         }
 
         if (mario_jump_y >= 0) {
@@ -334,8 +345,8 @@ void updateMarioAnimation(struct tm* timeinfo) {
       break;
 
     case MARIO_WALKING_OFF:
-      mario_x += settings.marioWalkSpeed / 10.0f;
-      {
+      mario_x += (settings.marioWalkSpeed / 10.0f) * MARIO_TICK_SCALE;
+      if (advanceWalkFrameThisTick()) {
         int frameCount = settings.marioSmoothAnimation ? 4 : 2;
         mario_walk_frame = (mario_walk_frame + 1) % frameCount;
       }

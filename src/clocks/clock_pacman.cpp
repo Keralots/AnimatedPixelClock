@@ -358,7 +358,7 @@ void updatePacmanAnimation(struct tm* timeinfo) {
         const PathStep first_step = eatingPaths[current_digit_value][0];
         float target_x = DIGIT_X_PACMAN[target_idx] + first_step.col * PELLET_SPACING;
         float target_y = TIME_Y_PACMAN + first_step.row * PELLET_SPACING;
-        float speed = settings.pacmanEatingSpeed / 10.0;  // Use eating speed for targeting
+        float speed = settings.pacmanEatingSpeed / 20.0;  // Use eating speed for targeting
 
         float dx = target_x - pacman_x;
         float dy = target_y - pacman_y;
@@ -396,7 +396,7 @@ void updatePacmanAnimation(struct tm* timeinfo) {
       // Move back to patrol Y
       pacman_direction = 2;  // Face down while returning
       {
-        float speed = settings.pacmanEatingSpeed / 10.0;  // Use eating speed for quick return
+        float speed = settings.pacmanEatingSpeed / 20.0;  // Use eating speed for quick return
         float dy = PACMAN_PATROL_Y - pacman_y;
 
         // Snap to patrol line when within one speed step (more robust at high speeds)
@@ -448,7 +448,7 @@ void updatePacmanAnimation(struct tm* timeinfo) {
 }
 
 void updatePacmanPatrol() {
-  float speed = settings.pacmanSpeed / 10.0;
+  float speed = settings.pacmanSpeed / 20.0;
 
   // Move left/right within bounds
   pacman_x += speed * pacman_direction;
@@ -477,7 +477,7 @@ void updatePacmanEating() {
 
   int digit_base_x = DIGIT_X_PACMAN[digit_idx];
   int digit_base_y = TIME_Y_PACMAN;
-  float speed = settings.pacmanEatingSpeed / 10.0;  // Use eating speed for digit eating
+  float speed = settings.pacmanEatingSpeed / 20.0;  // Use eating speed for digit eating
 
   // Get current path step
   const PathStep* path = eatingPaths[digit_val];

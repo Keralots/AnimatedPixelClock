@@ -217,9 +217,14 @@ struct MarioFireball {
 };
 
 // Mario animation constants
-#define MARIO_ANIM_SPEED 35
+#define MARIO_ANIM_SPEED 16
 #define ENCOUNTER_ANIM_SPEED 16  // ~60fps for smooth encounter animations
-#define ENCOUNTER_TIME_SCALE (ENCOUNTER_ANIM_SPEED / (float)MARIO_ANIM_SPEED)  // ~0.46
+// Motion constants were tuned for the original 35 ms walk/jump tick. Both the
+// encounter states (which always ran at 16 ms) and, since the tick was unified
+// at 16 ms, the walk/jump states scale their per-tick motion by this factor so
+// all real-time speeds stay as tuned.
+#define MARIO_TICK_SCALE (16.0f / 35.0f)
+#define ENCOUNTER_TIME_SCALE MARIO_TICK_SCALE
 #define JUMP_POWER -4.5
 #define GRAVITY 0.6
 #define TIME_Y 26
@@ -346,7 +351,7 @@ struct PathStep {
 };
 
 // Pac-Man constants
-#define PACMAN_ANIM_SPEED 30
+#define PACMAN_ANIM_SPEED 15
 #define PACMAN_PATROL_Y 56
 #define MAX_PATROL_PELLETS 20
 #define TIME_Y_PACMAN 16
