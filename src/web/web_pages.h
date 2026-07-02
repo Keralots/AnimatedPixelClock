@@ -124,6 +124,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="10" %SEL_CLOCKSTYLE_10%>Asteroids</option>
                   <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
                   <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
+                  <option value="13" %SEL_CLOCKSTYLE_13%>Missile Command</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option>
                 </select>
               </div>
@@ -553,6 +554,41 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <input type="checkbox" name="matrixShowDate" id="matrixShowDate" %CHK_MATRIXSHOWDATE%>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock in the rain. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="matrixTransparent" id="matrixTransparent" %CHK_MATRIXTRANSPARENT%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Transparent digits</strong><span class="ct-hint">Rain falls behind the digits instead of solid plates. Default off.</span></span>
+              </label>
+            </div>
+
+            <!-- Missile Command (style 13) -->
+            <div class="subcard" id="missileSettings" style="display:%DSP_CLOCKSTYLE_13%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="mcMissileSpeed">Missile speed</label>
+                  <div class="range-row">
+                    <input type="range" name="mcMissileSpeed" id="mcMissileSpeed" min="5" max="30" step="1" value="%V_MCMISSILESPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="mcMissileSpeed">%F_MCMISSILESPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast enemy missiles fall. Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="mcMissileFreq">Attack frequency</label>
+                  <div class="select-wrap">
+                    <select name="mcMissileFreq" id="mcMissileFreq">
+                      <option value="0" %SEL_MCMISSILEFREQ_0%>Rare</option>
+                      <option value="1" %SEL_MCMISSILEFREQ_1%>Normal</option>
+                      <option value="2" %SEL_MCMISSILEFREQ_2%>Frequent</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">How often a missile volley rolls in. Default Normal.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="mcShowDate" id="mcShowDate" %CHK_MCSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock over the battlefield. Default off.</span></span>
               </label>
             </div>
           </div>
@@ -996,8 +1032,8 @@ var refSel = $('#refreshRateMode');
 if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
 var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
-var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings' };
-var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings'];
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','13':'missileSettings' };
+var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','missileSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
 ALL_PANELS.forEach(function (id) {

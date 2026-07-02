@@ -128,4 +128,8 @@ void resetDinoAnimation();
 void displayClockWithMatrixRain();
 void resetMatrixRainAnimation();
 
+// ========== Missile Command Clock ==========
+void displayClockWithMissileCommand();
+void resetMissileAnimation();
+
 #endif // CLOCKS_H

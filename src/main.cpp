@@ -106,8 +106,8 @@ int getOptimalRefreshRate() {
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
         settings.clockStyle == 8 || settings.clockStyle == 9 ||
         settings.clockStyle == 10 || settings.clockStyle == 11 ||
-        settings.clockStyle == 12) {
-      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix)
+        settings.clockStyle == 12 || settings.clockStyle == 13) {
+      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Missile)
       return 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
@@ -143,7 +143,7 @@ void cycleClockScreens() {
         // After that, normal cycling
         if (minuteBlock != lastMinuteBlock) {
             lastMinuteBlock = minuteBlock;
-            currentScreen = (currentScreen + 1) % 11; // Cycle through all 11 clock screens
+            currentScreen = (currentScreen + 1) % 12; // Cycle through all 12 clock screens
             resetClockAnimationState(); // Reset animation state when changing screens
         }
     }
@@ -161,6 +161,7 @@ void cycleClockScreens() {
         case 8: displayClockWithAsteroids(); break;
         case 9: displayClockWithDino(); break;
         case 10: displayClockWithMatrixRain(); break;
+        case 11: displayClockWithMissileCommand(); break;
     }
 }
 
@@ -359,6 +360,9 @@ void loop() {
         break;
       case 12:
         displayClockWithMatrixRain();
+        break;
+      case 13:
+        displayClockWithMissileCommand();
         break;
       default:
         displayStandardClock();

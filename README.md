@@ -4,8 +4,9 @@ An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3
 
 ![AnimatedPixelClock - Pac-Man clock on the bench](img/animatedpixelclock.jpg)
 
-Thirteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
-Runner, Matrix Rain and more), fully configurable from a built-in web interface: per-element sprite
+Fourteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
+Runner, Matrix Rain, Missile Command and more), fully configurable from a built-in web
+interface: per-element sprite
 colors, brightness with scheduled night dimming, automatic timezone/DST, OTA updates.
 It can also act as a PC performance monitor, showing live CPU/GPU/RAM/network stats
 sent by a desktop companion app.
@@ -52,6 +53,7 @@ The E line is required for 64x64 (1/32 scan) panels.
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
+| 13 | Missile Command | Dotted missile trails rain on city silhouettes; explosion rings wipe changed digits |
 
 Every style's sprite colors are individually editable in the web interface (digits,
 characters, effects, backgrounds), so each clock can match your setup.
@@ -140,7 +142,7 @@ the device on a trusted LAN.
 | `/api/display/off` / `/api/display/on` | Blank / restore the panel |
 | `/api/display/brightness?value=0-100` | Set brightness (percent) |
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
-| `/api/clock/style?id=0-12` | Switch the clock style (IDs in the table above) |
+| `/api/clock/style?id=0-13` | Switch the clock style (IDs in the table above) |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash

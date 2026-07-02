@@ -54,6 +54,11 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_STAT_BAR_BG    */ 0xFFFF,  // white
     /* COL_MATRIX_RAIN    */ 0x07E8,  // matrix green (#00ff41)
     /* COL_MATRIX_HEAD    */ 0xDFFB,  // white-green head (#d8ffd8)
+    /* COL_MC_MISSILE     */ 0xF800,  // red
+    /* COL_MC_COUNTER     */ 0x07FF,  // cyan
+    /* COL_MC_EXPLOSION   */ 0xFFE0,  // yellow
+    /* COL_MC_CITY        */ 0x34DF,  // blue (#3399ff)
+    /* COL_MC_GROUND      */ 0xBC40,  // ochre (#bf8800)
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -389,6 +394,14 @@ void loadSettings() {
       preferences.getUChar("mxDensity", 1); // Default: normal
   settings.matrixShowDate =
       preferences.getBool("mxDate", false); // Default: hidden (centred clock)
+  settings.matrixTransparent =
+      preferences.getBool("mxTransp", false); // Default: solid digit plates
+  settings.mcMissileSpeed =
+      preferences.getUChar("mcSpeed", 12); // Default: 1.2
+  settings.mcMissileFreq =
+      preferences.getUChar("mcFreq", 1); // Default: normal volleys
+  settings.mcShowDate =
+      preferences.getBool("mcDate", false); // Default: hidden (centred clock)
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -623,6 +636,10 @@ void saveSettings() {
   preferences.putUChar("mxSpeed", settings.matrixRainSpeed);
   preferences.putUChar("mxDensity", settings.matrixRainDensity);
   preferences.putBool("mxDate", settings.matrixShowDate);
+  preferences.putBool("mxTransp", settings.matrixTransparent);
+  preferences.putUChar("mcSpeed", settings.mcMissileSpeed);
+  preferences.putUChar("mcFreq", settings.mcMissileFreq);
+  preferences.putBool("mcDate", settings.mcShowDate);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);

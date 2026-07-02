@@ -297,8 +297,8 @@ void displayClockWithMatrixRain() {
 
   int gy = mxTimeY();
 
-  // Time digits (size 3) on solid plates. The rain is busy enough that every
-  // piece of foreground text gets a masked box, or it shimmers unreadably.
+  // Time digits (size 3) on solid plates so they stay readable over the busy
+  // rain; transparent mode skips every mask and lets the rain fall through.
   display.setTextSize(3);
   display.setTextColor(SPRITE_COLOR(COL_DIGITS));
   char dch[5];
@@ -310,8 +310,10 @@ void displayClockWithMatrixRain() {
 
   for (int i = 0; i < 5; i++) {
     int dx = DIGIT_X[i];
-    display.fillRect(dx - 1, gy - 1, MX_DIGIT_W + 2, MX_DIGIT_H + 2,
-                     DISPLAY_BLACK);
+    if (!settings.matrixTransparent) {
+      display.fillRect(dx - 1, gy - 1, MX_DIGIT_W + 2, MX_DIGIT_H + 2,
+                       DISPLAY_BLACK);
+    }
     display.setCursor(dx, gy);
     if (mx_decode[i]) {
       // Bright decode flicker until the new value locks in
@@ -335,12 +337,16 @@ void displayClockWithMatrixRain() {
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
     int dateX = (SCREEN_WIDTH - 60) / 2;
-    display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
+    if (!settings.matrixTransparent) {
+      display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
+    }
     display.setCursor(dateX, 4);
     display.print(dateStr);
   }
   if (!settings.use24Hour) {
-    display.fillRect(109, 3, 14, 10, DISPLAY_BLACK);
+    if (!settings.matrixTransparent) {
+      display.fillRect(109, 3, 14, 10, DISPLAY_BLACK);
+    }
     drawMeridiemIndicator(110, 4, displayed_is_pm);
   }
 

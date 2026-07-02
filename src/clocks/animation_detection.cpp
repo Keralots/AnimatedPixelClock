@@ -81,6 +81,11 @@ bool isAnimationActive() {
     return true;
   }
 
+  // Missile Command clock (clockStyle == 13) - volleys and rings keep coming
+  if (settings.clockStyle == 13) {
+    return true;
+  }
+
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;
 }
