@@ -52,6 +52,8 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_STAT_TEXT      */ 0xFFFF,  // white
     /* COL_STAT_BAR       */ 0xFFFF,  // white
     /* COL_STAT_BAR_BG    */ 0xFFFF,  // white
+    /* COL_MATRIX_RAIN    */ 0x07E8,  // matrix green (#00ff41)
+    /* COL_MATRIX_HEAD    */ 0xDFFB,  // white-green head (#d8ffd8)
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -381,6 +383,12 @@ void loadSettings() {
       preferences.getBool("dinoClouds", true); // Default: clouds on
   settings.dinoShowDate =
       preferences.getBool("dinoDate", false); // Default: hidden (centred clock)
+  settings.matrixRainSpeed =
+      preferences.getUChar("mxSpeed", 12); // Default: 1.2
+  settings.matrixRainDensity =
+      preferences.getUChar("mxDensity", 1); // Default: normal
+  settings.matrixShowDate =
+      preferences.getBool("mxDate", false); // Default: hidden (centred clock)
 
   bool brightnessSettingsSanitized = false;
   uint8_t sanitizedDisplayBrightness =
@@ -612,6 +620,9 @@ void saveSettings() {
   preferences.putUChar("dinoCactus", settings.dinoCactusFreq);
   preferences.putBool("dinoClouds", settings.dinoShowClouds);
   preferences.putBool("dinoDate", settings.dinoShowDate);
+  preferences.putUChar("mxSpeed", settings.matrixRainSpeed);
+  preferences.putUChar("mxDensity", settings.matrixRainDensity);
+  preferences.putBool("mxDate", settings.matrixShowDate);
 
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);

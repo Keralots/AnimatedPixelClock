@@ -123,6 +123,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="8" %SEL_CLOCKSTYLE_8%>Tetris</option>
                   <option value="10" %SEL_CLOCKSTYLE_10%>Asteroids</option>
                   <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
+                  <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option>
                 </select>
               </div>
@@ -522,6 +523,36 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <input type="checkbox" name="dinoShowDate" id="dinoShowDate" %CHK_DINOSHOWDATE%>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock above the runner. Default off.</span></span>
+              </label>
+            </div>
+
+            <!-- Matrix Rain (style 12) -->
+            <div class="subcard" id="matrixSettings" style="display:%DSP_CLOCKSTYLE_12%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="matrixRainSpeed">Rain speed</label>
+                  <div class="range-row">
+                    <input type="range" name="matrixRainSpeed" id="matrixRainSpeed" min="5" max="30" step="1" value="%V_MATRIXRAINSPEED%" data-div="10" data-fixed="1">
+                    <span class="range-val" data-for="matrixRainSpeed">%F_MATRIXRAINSPEED%</span>
+                  </div>
+                  <p class="field-hint">How fast the glyphs fall. Default 1.2.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="matrixRainDensity">Rain density</label>
+                  <div class="select-wrap">
+                    <select name="matrixRainDensity" id="matrixRainDensity">
+                      <option value="0" %SEL_MATRIXRAINDENSITY_0%>Sparse</option>
+                      <option value="1" %SEL_MATRIXRAINDENSITY_1%>Normal</option>
+                      <option value="2" %SEL_MATRIXRAINDENSITY_2%>Dense</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">How many columns rain at once. Default Normal.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="matrixShowDate" id="matrixShowDate" %CHK_MATRIXSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock in the rain. Default off.</span></span>
               </label>
             </div>
           </div>
@@ -965,8 +996,8 @@ var refSel = $('#refreshRateMode');
 if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
 var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
-var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings' };
-var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings'];
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings' };
+var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
 ALL_PANELS.forEach(function (id) {

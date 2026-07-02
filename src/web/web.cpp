@@ -210,16 +210,16 @@ void handleModeAuto() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
 }
 
-// GET /api/clock/style?id=0-11 - switch the active clock animation
+// GET /api/clock/style?id=0-12 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
-   server.send(400, "application/json", "{\"error\":\"Missing id (0-11)\"}");
+   server.send(400, "application/json", "{\"error\":\"Missing id (0-12)\"}");
    return;
  }
  int id = server.arg("id").toInt();
- if (id < 0 || id > 11) {
-   server.send(400, "application/json", "{\"error\":\"id must be 0-11\"}");
+ if (id < 0 || id > 12) {
+   server.send(400, "application/json", "{\"error\":\"id must be 0-12\"}");
    return;
  }
  settings.clockStyle = (uint8_t)id;
@@ -337,6 +337,8 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_STAR, 0, "Star"},
     {COL_MUSHROOM, 0, "Mushroom"},
     {COL_FIREBALL, 0, "Fireball"},
+    {COL_MATRIX_RAIN, 12, "Rain"},
+    {COL_MATRIX_HEAD, 12, "Rain head"},
 };
 
 // Emit <input type=color> rows for one clock style (-1 = global). "" if none.
@@ -364,7 +366,7 @@ struct StyleCard { int style; const char* panelId; };
 static const StyleCard STYLE_CARDS[] = {
     {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},
     {6, "pacmanSettings"},  {7, "snakeSettings"},  {8, "tetrisSettings"},
-    {10, "asteroidsSettings"}, {11, "dinoSettings"},
+    {10, "asteroidsSettings"}, {11, "dinoSettings"}, {12, "matrixSettings"},
 };
 
 // The single per-page "Colors" card: the selected style's rows (hidden until
@@ -453,6 +455,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_9")) { out = String(settings.clockStyle == 9 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
   if (!strcmp(n, "F_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight / 10.0, 1); return true; }
@@ -539,6 +542,13 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_DINOCACTUSFREQ_2")) { out = String(settings.dinoCactusFreq == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_DINOSHOWCLOUDS")) { out = String(settings.dinoShowClouds ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_DINOSHOWDATE")) { out = String(settings.dinoShowDate ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "block" : "none"); return true; }
+  if (!strcmp(n, "V_MATRIXRAINSPEED")) { out = String(settings.matrixRainSpeed); return true; }
+  if (!strcmp(n, "F_MATRIXRAINSPEED")) { out = String(settings.matrixRainSpeed / 10.0, 1); return true; }
+  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_0")) { out = String(settings.matrixRainDensity == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_1")) { out = String(settings.matrixRainDensity == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_2")) { out = String(settings.matrixRainDensity == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
@@ -951,6 +961,15 @@ void handleSave() {
  settings.dinoShowClouds = server.hasArg("dinoShowClouds");
  settings.dinoShowDate = server.hasArg("dinoShowDate");
 
+ // Matrix Rain settings
+ if (server.hasArg("matrixRainSpeed")) {
+ settings.matrixRainSpeed = server.arg("matrixRainSpeed").toInt();
+ }
+ if (server.hasArg("matrixRainDensity")) {
+ settings.matrixRainDensity = server.arg("matrixRainDensity").toInt();
+ }
+ settings.matrixShowDate = server.hasArg("matrixShowDate");
+
  // Save network configuration
  if (server.hasArg("deviceName")) {
    String name = server.arg("deviceName");
@@ -1144,7 +1163,7 @@ void handleSave() {
  }
 
  // Validate settings bounds before saving
- assertBounds(settings.clockStyle, 0, 11, "clockStyle");
+ assertBounds(settings.clockStyle, 0, 12, "clockStyle");
  assertBounds(settings.gmtOffset, -720, 840, "gmtOffset"); // -12h to +14h in minutes
  assertBounds(settings.clockPosition, 0, 2, "clockPosition");
  assertBounds(settings.displayRowMode, 0, 3, "displayRowMode");
@@ -1181,6 +1200,8 @@ void handleSave() {
  assertBounds(settings.asteroidsRockSpeed, 3, 20, "asteroidsRockSpeed");
  assertBounds(settings.dinoSpeed, 5, 30, "dinoSpeed");
  assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
+ assertBounds(settings.matrixRainSpeed, 5, 30, "matrixRainSpeed");
+ assertBounds(settings.matrixRainDensity, 0, 2, "matrixRainDensity");
 
  // Sprite colors. Written straight into settings.spriteColors[] (read every
  // frame by SPRITE_COLOR), so the change is live; saveSettings() persists it.

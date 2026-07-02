@@ -124,4 +124,8 @@ void resetAsteroidsAnimation();
 void displayClockWithDino();
 void resetDinoAnimation();
 
+// ========== Matrix Rain Clock ==========
+void displayClockWithMatrixRain();
+void resetMatrixRainAnimation();
+
 #endif // CLOCKS_H

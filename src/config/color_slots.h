@@ -62,6 +62,9 @@ enum ColorSlot {
   COL_STAT_TEXT,     // metric lines, clock timestamp, config hints
   COL_STAT_BAR,      // progress-bar fill
   COL_STAT_BAR_BG,   // progress-bar outline
+  // Matrix Rain (style 12)
+  COL_MATRIX_RAIN,   // rain trail base color (fade levels derived from it)
+  COL_MATRIX_HEAD,   // column head glyph + digit decode flicker
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

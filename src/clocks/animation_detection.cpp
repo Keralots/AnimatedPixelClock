@@ -76,6 +76,11 @@ bool isAnimationActive() {
     return true;
   }
 
+  // Matrix Rain clock (clockStyle == 12) - rain always falling
+  if (settings.clockStyle == 12) {
+    return true;
+  }
+
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;
 }
