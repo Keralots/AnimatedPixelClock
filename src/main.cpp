@@ -145,9 +145,9 @@ int getOptimalRefreshRate() {
 
   // Auto mode - adaptive based on content
 #if TOUCH_BUTTON_ENABLED
-  if (!metricData.online || manualClockMode) {
+  if (!metricData.online || manualClockMode || httpForceClock) {
 #else
-  if (!metricData.online) {
+  if (!metricData.online || httpForceClock) {
 #endif
     // Clock mode (offline OR manual clock mode)
 

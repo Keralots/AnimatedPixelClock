@@ -8,10 +8,12 @@
 #include "clocks.h"
 #include "clock_globals.h"
 
+extern bool httpForceClock;
+
 // Detects if any animation is currently active for refresh rate boosting
 bool isAnimationActive() {
-  // Only check for animations in clock mode (when offline)
-  if (metricData.online) {
+  // Only check for animations in clock mode (offline or forced via HTTP)
+  if (metricData.online && !httpForceClock) {
     return false; // No animations in metrics mode
   }
 
