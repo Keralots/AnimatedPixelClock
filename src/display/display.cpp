@@ -1,8 +1,7 @@
 /*
  * AnimatedPixelClock - Display Module
  *
- * Display initialization and global display object.
- * Supports both SSD1306 and SH1106 displays via compile-time selection.
+ * Display initialization and brightness control for the HUB75 RGB matrix.
  */
 
 #include "display.h"
@@ -19,53 +18,15 @@ const unsigned long BRIGHTNESS_CHECK_INTERVAL = 60000; // Check every minute
 // Scheduled dimming and brightness re-applies are suppressed so they don't turn it back on.
 static bool displayForcedOff = false;
 
-#if TOUCH_BUTTON_ENABLED
-static bool temporaryWakeActive = false;
-static unsigned long temporaryWakeExpiry = 0;
-static uint8_t brightnessBeforeTemporaryWake = 255;
-const unsigned long TEMPORARY_WAKE_DURATION_MS = 10000;
-const uint8_t TEMPORARY_WAKE_BRIGHTNESS = 20;
-#endif
-
-static void setDisplayPower(bool on) {
-#if DISPLAY_HUB75
-  // HUB75 has no panel-off command; power-on is handled by setDisplayContrast,
-  // power-off = brightness 0 (black).
-  if (!on) display.setBrightness8(0);
-#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
-  display.oled_command(on ? 0xAF : 0xAE);
-#else
-  display.ssd1306_command(on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
-#endif
-}
-
-static void setDisplayContrast(uint8_t brightness) {
-#if DISPLAY_HUB75
-  display.setBrightness8(brightness);
-#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
-  display.setContrast(brightness);
-#else
-  display.ssd1306_command(SSD1306_SETCONTRAST);
-  display.ssd1306_command(brightness);
-#endif
-}
-
 // Applies a raw brightness value. Callers pass either an already-sanitized
 // settings value or an intentional 0 (forced off / 0%): sanitizing here would
-// turn that 0 into 1 on builds where zero brightness is not user-selectable,
-// leaving the panel faintly lit instead of off.
+// turn that 0 into 1, leaving the panel faintly lit instead of off.
 static void applyBrightnessLevel(uint8_t brightness) {
   if (!displayAvailable) {
     return;
   }
 
-  if (brightness == 0) {
-    setDisplayPower(false);
-  } else {
-    setDisplayPower(true);
-    setDisplayContrast(brightness);
-  }
-
+  display.setBrightness8(brightness);
   lastAppliedBrightness = brightness;
 }
 
@@ -101,63 +62,16 @@ static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
 
 // Initialize display - returns true on success
 bool initDisplay() {
-#if DISPLAY_HUB75
   if (!display.begin()) {
     return false;
   }
   display.setBrightness8(sanitizeBrightnessValue(settings.displayBrightness));
   display.clearScreen();
   return true;
-#else
-#if DISPLAY_INTERFACE == 1
-  // SPI mode - remap ESP32-C3 SPI bus to our chosen pins
-  SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, SPI_CS_PIN);
-
-  for (int attempt = 0; attempt < 3; attempt++) {
-  #if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
-    if (display.begin(0, true)) {  // SH1106/CH1116 SPI: address ignored, reset=true
-      display.setContrast(255);
-      return true;
-    }
-  #else
-    if (display.begin(SSD1306_SWITCHCAPVCC)) {  // SSD1306 SPI: no address needed
-      return true;
-    }
-  #endif
-    delay(500);
-  }
-#else
-  // I2C mode (default)
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-
-  for (int attempt = 0; attempt < 3; attempt++) {
-  #if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
-    byte addrToTry = (attempt == 0) ? DISPLAY_I2C_ADDRESS : 0x3D;
-    if (display.begin(addrToTry)) {
-      display.setContrast(255);
-      return true;
-    }
-  #else
-    if (display.begin(SSD1306_SWITCHCAPVCC, DISPLAY_I2C_ADDRESS)) {
-      return true;
-    }
-  #endif
-    delay(500);
-  }
-#endif
-
-  return false;
-#endif  // DISPLAY_HUB75
 }
 
 // Apply display brightness from settings
 void applyDisplayBrightness() {
-#if TOUCH_BUTTON_ENABLED
-  if (temporaryWakeActive) {
-    return;
-  }
-#endif
-
   if (displayForcedOff) {
     return;
   }
@@ -166,12 +80,6 @@ void applyDisplayBrightness() {
 }
 
 void refreshDisplayBrightnessNow() {
-#if TOUCH_BUTTON_ENABLED
-  if (temporaryWakeActive) {
-    return;
-  }
-#endif
-
   if (displayForcedOff) {
     return;
   }
@@ -189,12 +97,6 @@ void refreshDisplayBrightnessNow() {
 
 // Check and apply time-based brightness (scheduled dimming)
 void checkScheduledBrightness() {
-#if TOUCH_BUTTON_ENABLED
-  if (temporaryWakeActive) {
-    return;
-  }
-#endif
-
   if (displayForcedOff) {
     return;
   }
@@ -219,7 +121,7 @@ bool isDisplayForcedOff() {
 void setDisplayForcedOff(bool off) {
   displayForcedOff = off;
   if (off) {
-    applyBrightnessLevel(0); // sends panel-off command
+    applyBrightnessLevel(0); // panel dark
   } else {
     refreshDisplayBrightnessNow(); // re-applies normal or scheduled brightness
   }
@@ -237,58 +139,3 @@ void setDisplayBrightnessPercent(uint8_t percent) {
   displayForcedOff = (brightness == 0);
   applyBrightnessLevel(brightness);
 }
-
-#if TOUCH_BUTTON_ENABLED
-bool handleTemporaryDisplayWake() {
-  if (!displayAvailable) {
-    return false;
-  }
-
-  // Don't wake into a blank lit panel while the display is held off via HTTP.
-  if (displayForcedOff) {
-    return false;
-  }
-
-  if (temporaryWakeActive) {
-    temporaryWakeExpiry = millis() + TEMPORARY_WAKE_DURATION_MS;
-    return true;
-  }
-
-  if (lastAppliedBrightness != 0) {
-    return false;
-  }
-
-  brightnessBeforeTemporaryWake = lastAppliedBrightness;
-  temporaryWakeActive = true;
-  temporaryWakeExpiry = millis() + TEMPORARY_WAKE_DURATION_MS;
-
-  uint8_t wakeBrightness = settings.displayBrightness;
-  if (wakeBrightness == 0) {
-    wakeBrightness = settings.dimBrightness;
-  }
-  if (wakeBrightness < TEMPORARY_WAKE_BRIGHTNESS) {
-    wakeBrightness = TEMPORARY_WAKE_BRIGHTNESS;
-  }
-
-  applyBrightnessLevel(wakeBrightness);
-  Serial.println("Touch button: temporary display wake active");
-  return true;
-}
-
-void updateTemporaryDisplayWake() {
-  if (!temporaryWakeActive || millis() < temporaryWakeExpiry) {
-    return;
-  }
-
-  temporaryWakeActive = false;
-
-  uint8_t targetBrightness = brightnessBeforeTemporaryWake;
-  if (resolveScheduledBrightnessTarget(targetBrightness)) {
-    applyBrightnessLevel(targetBrightness);
-  } else {
-    applyBrightnessLevel(brightnessBeforeTemporaryWake);
-  }
-
-  Serial.println("Touch button: temporary display wake expired");
-}
-#endif

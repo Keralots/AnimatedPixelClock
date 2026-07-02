@@ -1,12 +1,9 @@
 /*
  * AnimatedPixelClock - HUB75 RGB matrix display shim
  *
- * Thin Adafruit-GFX-compatible wrapper around ESP32-HUB75-MatrixPanel-DMA so the
- * existing OLED animation code (which calls a global `display` object) renders on
- * the RGB matrix with ZERO edits to src/clocks/*.
- *
- * Only compiled when DISPLAY_HUB75 is defined (matrix-* build envs). The OLED
- * firmware path never sees this file.
+ * Thin Adafruit-GFX-compatible wrapper around ESP32-HUB75-MatrixPanel-DMA. The
+ * animation code calls a global `display` object with the OLED-era frame model
+ * (clearDisplay / draw / display), which this class maps onto the DMA panel.
  *
  * Verified hardware config baked in (Phase 1, real panels):
  *   - 2x Waveshare P2.5 64x64 HUB75E chained = 128x64
@@ -40,20 +37,18 @@ inline HUB75_I2S_CFG makeMatrixConfig() {
   return cfg;
 }
 
-// OLED-compatible wrapper: adds the three non-GFX methods the animation code uses
-// (clearDisplay / display / getBuffer) on top of the GFX-derived matrix panel.
+// Adds the non-GFX frame methods the animation code uses (clearDisplay /
+// display) on top of the GFX-derived matrix panel.
 class MatrixDisplay : public MatrixPanel_I2S_DMA {
 public:
   explicit MatrixDisplay(const HUB75_I2S_CFG &cfg) : MatrixPanel_I2S_DMA(cfg) {}
 
-  // SSD1306/SH110X frame pattern -> HUB75 equivalents
   inline void clearDisplay() { clearScreen(); }      // clear the (back) draw buffer
   inline void display() { flipDMABuffer(); }         // swap double buffers
 
-  // Pong samples the raw 1-bit OLED framebuffer via getBuffer(); HUB75 has none.
-  // Returning nullptr trips Pong's existing `if (!buffer) return;` guard, which
-  // cleanly disables only its digit-shatter effect (full port deferred to Phase 3)
-  // with no edit to clock_pong.cpp.
+  // No readable framebuffer on the DMA panel; nothing samples it anymore
+  // (Pong's digit shatter reads the 5x7 glyph font instead), kept only so any
+  // future caller fails safe on a null check rather than a build error.
   inline uint8_t *getBuffer() { return nullptr; }
 };
 

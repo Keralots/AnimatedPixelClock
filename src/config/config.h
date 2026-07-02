@@ -68,7 +68,6 @@ struct Settings {
   bool showClock;           // Show clock in metrics mode
 
   // Display settings
-  uint8_t displayType;      // 0=SSD1306, 1=SH1106
   uint8_t displayRowMode;   // 0=5 rows, 1=6 rows, 2=Large 2-row, 3=Large 3-row
   uint8_t colonBlinkMode;   // 0=Always On, 1=Blink, 2=Always Off
   uint8_t colonBlinkRate;   // Tenths of Hz (10 = 1.0 Hz)
@@ -83,19 +82,13 @@ struct Settings {
   uint8_t dimEndHour;           // Hour to end dimming (0-23)
   uint8_t dimBrightness;        // Brightness level during dim period (0-255)
 
-  // LED Night Light settings
-#if LED_PWM_ENABLED
-  bool ledEnabled;              // LED night light on/off (default: false)
-  uint8_t ledBrightness;        // LED brightness 0-255 (default: 128 = 50%)
-#endif
-
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s
 
   // Network settings
   char deviceName[32];          // Device name for mDNS and app (default: "smalloled")
-  bool showIPAtBoot;          // Show IP address on OLED at startup (default: true)
+  bool showIPAtBoot;          // Show IP address on the panel at startup (default: true)
   bool useStaticIP;
   char staticIP[16];
   char gateway[16];
@@ -177,10 +170,8 @@ struct Settings {
   int metricBarWidths[MAX_METRICS];
   int metricBarOffsets[MAX_METRICS];
 
-#if DISPLAY_HUB75
-  // User-editable sprite colors (RGB565), indexed by ColorSlot. HUB75 only.
+  // User-editable sprite colors (RGB565), indexed by ColorSlot.
   uint16_t spriteColors[COL_COUNT];
-#endif
 };
 
 // ========== Mario Clock Types ==========

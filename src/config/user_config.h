@@ -6,49 +6,17 @@
  *   TO CONFIGURE YOUR HARDWARE!
  * ============================================
  *
- * Modify these values to match your hardware setup.
+ * Modify these values to match your hardware setup. The HUB75 panel pin map
+ * lives in src/display/matrix_display.h (verified hardware config).
  */
 
 #ifndef USER_CONFIG_H
 #define USER_CONFIG_H
 
 // ========== Display Configuration ==========
-// Display type:
-//   0 = SSD1306 (0.96" OLED, common small displays)
-//   1 = SH1106  (1.3" OLED, larger displays - has 132x64 RAM with 2-col offset)
-//   2 = CH1116  (1.54" OLED, SH1106-compatible but uses no column offset)
-//
-// Note: 2.42" SSD1309 panels use the SSD1306 driver, so leave this at 0 for
-// those as well - there is no separate display type for them.
-//
-// CHANGE THIS VALUE to match your OLED display type!
-#define DEFAULT_DISPLAY_TYPE 0
-
-// I2C pins for ESP32-C3
-#define I2C_SDA_PIN 8
-#define I2C_SCL_PIN 9
-
-// Screen dimensions
+// Screen dimensions (2x 64x64 HUB75 panels chained side by side)
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-
-// I2C Address (typically 0x3C, some displays use 0x3D)
-#define DISPLAY_I2C_ADDRESS 0x3C
-
-// ========== Display Interface ==========
-// Interface type:
-//   0 = I2C (default, uses SDA/SCL pins above)
-//   1 = SPI (uses SPI pins below, faster refresh for animations)
-//
-// CHANGE THIS VALUE to use SPI instead of I2C
-#define DISPLAY_INTERFACE 0
-
-// SPI pins for ESP32-C3 (only used when DISPLAY_INTERFACE = 1)
-#define SPI_MOSI_PIN 6 //SDA
-#define SPI_SCK_PIN  4 //SCK SPI Clock
-#define SPI_CS_PIN   5 //CS (Chip Select)
-#define SPI_DC_PIN   3 //DC (Data/Command)
-#define SPI_RST_PIN  10   //RES Set to -1 if RST is not connected
 
 // ========== WiFi Configuration ==========
 // Access Point name for initial setup.
@@ -91,51 +59,11 @@
 // Watchdog timeout in seconds
 #define WATCHDOG_TIMEOUT_SECONDS 30
 
-// ========== Touch Button Configuration ==========
-// TTP223 capacitive touch sensor support
-// - Quick tap (< 500ms): Toggle metrics/clock mode or cycle clock styles
-// - Medium press (500ms-1s, release): Toggle LED night light on/off
-// - Long hold (> 1s): Ramp LED brightness up/down (gamma-corrected)
-// Note: If TTP223 is not connected, GPIO 7 just floats harmlessly
-// Guarded so the HUB75 build can force it off via -DTOUCH_BUTTON_ENABLED=0
-// (TOUCH_BUTTON_PIN 7 collides with the HUB75 B2 data line).
-#ifndef TOUCH_BUTTON_ENABLED
-#define TOUCH_BUTTON_ENABLED 1           // 1 = enabled, 0 = disabled (always enabled now)
-#endif
-#define TOUCH_BUTTON_PIN 7               // GPIO pin for TTP223 signal (default: GPIO 7)
-#define TOUCH_DEBOUNCE_MS 50            // Debounce delay in milliseconds (default: 100ms)
-#define TOUCH_ACTIVE_LEVEL HIGH          // HIGH = active HIGH, LOW = active LOW (TTP223 default: HIGH)
-
-// ========== LED PWM Night Light Configuration ==========
-// Filament LED night light control via GPIO 1 and 2N2222 transistor
-// Gesture-based control using TTP223 touch button
-// Guarded so the HUB75 build can force it off via -DLED_PWM_ENABLED=0
-// (LED_PWM_PIN 1 collides with the HUB75 R1 data line).
-#ifndef LED_PWM_ENABLED
-#define LED_PWM_ENABLED 1                // 1 = enabled, 0 = disabled (default: 0)
-#endif
-#define LED_PWM_PIN 1                    // GPIO pin for PWM LED control (GPIO 1)
-#define LED_PWM_CHANNEL 0                // PWM channel (0-15)
-#define LED_PWM_FREQ 5000                // PWM frequency in Hz
-#define LED_PWM_RESOLUTION 8             // 8-bit resolution (0-255 brightness levels)
-
 // ========== QR Code Setup Configuration ==========
 // Display QR code during WiFi AP setup for easy mobile connection
-// When enabled: OLED shows scannable QR code instead of text instructions
+// When enabled: the panel shows a scannable QR code instead of text instructions
 // When disabled: Traditional text instructions (original behavior)
 #define QR_SETUP_ENABLED 0               // 1 = QR code, 0 = text instructions
-
-// ========== BLE WiFi Setup Configuration ==========
-// Bluetooth Low Energy provisioning for the SmallOLED Android app.
-// When enabled: on first boot (no saved WiFi), the device advertises as a BLE
-//   GATT server. The Android app connects, sends home WiFi SSID + password,
-//   device connects and saves credentials. Subsequent boots connect silently.
-//   If BLE times out (2 min) or fails, falls back to AP mode automatically.
-// When disabled: original WiFiManager AP portal (PCMonitor-Setup) is used.
-//
-// IMPORTANT: Requires min_spiffs.csv partition table (set in platformio.ini).
-#define BLE_SETUP_ENABLED 0              // 1 = BLE provisioning, 0 = AP mode (default)
-#define BLE_DEVICE_NAME "SmallOLED"      // BLE advertised name (shown in Android app scan)
 
 // ========== Improv-Serial WiFi Setup (Web Flasher) ==========
 // In-browser WiFi provisioning over USB serial, used by the web flasher at
@@ -143,7 +71,7 @@
 // Improv-Serial and shows a "Configure WiFi" dialog right in the browser tab:
 // the user picks their home network and the credentials are pushed over USB.
 // Active only on first boot (no saved WiFi); the WiFiManager AP portal
-// (PCMonitor-Setup) keeps running in parallel as a fallback. Once WiFi is
+// keeps running in parallel as a fallback. Once WiFi is
 // saved, subsequent boots skip Improv entirely.
 //
 // Keep this ENABLED for the released web-flasher binaries so they are

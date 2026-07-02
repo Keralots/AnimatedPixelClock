@@ -1,40 +1,21 @@
 /*
  * AnimatedPixelClock - Main Entry Point
  *
- * ESP32-C3 with SSD1306/SH1106 OLED display
+ * ESP32-S3 with 128x64 HUB75 RGB matrix (2x 64x64 panels chained)
  * Dual-mode: PC monitoring metrics OR animated clock displays
  */
 
 // ========== User Configuration ==========
-// Edit src/config/user_config.h to configure display type, WiFi, and I2C pins
+// Edit src/config/user_config.h to configure WiFi and device options
 #include "config/user_config.h"
-
-// Use DEFAULT_DISPLAY_TYPE from user_config.h if DISPLAY_TYPE not already
-// defined
-#ifndef DISPLAY_TYPE
-#define DISPLAY_TYPE DEFAULT_DISPLAY_TYPE
-#endif
 
 #include <Adafruit_GFX.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
-#if DISPLAY_INTERFACE == 1
-#include <SPI.h>
-#else
-#include <Wire.h>
-#endif
 
-#if DISPLAY_HUB75
 #include "display/matrix_display.h" // HUB75 RGB matrix (ESP32-S3)
-#elif DISPLAY_TYPE == 2
-#include "display/ch1116.h"  // For 1.54" CH1116 (SH1106-compatible, 1-col offset)
-#elif DISPLAY_TYPE == 1
-#include <Adafruit_SH110X.h> // For 1.3" SH1106
-#else
-#include <Adafruit_SSD1306.h> // For 0.96" SSD1306
-#endif
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <esp_task_wdt.h>
@@ -51,39 +32,10 @@ extern WebServer server;         // Defined in web.cpp
 extern Preferences preferences;  // Defined in settings.cpp
 
 // ========== Display Object ==========
-#if DISPLAY_HUB75
-  // HUB75 RGB matrix (128x64). The shim adds OLED-compatible clearDisplay()/
-  // display()/getBuffer() so the animation code runs unchanged.
-  // DISPLAY_WHITE/DISPLAY_BLACK come from display.h (centralized).
-  MatrixDisplay display(makeMatrixConfig());
-#elif DISPLAY_TYPE == 2
-  // CH1116 display (1.54", SH1106-compatible with corrected column offset)
-  #if DISPLAY_INTERFACE == 1
-    Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
-  #else
-    Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-  #endif
-  #define DISPLAY_WHITE SH110X_WHITE
-  #define DISPLAY_BLACK SH110X_BLACK
-#elif DISPLAY_TYPE == 1
-  // SH1106 display
-  #if DISPLAY_INTERFACE == 1
-    Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
-  #else
-    Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-  #endif
-  #define DISPLAY_WHITE SH110X_WHITE
-  #define DISPLAY_BLACK SH110X_BLACK
-#else
-  // SSD1306 display (also drives 2.42" SSD1309 panels via the same driver)
-  #if DISPLAY_INTERFACE == 1
-    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
-  #else
-    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-  #endif
-  #define DISPLAY_WHITE SSD1306_WHITE
-  #define DISPLAY_BLACK SSD1306_BLACK
-#endif
+// HUB75 RGB matrix (128x64). The shim adds the OLED-era clearDisplay()/
+// display() frame methods so the animation code runs unchanged.
+// DISPLAY_WHITE/DISPLAY_BLACK come from display.h (centralized).
+MatrixDisplay display(makeMatrixConfig());
 
 // ========== Global State ==========
 Settings settings;
@@ -96,10 +48,6 @@ unsigned long wifiDisconnectTime = 0;
 unsigned long nextDisplayUpdate = 0;
 bool wifiConnected = false;  // WiFi connection status for icon display
 bool httpForceClock = false;  // HTTP override to force clock mode (via /api/mode/clock)
-
-#if TOUCH_BUTTON_ENABLED
-bool manualClockMode = false;  // Manual override to force clock mode when PC is online
-#endif
 
 // ========== Forward Declarations ==========
 // Redundant forward declarations removed (covered by headers)
@@ -144,24 +92,8 @@ int getOptimalRefreshRate() {
   }
 
   // Auto mode - adaptive based on content
-#if TOUCH_BUTTON_ENABLED
-  if (!metricData.online || manualClockMode || httpForceClock) {
-#else
   if (!metricData.online || httpForceClock) {
-#endif
-    // Clock mode (offline OR manual clock mode)
-
-#if TOUCH_BUTTON_ENABLED
-    // Immediately boost to 40 Hz when in manual clock mode for animated clocks
-    if (manualClockMode && settings.boostAnimationRefresh &&
-        (settings.clockStyle == 0 || settings.clockStyle == 3 ||
-         settings.clockStyle == 4 || settings.clockStyle == 5 ||
-         settings.clockStyle == 6 || settings.clockStyle == 7 ||
-         settings.clockStyle == 8 || settings.clockStyle == 9 ||
-         settings.clockStyle == 10 || settings.clockStyle == 11)) {
-      return 60; // Instant boost for smooth manual clock mode
-    }
-#endif
+    // Clock mode (offline OR forced via HTTP)
 
     // Check for animation boost (smooth animations during active motion)
     if (settings.boostAnimationRefresh && isAnimationActive()) {
@@ -246,12 +178,6 @@ void setup() {
     applyDisplayBrightness();
   }
 
-#if LED_PWM_ENABLED
-  // Initialize LED PWM night light
-  initLEDPWM();
-  setLEDBrightness(settings.ledBrightness);
-#endif
-
   if (!displayAvailable) {
     Serial.println("WARNING: Display not available, continuing without display");
   } else {
@@ -277,33 +203,9 @@ void setup() {
     }
   }
 
-#if BLE_SETUP_ENABLED
-  // BLE provisioning path: fast-connect with saved creds, or BLE, or AP mode fallback
-  bool bleHandled = false;
-  if (!useManualWiFi) {
-    if (tryConnectSavedWiFi()) {
-      // Saved credentials worked — set up UDP + mDNS directly (skip WiFiManager)
-      WiFi.setTxPower(WIFI_POWER_19_5dBm);
-      udp.begin(UDP_PORT);
-      initMDNS();
-      bleHandled = true;
-    } else if (runBleProvisioning()) {
-      // BLE provisioning succeeded — WiFi already connected inside runBleProvisioning()
-      WiFi.setTxPower(WIFI_POWER_19_5dBm);
-      udp.begin(UDP_PORT);
-      initMDNS();
-      bleHandled = true;
-    }
-    // If neither worked: bleHandled = false → initNetwork() below (AP mode fallback)
-  }
-  if (!bleHandled && !useManualWiFi) {
-    initNetwork();
-  }
-#else
   if (!useManualWiFi) {
     initNetwork();
   }
-#endif
 
   // Initialize NTP
   initNTP();
@@ -324,11 +226,6 @@ void setup() {
   // Setup web server
   setupWebServer();
 
-#if TOUCH_BUTTON_ENABLED
-  // Initialize touch button
-  initTouchButton();
-#endif
-
   // Show IP address for 5 seconds (configurable via web interface)
   if (displayAvailable && settings.showIPAtBoot) {
     displayConnected();
@@ -341,10 +238,6 @@ void loop() {
   // Feed watchdog
   esp_task_wdt_reset();
 
-#if TOUCH_BUTTON_ENABLED
-  updateTemporaryDisplayWake();
-#endif
-
   // Check and apply scheduled brightness (time-based dimming)
   checkScheduledBrightness();
 
@@ -354,53 +247,9 @@ void loop() {
   // Handle UDP packets - always process to track PC online status accurately
   handleUDP();
 
-#if TOUCH_BUTTON_ENABLED
-  // Handle touch button gestures
-#if LED_PWM_ENABLED
-  handleTouchLED(); // Hold > 1s: ramp LED brightness up/down
-#endif
-  // Regular short press (mode toggle / clock style cycle)
-  if (checkTouchButtonPressed()) {
-    if (!handleTemporaryDisplayWake()) {
-      if (manualClockMode) {
-        // Check if PC is currently online (UDP is always processed, so status is accurate)
-        if (metricData.online) {
-          // PC is online - exit manual clock mode to show PC metrics
-          manualClockMode = false;
-          Serial.println("Touch button: Exiting manual clock mode (PC is online)");
-        } else {
-          // PC is offline (timeout triggered) - cycle through clock styles
-          settings.clockStyle = (settings.clockStyle + 1) % 12;
-          // Skip reserved clock style 4
-          if (settings.clockStyle == 4) settings.clockStyle = 5;
-          resetClockAnimationState();
-          Serial.print("Touch button: PC offline, cycling clock style -> ");
-          Serial.println(settings.clockStyle);
-        }
-      } else if (metricData.online) {
-        // PC is online - enter manual clock mode
-        manualClockMode = true;
-        Serial.println("Touch button: Entering manual clock mode (PC is online)");
-      } else {
-        // PC is offline - cycle through clock styles
-        settings.clockStyle = (settings.clockStyle + 1) % 12;
-        // Skip reserved clock style 4
-        if (settings.clockStyle == 4) settings.clockStyle = 5;
-        resetClockAnimationState();
-        Serial.print("Touch button: Clock style -> ");
-        Serial.println(settings.clockStyle);
-      }
-    }
-  }
-#endif
-
   // Check timeout
   if (millis() - lastReceived > TIMEOUT && metricData.online) {
     metricData.online = false;
-#if TOUCH_BUTTON_ENABLED
-    // Reset manual clock mode so PC metrics auto-show when PC comes back online
-    manualClockMode = false;
-#endif
     Serial.println("PC stats timeout - switching to clock mode");
   }
 
@@ -456,11 +305,7 @@ void loop() {
 
     display.clearDisplay();
 
-#if TOUCH_BUTTON_ENABLED
-    bool showStats = metricData.online && !manualClockMode && !httpForceClock;
-#else
     bool showStats = metricData.online && !httpForceClock;
-#endif
 
     // Show error status if PC is connected but LHM has issues
     if (showStats && metricData.status != STATUS_OK && metricData.status != 0) {

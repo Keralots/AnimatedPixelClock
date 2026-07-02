@@ -12,7 +12,6 @@
 
 Preferences preferences;
 
-#if DISPLAY_HUB75
 // Default sprite-color palette (RGB565), indexed by ColorSlot (color_slots.h).
 // Real definition for the header's extern. APPEND-ONLY: keep in sync with the enum.
 const uint16_t SPRITE_COLOR_DEFAULTS[] = {
@@ -57,22 +56,16 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
               "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
-#endif
 
+// Zero saved brightness would leave the panel permanently dark with no local
+// control to recover it (runtime off goes through /api/display, not settings),
+// so persisted brightness values are clamped to a minimum of 1.
 uint8_t sanitizeBrightnessValue(uint8_t value) {
-#if TOUCH_BUTTON_ENABLED
-  return value;
-#else
   return value == 0 ? 1 : value;
-#endif
 }
 
 bool isZeroBrightnessAllowed() {
-#if TOUCH_BUTTON_ENABLED
-  return true;
-#else
   return false;
-#endif
 }
 
 void sanitizeBrightnessSettings() {
@@ -293,10 +286,6 @@ void loadSettings() {
       preferences.getUChar("dimEnd", 7); // Default: 7 AM
   settings.dimBrightness =
       preferences.getUChar("dimBright", 50); // Default: ~20% (50/255)
-#if LED_PWM_ENABLED
-  settings.ledEnabled = preferences.getBool("ledEnabled", false); // Default: Off
-  settings.ledBrightness = preferences.getUChar("ledBright", 128); // Default: 50%
-#endif
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -527,7 +516,6 @@ void loadSettings() {
     }
   }
 
-#if DISPLAY_HUB75
   // Sprite colors: fill from defaults, then overlay any stored slots. Length-based
   // + append-only -> a firmware with MORE slots keeps the user's existing colors
   // and gets defaults for the new ones (no garbage from a shorter stored blob).
@@ -537,7 +525,6 @@ void loadSettings() {
   // getBytes copies min(stored, requested) bytes, leaving extra slots at default.
   preferences.getBytes("spriteCols", settings.spriteColors,
                        COL_COUNT * sizeof(uint16_t));
-#endif
 
   preferences.end();
 
@@ -575,10 +562,6 @@ void saveSettings() {
   preferences.putUChar("dimStart", settings.dimStartHour);
   preferences.putUChar("dimEnd", settings.dimEndHour);
   preferences.putUChar("dimBright", settings.dimBrightness);
-#if LED_PWM_ENABLED
-  preferences.putBool("ledEnabled", settings.ledEnabled);
-  preferences.putUChar("ledBright", settings.ledBrightness);
-#endif
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);
@@ -636,11 +619,9 @@ void saveSettings() {
   preferences.putString("dns1", settings.dns1);
   preferences.putString("dns2", settings.dns2);
 
-#if DISPLAY_HUB75
   // Save user-editable sprite colors (RGB565 array, indexed by ColorSlot)
   preferences.putBytes("spriteCols", settings.spriteColors,
                        COL_COUNT * sizeof(uint16_t));
-#endif
 
   // Save metric display order
   preferences.putBytes("metricOrd", settings.metricOrder, MAX_METRICS);

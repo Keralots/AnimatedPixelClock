@@ -18,24 +18,11 @@
 #include <Update.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
-#include <esp_ota_ops.h>
-
-// True when the device is still on the original 4 MB partition table, whose OTA
-// app slot is 0x140000 (1,310,720 B). Repartitioned devices have a larger slot
-// (e.g. 0x1E0000), so the firmware-too-big-for-OTA warning only applies here.
-static bool isLegacyOtaPartition() {
-  const esp_partition_t* running = esp_ota_get_running_partition();
-  return running && running->size <= 0x140000; // <= 1,310,720 B
-}
-
 // ========== Web Server Object ==========
 WebServer server(80);
 
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
-#if TOUCH_BUTTON_ENABLED
-extern bool manualClockMode;
-#endif
 
 // ========== Web Server Setup ==========
 void setupWebServer() {
@@ -65,11 +52,11 @@ void setupWebServer() {
  if (Update.hasError()) {
    // Surface the real reason (non-200 so the UI knows it failed). The common
    // case once the firmware outgrows an older default partition table is a
-   // space error - point the user at the browser flasher, which writes the
-   // partition table (full flash) and so repartitions to the larger slots.
+   // space error - a one-time full serial flash rewrites the partition table
+   // and so repartitions to the larger OTA slots.
    String msg = String("Update failed: ") + Update.errorString() +
                 ". If this is a size/space error the firmware no longer fits this "
-                "device's OTA partition - re-flash once via the browser flasher to repartition.";
+                "device's OTA partition - re-flash once over USB (full flash) to repartition.";
    server.send(500, "text/plain", msg);
    return; // keep running the current firmware
  }
@@ -144,7 +131,6 @@ void handleDeviceInfo() {
  doc["ip"] = WiFi.localIP().toString();
  doc["hostname"] = String(settings.deviceName) + ".local";
  doc["deviceName"] = settings.deviceName;
- doc["displayType"] = settings.displayType;
  doc["rssi"] = WiFi.RSSI();
  doc["uptime"] = millis() / 1000;
  doc["freeHeap"] = ESP.getFreeHeap();
@@ -165,11 +151,7 @@ void handleStatus() {
  JsonDocument doc;
 
  bool pcOnline = metricData.online;
-#if TOUCH_BUTTON_ENABLED
- bool showStats = pcOnline && !manualClockMode && !httpForceClock;
-#else
  bool showStats = pcOnline && !httpForceClock;
-#endif
 
  doc["displayOn"] = !isDisplayForcedOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
@@ -301,7 +283,7 @@ void handleRename() {
 
 // Resolve a single %NAME% placeholder. Returns false for unknown names so the
 // streamer leaves the literal text untouched.
-#if DISPLAY_HUB75
+
 // RGB565 -> "#rrggbb" for the web color inputs.
 static String rgb565ToHex(uint16_t c) {
   uint8_t r = (uint8_t)(((c >> 11) & 0x1F) * 255 / 31);
@@ -408,7 +390,6 @@ static String buildColorsCard() {
   out += F("</div>");
   return out;
 }
-#endif  // DISPLAY_HUB75
 
 static bool resolvePlaceholder(const char* n, String& out) {
   // --- Header / identity ---
@@ -421,48 +402,20 @@ static bool resolvePlaceholder(const char* n, String& out) {
     out = s; return true;
   }
   if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
-  if (!strcmp(n, "DISPLAYMODEL")) {
-#if DISPLAY_HUB75
-    out = "HUB75 Matrix";
-#else
-    out = (settings.displayType == 2) ? "CH1116" : (settings.displayType == 1) ? "SH1106" : "SSD1306";
-#endif
-    return true;
-  }
-  if (!strcmp(n, "BOARDNAME")) {
-#if DISPLAY_HUB75
-    out = "ESP32-S3";
-#else
-    out = "ESP32-C3";
-#endif
-    return true;
-  }
+  if (!strcmp(n, "DISPLAYMODEL")) { out = "HUB75 Matrix"; return true; }
+  if (!strcmp(n, "BOARDNAME")) { out = "ESP32-S3"; return true; }
   // The single per-page "Colors" card (contextual: the selected style's pickers
-  // + global digits + reset). HUB75-only; resolves to "" on OLED.
-  if (!strcmp(n, "COLOR_GLOBAL")) {
-#if DISPLAY_HUB75
-    out = buildColorsCard();
-#endif
-    return true;
-  }
-  // Hides the OTA partition-limit warning on already-repartitioned devices.
-  if (!strcmp(n, "OTAWARNSTYLE")) {
-    out = isLegacyOtaPartition() ? "" : "display:none";
-    return true;
-  }
+  // + global digits + reset).
+  if (!strcmp(n, "COLOR_GLOBAL")) { out = buildColorsCard(); return true; }
 
-  // --- Brightness help text and minimum (depend on touch-button presence) ---
+  // --- Brightness help text and minimum ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
   if (!strcmp(n, "HELP_DISPBRIGHT")) {
-    out = isZeroBrightnessAllowed()
-        ? "Brightness control (0-100%). Set to 0% to turn the OLED off, then tap the touch button to wake it for 10 seconds."
-        : "Brightness control (0-100%). This build has no touch button, so the minimum brightness is 1%.";
+    out = "Brightness control (1-100%). The panel can be turned fully off via the runtime API (/api/display/off).";
     return true;
   }
   if (!strcmp(n, "HELP_DIMBRIGHT")) {
-    out = isZeroBrightnessAllowed()
-        ? "Brightness level during scheduled dim period. Set to 0% for a fully dark screen, then tap the touch button to wake it for 10 seconds."
-        : "Brightness level during scheduled dim period. This build has no touch button, so the minimum brightness is 1%.";
+    out = "Brightness level during scheduled dim period (minimum 1%).";
     return true;
   }
 
@@ -486,14 +439,6 @@ static bool resolvePlaceholder(const char* n, String& out) {
       out += "<option value=\"" + String(i) + "\"" + (isSelected ? " selected" : "") + ">" + String(regions[i].name) + "</option>\n";
     }
     return true;
-  }
-
-  // --- LED night-light slider (only present when the feature is compiled in) ---
-  if (!strcmp(n, "LED_SLIDER")) {
-#if LED_PWM_ENABLED
-    out = R"LED(<div class="field" style="margin-top:16px"><label class="field-label" for="ledBrightness">LED night light</label><div class="range-row"><input type="range" name="ledBrightness" id="ledBrightness" min="0" max="255" step="5" value=")LED" + String(settings.ledBrightness) + R"LED(" data-pct="1"><span class="range-val" data-for="ledBrightness">)LED" + String((settings.ledBrightness * 100) / 255) + R"LED(%</span></div><p class="field-hint">Optional LED night light (0-100%). Toggle via touch-button long press (hold 1s). Requires a connected LED.</p></div>)LED";
-#endif
-    return true; // resolved to "" when LED is disabled, so the slider is omitted
   }
 
   // --- Per-setting placeholders (auto-generated, see gen_template.py) ---
@@ -842,14 +787,6 @@ void handleSave() {
  brightnessSettingsChanged = true;
  }
  }
-
-#if LED_PWM_ENABLED
- // Save LED brightness
- if (server.hasArg("ledBrightness")) {
- settings.ledBrightness = server.arg("ledBrightness").toInt();
- setLEDBrightness(settings.ledBrightness); // Apply immediately
- }
-#endif
 
  // Save scheduled dimming settings
  bool scheduledDimmingEnabled = server.hasArg("enableScheduledDimming");
@@ -1243,7 +1180,6 @@ void handleSave() {
  assertBounds(settings.dinoSpeed, 5, 30, "dinoSpeed");
  assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
 
-#if DISPLAY_HUB75
  // Sprite colors. Written straight into settings.spriteColors[] (read every
  // frame by SPRITE_COLOR), so the change is live; saveSettings() persists it.
  // No reboot (colors are not a network change).
@@ -1263,7 +1199,6 @@ void handleSave() {
      settings.spriteColors[slot] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
    }
  }
-#endif
 
  saveSettings();
  applyTimezone();
@@ -1405,14 +1340,12 @@ void handleExportConfig() {
  }
  json += "]";
 
-#if DISPLAY_HUB75
  json += ",\"spriteColors\":[";
  for (int i = 0; i < COL_COUNT; i++) {
  if (i > 0) json += ",";
  json += "\"" + rgb565ToHex(settings.spriteColors[i]) + "\"";
  }
  json += "]";
-#endif
 
  json += "}";
 
@@ -1550,7 +1483,6 @@ void handleImportConfig() {
  }
  }
 
-#if DISPLAY_HUB75
  // Sprite colors (array of "#rrggbb" strings). Validated; bad entries skipped.
  if (!doc["spriteColors"].isNull()) {
  JsonArray cols = doc["spriteColors"];
@@ -1567,7 +1499,6 @@ void handleImportConfig() {
  settings.spriteColors[i] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
  }
  }
-#endif
 
  // Hide out-of-range positions based on imported display mode
  {

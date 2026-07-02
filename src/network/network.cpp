@@ -15,10 +15,6 @@
 #include "qrcode.h"
 #endif
 
-#if TOUCH_BUTTON_ENABLED
-extern bool manualClockMode;  // Defined in main.cpp
-#endif
-
 // Global network objects
 WiFiUDP udp;
 WiFiManager wifiManager;
