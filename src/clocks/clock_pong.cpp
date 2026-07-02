@@ -41,7 +41,12 @@ static bool pongDigitPixelLit(char c, int dx, int dy) {
 // Fragment pool helper functions
 SpaceFragment* findFreePongFragment() {
   for (int i = 0; i < MAX_PONG_FRAGMENTS; i++) {
-    if (!pong_fragments[i].active) return &pong_fragments[i];
+    if (!pong_fragments[i].active) {
+      // Clear any stale assembly target from the slot's previous life, so a
+      // reused break/ball fragment is not steered toward an old digit.
+      fragment_targets[i].target_digit = -1;
+      return &pong_fragments[i];
+    }
   }
   return nullptr;
 }
@@ -220,6 +225,10 @@ void drawBreakoutPaddle() {
 void updatePongFragments() {
   for (int i = 0; i < MAX_PONG_FRAGMENTS; i++) {
     if (!pong_fragments[i].active) continue;
+
+    // Assembly fragments are steered by updateAssemblyFragments(); applying
+    // gravity here too makes them oscillate around their snapped target.
+    if (fragment_targets[i].target_digit >= 0) continue;
 
     pong_fragments[i].vy += PONG_FRAG_GRAVITY;  // Apply gravity
     pong_fragments[i].x += pong_fragments[i].vx;
@@ -587,7 +596,9 @@ void checkPongCollisions(int ballIndex) {
           digit_transitions[d].hit_count++;
 
           // Spawn fragments based on hit number (0=25%, 1=50%, 2=25%)
-          spawnProgressiveFragments(d, digit_transitions[d].old_char, hit_num);
+          if (settings.pongDigitShatter) {
+            spawnProgressiveFragments(d, digit_transitions[d].old_char, hit_num);
+          }
         }
       }
 
@@ -704,13 +715,19 @@ void updateDigitTransitions() {
     if (digit_transitions[i].state == DIGIT_BREAKING) {
       // Check if fully broken (threshold hits reached) OR timeout exceeded
       if (digit_transitions[i].hit_count >= BALL_HIT_THRESHOLD || elapsed >= DIGIT_TRANSITION_TIMEOUT) {
-        // Transition to ASSEMBLING state
-        digit_transitions[i].state = DIGIT_ASSEMBLING;
-        digit_transitions[i].state_timer = millis();
-        digit_transitions[i].assembly_progress = 0.0;
+        if (settings.pongDigitShatter) {
+          // Transition to ASSEMBLING state
+          digit_transitions[i].state = DIGIT_ASSEMBLING;
+          digit_transitions[i].state_timer = millis();
+          digit_transitions[i].assembly_progress = 0.0;
 
-        // Spawn assembly fragments for new digit
-        spawnAssemblyFragments(i, digit_transitions[i].new_char);
+          // Spawn assembly fragments for new digit
+          spawnAssemblyFragments(i, digit_transitions[i].new_char);
+        } else {
+          // Shatter disabled: blink phase only, swap straight to the new digit
+          digit_transitions[i].state = DIGIT_NORMAL;
+          digit_transitions[i].assembly_progress = 1.0;
+        }
       }
     } else if (digit_transitions[i].state == DIGIT_ASSEMBLING) {
       // Animate assembly (fragments converging)
@@ -718,6 +735,15 @@ void updateDigitTransitions() {
       if (progress >= 1.0) {
         digit_transitions[i].state = DIGIT_NORMAL;
         digit_transitions[i].assembly_progress = 1.0;
+        // Release this digit's assembly fragments - the solid digit is drawn
+        // from here on. Leaving them active leaves drifting artifacts around
+        // the new digit (gravity vs target-snap tug-of-war).
+        for (int f = 0; f < MAX_PONG_FRAGMENTS; f++) {
+          if (fragment_targets[f].target_digit == i) {
+            pong_fragments[f].active = false;
+            fragment_targets[f].target_digit = -1;
+          }
+        }
       } else {
         digit_transitions[i].assembly_progress = progress;
       }

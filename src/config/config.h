@@ -118,6 +118,7 @@ struct Settings {
   uint8_t pongBounceDamping;    // Hundredths (85 = 0.85)
   uint8_t pongPaddleWidth;      // Pixels (20)
   bool pongHorizontalBounce;    // Enable horizontal digit bounce on side hits
+  bool pongDigitShatter;        // Shatter/reassemble on digit change (off = blink only)
 
   // Pac-Man clock settings
   uint8_t pacmanSpeed;          // Tenths (10 = 1.0)

@@ -478,6 +478,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "F2_PONGBOUNCEDAMPING")) { out = String(settings.pongBounceDamping / 100.0, 2); return true; }
   if (!strcmp(n, "V_PONGPADDLEWIDTH")) { out = String(settings.pongPaddleWidth); return true; }
   if (!strcmp(n, "CHK_PONGHORIZONTALBOUNCE")) { out = String(settings.pongHorizontalBounce ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_PONGDIGITSHATTER")) { out = String(settings.pongDigitShatter ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_6")) { out = String(settings.clockStyle == 6 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_PACMANSPEED")) { out = String(settings.pacmanSpeed); return true; }
   if (!strcmp(n, "F_PACMANSPEED")) { out = String(settings.pacmanSpeed / 10.0, 1); return true; }
@@ -858,6 +859,7 @@ void handleSave() {
  settings.pongPaddleWidth = server.arg("pongPaddleWidth").toInt();
  }
  settings.pongHorizontalBounce = server.hasArg("pongHorizontalBounce");
+ settings.pongDigitShatter = server.hasArg("pongDigitShatter");
 
  // Save Pac-Man settings
  if (server.hasArg("pacmanSpeed")) {

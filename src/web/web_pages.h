@@ -282,6 +282,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Horizontal digit bounce</strong><span class="ct-hint">Digits bounce sideways when hit from the side. Default on.</span></span>
               </label>
+              <label class="check-row standalone" style="margin-top:10px">
+                <input type="checkbox" name="pongDigitShatter" id="pongDigitShatter" %CHK_PONGDIGITSHATTER%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Digit shatter animation</strong><span class="ct-hint">Changed digits break into fragments and reassemble. Off = digits just blink and swap. Default on.</span></span>
+              </label>
             </div>
 
             <!-- Pac-Man (style 6) -->
