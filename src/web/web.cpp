@@ -14,6 +14,7 @@
 #include "../display/display.h"
 #include "../notify/notify.h"
 #include "../timezones.h"
+#include "../weather/weather.h"
 #include "web_pages.h"
 #include <WebServer.h>
 #include <Update.h>
@@ -216,16 +217,16 @@ void handleModeAuto() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
 }
 
-// GET /api/clock/style?id=0-13 - switch the active clock animation
+// GET /api/clock/style?id=0-14 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
-   server.send(400, "application/json", "{\"error\":\"Missing id (0-13)\"}");
+   server.send(400, "application/json", "{\"error\":\"Missing id (0-14)\"}");
    return;
  }
  int id = server.arg("id").toInt();
- if (id < 0 || id > 13) {
-   server.send(400, "application/json", "{\"error\":\"id must be 0-13\"}");
+ if (id < 0 || id > 14) {
+   server.send(400, "application/json", "{\"error\":\"id must be 0-14\"}");
    return;
  }
  settings.clockStyle = (uint8_t)id;
@@ -428,6 +429,9 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_MC_EXPLOSION, 13, "Explosions"},
     {COL_MC_CITY, 13, "Cities"},
     {COL_MC_GROUND, 13, "Ground"},
+    {COL_WEATHER_ICON, 14, "Icon"},
+    {COL_WEATHER_ACCENT, 14, "Rain / effects"},
+    {COL_WEATHER_TEMP, 14, "Temperature"},
 };
 
 // One <label><input type=color></label> row for a single sprite-color slot.
@@ -467,13 +471,13 @@ static const StyleCard STYLE_CARDS[] = {
     {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},
     {6, "pacmanSettings"},  {7, "snakeSettings"},  {8, "tetrisSettings"},
     {10, "asteroidsSettings"}, {11, "dinoSettings"}, {12, "matrixSettings"},
-    {13, "missileSettings"},
+    {13, "missileSettings"}, {14, "weatherSettings"},
 };
 
 // Clock styles that appear in the style selector, each shown a per-style digit
 // color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
 // has no picker; its digit slot still exists and defaults to white.)
-static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
 // The single per-page "Colors" card on the Clock page: the selected style's sprite
 // rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
@@ -579,6 +583,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_13")) { out = String(settings.clockStyle == 13 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
   if (!strcmp(n, "F_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight / 10.0, 1); return true; }
@@ -674,6 +679,12 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXTRANSPARENT")) { out = String(settings.matrixTransparent ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_13")) { out = String(settings.clockStyle == 13 ? "block" : "none"); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "block" : "none"); return true; }
+  if (!strcmp(n, "CHK_WEATHERENABLED")) { out = String(settings.weatherEnabled ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_WEATHERF")) { out = String(settings.weatherUseFahrenheit ? "checked" : ""); return true; }
+  if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
+  if (!strcmp(n, "V_WEATHERLON")) { out = String(settings.weatherLon, 4); return true; }
+  if (!strcmp(n, "V_WEATHERKEY")) { out = String(settings.weatherApiKey); return true; }
   if (!strcmp(n, "V_MCMISSILESPEED")) { out = String(settings.mcMissileSpeed); return true; }
   if (!strcmp(n, "F_MCMISSILESPEED")) { out = String(settings.mcMissileSpeed / 10.0, 1); return true; }
   if (!strcmp(n, "SEL_MCMISSILEFREQ_0")) { out = String(settings.mcMissileFreq == 0 ? "selected" : ""); return true; }
@@ -1022,6 +1033,27 @@ void handleSave() {
  settings.notifyPosition = server.arg("notifyPosition").toInt() == 1 ? 1 : 0;
  }
 
+ // Save weather settings (checkbox posts only when its subcard is visible, so
+ // only touch the enable flag when the location fields came with the form)
+ if (server.hasArg("weatherLat") && server.hasArg("weatherLon")) {
+ settings.weatherEnabled = server.hasArg("weatherEnabled");
+ float lat = server.arg("weatherLat").toFloat();
+ float lon = server.arg("weatherLon").toFloat();
+ if (lat >= -90.0f && lat <= 90.0f && lon >= -180.0f && lon <= 180.0f) {
+ settings.weatherLat = lat;
+ settings.weatherLon = lon;
+ }
+ settings.weatherUseFahrenheit = server.hasArg("weatherFahrenheit");
+ if (server.hasArg("weatherApiKey")) {
+ String key = server.arg("weatherApiKey");
+ if (key.length() <= 32) {
+ strncpy(settings.weatherApiKey, key.c_str(), 32);
+ settings.weatherApiKey[32] = '\0';
+ }
+ }
+ weatherSettingsChanged(); // wake the fetch task for the new location
+ }
+
  // Save Mario bounce settings
  if (server.hasArg("marioBounceHeight")) {
  settings.marioBounceHeight = server.arg("marioBounceHeight").toInt();
@@ -1362,7 +1394,7 @@ void handleSave() {
  }
 
  // Validate settings bounds before saving
- assertBounds(settings.clockStyle, 0, 13, "clockStyle");
+ assertBounds(settings.clockStyle, 0, 14, "clockStyle");
  assertBounds(settings.gmtOffset, -720, 840, "gmtOffset"); // -12h to +14h in minutes
  assertBounds(settings.clockPosition, 0, 2, "clockPosition");
  assertBounds(settings.displayRowMode, 0, 3, "displayRowMode");
@@ -1489,6 +1521,11 @@ void handleExportConfig() {
  json += "\"showIPAtBoot\":" + String(settings.showIPAtBoot ? "true" : "false") + ",";
  json += "\"notifyEnabled\":" + String(settings.notifyEnabled ? "true" : "false") + ",";
  json += "\"notifyPosition\":" + String(settings.notifyPosition) + ",";
+ json += "\"weatherEnabled\":" + String(settings.weatherEnabled ? "true" : "false") + ",";
+ json += "\"weatherLat\":" + String(settings.weatherLat, 4) + ",";
+ json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
+ json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
+ json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -1626,6 +1663,17 @@ void handleImportConfig() {
  if (!doc["showIPAtBoot"].isNull()) settings.showIPAtBoot = doc["showIPAtBoot"];
  if (!doc["notifyEnabled"].isNull()) settings.notifyEnabled = doc["notifyEnabled"];
  if (!doc["notifyPosition"].isNull()) settings.notifyPosition = doc["notifyPosition"];
+ if (!doc["weatherEnabled"].isNull()) settings.weatherEnabled = doc["weatherEnabled"];
+ if (!doc["weatherLat"].isNull()) settings.weatherLat = doc["weatherLat"];
+ if (!doc["weatherLon"].isNull()) settings.weatherLon = doc["weatherLon"];
+ if (!doc["weatherUseFahrenheit"].isNull()) settings.weatherUseFahrenheit = doc["weatherUseFahrenheit"];
+ if (!doc["weatherApiKey"].isNull()) {
+   const char* key = doc["weatherApiKey"];
+   if (key && strlen(key) <= 32) {
+     strncpy(settings.weatherApiKey, key, 32);
+     settings.weatherApiKey[32] = '\0';
+   }
+ }
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];
    if (name && strlen(name) > 0 && strlen(name) <= 31) {
@@ -1756,6 +1804,7 @@ void handleImportConfig() {
  saveSettings();
  applyTimezone();
  ntpSynced = false; // Force NTP resync after config import
+ weatherSettingsChanged(); // imported location may differ - refetch now
 
  // Imported config can change clockStyle. Reset every clock's animation
  // state so a previous in-flight animation doesn't carry stale time

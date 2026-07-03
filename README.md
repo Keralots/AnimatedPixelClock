@@ -61,6 +61,7 @@ The E line is required for 64x64 (1/32 scan) panels.
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
 | 13 | Missile Command | Dotted missile trails rain on city silhouettes; explosion rings wipe changed digits |
+| 14 | Weather Clock | Time plus live local weather: animated condition icon, temperature, daily range, humidity, sunrise/sunset |
 
 Every style's sprite colors are individually editable in the web interface (digits,
 characters, effects, backgrounds), so each clock can match your setup.
@@ -80,6 +81,26 @@ Once on WiFi, open the device's IP address or `http://pixelclock.local` in a bro
   text modes, progress bars, drag-and-drop placement on a live preview
 - **Config export/import** as JSON (includes the color palette)
 - **Firmware update**: upload a `.bin` over the air
+
+## Weather (optional)
+
+The Weather Clock (style 14) shows current conditions next to the time: an animated
+icon (sun, clouds, rain, snow, storm...), the temperature, today's high/low, humidity
+and sunrise/sunset times. When enabled it also joins the Cycle All rotation as an
+extra screen.
+
+Setup (web interface, Clock page, Weather Clock style):
+
+1. Tick **Enable weather updates**.
+2. Type your city into **Find your location** and press Search - it fills in the
+   coordinates (the lookup runs in your browser; the device only stores latitude and
+   longitude). You can also enter coordinates manually.
+3. Pick Celsius or Fahrenheit. Save.
+
+Data comes from [Open-Meteo](https://open-meteo.com/) (no account or API key needed),
+fetched every 10 minutes. The optional API key field is only for Open-Meteo
+commercial subscriptions. Icon, effect and temperature colors are editable in the
+style's Colors card like any other clock.
 
 ## PC monitor mode (optional)
 
@@ -149,7 +170,7 @@ the device on a trusted LAN.
 | `/api/display/off` / `/api/display/on` | Blank / restore the panel |
 | `/api/display/brightness?value=0-100` | Set brightness (percent) |
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
-| `/api/clock/style?id=0-13` | Switch the clock style (IDs in the table above) |
+| `/api/clock/style?id=0-14` | Switch the clock style (IDs in the table above) |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash

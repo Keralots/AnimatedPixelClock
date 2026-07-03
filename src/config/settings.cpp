@@ -59,15 +59,19 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_MC_EXPLOSION   */ 0xFFE0,  // yellow
     /* COL_MC_CITY        */ 0x34DF,  // blue (#3399ff)
     /* COL_MC_GROUND      */ 0xBC40,  // ochre (#bf8800)
-    /* COL_DIGITS_S0..S13 */ 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
-                             0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,  // per-style digits, white
+    /* COL_DIGITS_S0..S14 */ 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                             0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                             0xFFFF,  // per-style digits, white
+    /* COL_WEATHER_ICON   */ 0xFFE0,  // yellow (sun / cloud body)
+    /* COL_WEATHER_ACCENT */ 0x551F,  // light blue (rain / snow / effects)
+    /* COL_WEATHER_TEMP   */ 0xFFFF,  // white
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
               "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
-// digitColor() relies on the 14 per-style digit slots being contiguous, in order.
-static_assert(COL_DIGITS_S13 - COL_DIGITS_S0 == 13,
-              "COL_DIGITS_S0..S13 must be 14 contiguous slots in ascending order");
+// digitColor() relies on the 15 per-style digit slots being contiguous, in order.
+static_assert(COL_DIGITS_S14 - COL_DIGITS_S0 == 14,
+              "COL_DIGITS_S0..S14 must be 15 contiguous slots in ascending order");
 
 // Zero saved brightness would leave the panel permanently dark with no local
 // control to recover it (runtime off goes through /api/display, not settings),
@@ -117,6 +121,11 @@ void loadSettings() {
     settings.dimBrightness = sanitizeBrightnessValue(50);
     settings.notifyEnabled = true;
     settings.notifyPosition = 0;
+    settings.weatherEnabled = false;
+    settings.weatherLat = 0;
+    settings.weatherLon = 0;
+    settings.weatherUseFahrenheit = false;
+    settings.weatherApiKey[0] = '\0';
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -305,6 +314,15 @@ void loadSettings() {
       preferences.getBool("notifyEn", true); // Default: Enabled
   settings.notifyPosition =
       preferences.getUChar("notifyPos", 0); // Default: Bottom
+  settings.weatherEnabled =
+      preferences.getBool("weatherEn", false); // Default: Disabled
+  settings.weatherLat = preferences.getFloat("weatherLat", 0);
+  settings.weatherLon = preferences.getFloat("weatherLon", 0);
+  settings.weatherUseFahrenheit =
+      preferences.getBool("weatherF", false); // Default: Celsius
+  String loadedWeatherKey = preferences.getString("weatherKey", "");
+  strncpy(settings.weatherApiKey, loadedWeatherKey.c_str(), 32);
+  settings.weatherApiKey[32] = '\0';
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -608,6 +626,11 @@ void saveSettings() {
   preferences.putUChar("dimBright", settings.dimBrightness);
   preferences.putBool("notifyEn", settings.notifyEnabled);
   preferences.putUChar("notifyPos", settings.notifyPosition);
+  preferences.putBool("weatherEn", settings.weatherEnabled);
+  preferences.putFloat("weatherLat", settings.weatherLat);
+  preferences.putFloat("weatherLon", settings.weatherLon);
+  preferences.putBool("weatherF", settings.weatherUseFahrenheit);
+  preferences.putString("weatherKey", settings.weatherApiKey);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

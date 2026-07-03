@@ -86,6 +86,13 @@ struct Settings {
   bool notifyEnabled;           // Master toggle for the /api/notify endpoint
   uint8_t notifyPosition;       // Default banner position: 0=Bottom, 1=Top
 
+  // Weather clock (style 14, Open-Meteo)
+  bool weatherEnabled;          // Master toggle for the fetch task
+  float weatherLat;             // Location latitude (0,0 = unset)
+  float weatherLon;             // Location longitude
+  bool weatherUseFahrenheit;    // false = Celsius
+  char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
+
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s

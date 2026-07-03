@@ -125,6 +125,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
                   <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
                   <option value="13" %SEL_CLOCKSTYLE_13%>Missile Command</option>
+                  <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option>
                 </select>
               </div>
@@ -591,6 +592,43 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock over the battlefield. Default off.</span></span>
               </label>
             </div>
+
+            <!-- Weather Clock (style 14) -->
+            <div class="subcard" id="weatherSettings" style="display:%DSP_CLOCKSTYLE_14%">
+              <label class="check-row standalone">
+                <input type="checkbox" name="weatherEnabled" id="weatherEnabled" %CHK_WEATHERENABLED%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Enable weather updates</strong><span class="ct-hint">Fetches conditions from Open-Meteo every 10 minutes (needs internet). Also adds a weather screen to Cycle All.</span></span>
+              </label>
+              <div class="field" style="margin:16px 0 0">
+                <label class="field-label" for="weatherCity">Find your location</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="text" id="weatherCity" placeholder="City name..." style="flex:1">
+                  <button type="button" class="btn" id="weatherGeoBtn">Search</button>
+                </div>
+                <p class="field-hint" id="weatherGeoStatus">Search fills the coordinates below (lookup runs in your browser).</p>
+              </div>
+              <div class="grid-2" style="margin-top:12px">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="weatherLat">Latitude</label>
+                  <input type="number" name="weatherLat" id="weatherLat" step="0.0001" min="-90" max="90" value="%V_WEATHERLAT%">
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="weatherLon">Longitude</label>
+                  <input type="number" name="weatherLon" id="weatherLon" step="0.0001" min="-180" max="180" value="%V_WEATHERLON%">
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="weatherFahrenheit" id="weatherFahrenheit" %CHK_WEATHERF%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Fahrenheit</strong><span class="ct-hint">Off shows Celsius.</span></span>
+              </label>
+              <div class="field" style="margin:16px 0 0">
+                <label class="field-label" for="weatherApiKey">API key (optional)</label>
+                <input type="text" name="weatherApiKey" id="weatherApiKey" maxlength="32" value="%V_WEATHERKEY%" placeholder="Leave empty for the free endpoint">
+                <p class="field-hint">Only needed with an Open-Meteo commercial subscription.</p>
+              </div>
+            </div>
           </div>
 
           <div class="card">
@@ -1028,8 +1066,8 @@ var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
 var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
-var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','13':'missileSettings' };
-var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','missileSettings'];
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','13':'missileSettings','14':'weatherSettings' };
+var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','missileSettings','weatherSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
 ALL_PANELS.forEach(function (id) {
@@ -1047,6 +1085,22 @@ var dc = document.querySelector('.digitc[data-ds="' + clockStyle.value + '"]');
 if (dc) dc.style.display = '';
 }
 if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
+var wgBtn = $('#weatherGeoBtn');
+if (wgBtn) wgBtn.addEventListener('click', function () {
+var q = $('#weatherCity').value.trim(); if (!q) return;
+var st = $('#weatherGeoStatus'); st.textContent = 'Searching...';
+fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(q))
+.then(function (r) { return r.json(); })
+.then(function (d) {
+if (d.results && d.results.length) {
+var g = d.results[0];
+$('#weatherLat').value = g.latitude.toFixed(4);
+$('#weatherLon').value = g.longitude.toFixed(4);
+st.textContent = 'Found: ' + g.name + (g.admin1 ? ', ' + g.admin1 : '') + (g.country ? ', ' + g.country : '');
+} else { st.textContent = 'No match found. Try a bigger nearby city.'; }
+})
+.catch(function () { st.textContent = 'Lookup failed (no internet?). Enter coordinates manually.'; });
+});
 var dn = $('#deviceName');
 if (dn) dn.addEventListener('input', function () {
 var v = dn.value.toLowerCase() || 'pixelclock';

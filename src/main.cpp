@@ -63,6 +63,7 @@ int getOptimalRefreshRate();
 #include "metrics/metrics.h"
 #include "network/network.h"
 #include "notify/notify.h"
+#include "weather/weather.h"
 #include "web/web.h"
 
 
@@ -110,8 +111,9 @@ int getOptimalRefreshRate() {
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
         settings.clockStyle == 8 || settings.clockStyle == 9 ||
         settings.clockStyle == 10 || settings.clockStyle == 11 ||
-        settings.clockStyle == 12 || settings.clockStyle == 13) {
-      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Missile)
+        settings.clockStyle == 12 || settings.clockStyle == 13 ||
+        settings.clockStyle == 14) {
+      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Missile, Weather)
       return 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
@@ -144,10 +146,12 @@ void cycleClockScreens() {
             firstTimeSynced = true;
         }
 
-        // After that, normal cycling
+        // After that, normal cycling. The weather screen (index 12) joins the
+        // rotation only when weather is enabled and configured.
         if (minuteBlock != lastMinuteBlock) {
             lastMinuteBlock = minuteBlock;
-            currentScreen = (currentScreen + 1) % 12; // Cycle through all 12 clock screens
+            int screenCount = weatherConfigured() ? 13 : 12;
+            currentScreen = (currentScreen + 1) % screenCount;
             resetClockAnimationState(); // Reset animation state when changing screens
         }
     }
@@ -166,6 +170,7 @@ void cycleClockScreens() {
         case 9: displayClockWithDino(); break;
         case 10: displayClockWithMatrixRain(); break;
         case 11: displayClockWithMissileCommand(); break;
+        case 12: displayClockWithWeather(); break;
     }
 }
 
@@ -237,6 +242,9 @@ void setup() {
 
   // Setup web server
   setupWebServer();
+
+  // Background weather fetcher (idles cheaply while weather is disabled)
+  startWeatherTask();
 
   // Show IP address for 5 seconds (configurable via web interface)
   if (displayAvailable && settings.showIPAtBoot) {
@@ -372,6 +380,9 @@ void loop() {
         break;
       case 13:
         displayClockWithMissileCommand();
+        break;
+      case 14:
+        displayClockWithWeather();
         break;
       default:
         displayStandardClock();

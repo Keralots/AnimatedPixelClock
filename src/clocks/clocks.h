@@ -132,4 +132,7 @@ void resetMatrixRainAnimation();
 void displayClockWithMissileCommand();
 void resetMissileAnimation();
 
+// ========== Weather Clock ==========
+void displayClockWithWeather();
+
 #endif // CLOCKS_H
