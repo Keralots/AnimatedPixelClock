@@ -104,11 +104,12 @@ style's Colors card like any other clock.
 
 ## Ambient screensaver & seasonal effects
 
-On the web interface's Display page you can schedule an **ambient screensaver** that
-replaces the clock during set hours (e.g. 20:00-23:00): Doom fire (four palettes),
-plasma, lava lamp, starfield or an aquarium with fish, bubbles and kelp. An optional
-small clock stays in the corner. `GET /api/mode/ambient` forces the effect on
-immediately, `/api/mode/auto` returns to normal - handy for automations.
+On the web interface's Display page you can run an **ambient screensaver** instead of
+the clock: Doom fire (four palettes), plasma, lava lamp, starfield or an aquarium with
+fish, bubbles and kelp. An optional small clock stays in the corner. Press **Start
+now** to keep the effect on until you stop it, or enable the schedule to have it come
+on automatically during set hours (e.g. 20:00-23:00). `GET /api/mode/ambient` /
+`/api/mode/auto` do the same from automations.
 
 A separate **Holiday overlays** toggle adds date-driven effects over whatever clock
 style is active: falling snow through December, a fireworks show around New Year's

@@ -737,39 +737,49 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
           <div class="card">
             <h2 class="card-title">Ambient screensaver</h2>
-            <label class="check-row standalone">
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="ambientStyle">Effect</label>
+                <div class="select-wrap">
+                  <select name="ambientStyle" id="ambientStyle">
+                    <option value="0" %SEL_AMBIENTSTYLE_0%>Doom fire</option>
+                    <option value="1" %SEL_AMBIENTSTYLE_1%>Plasma</option>
+                    <option value="2" %SEL_AMBIENTSTYLE_2%>Lava lamp</option>
+                    <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
+                    <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label class="field-label" for="ambientFirePalette">Fire palette</label>
+                <div class="select-wrap">
+                  <select name="ambientFirePalette" id="ambientFirePalette">
+                    <option value="0" %SEL_AMBFIREPAL_0%>Classic orange</option>
+                    <option value="1" %SEL_AMBFIREPAL_1%>Blue</option>
+                    <option value="2" %SEL_AMBFIREPAL_2%>Green</option>
+                    <option value="3" %SEL_AMBFIREPAL_3%>Purple</option>
+                  </select>
+                </div>
+                <p class="field-hint">Used by the Doom fire effect only.</p>
+              </div>
+            </div>
+            <label class="check-row standalone" style="margin-top:16px">
+              <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner of the effect.</span></span>
+            </label>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+              <button type="button" class="btn" id="ambStartBtn">Start now</button>
+              <button type="button" class="btn" id="ambStopBtn">Stop / back to normal</button>
+            </div>
+            <p class="field-hint" id="ambRunStatus">Start runs the saved effect until you stop it (or the device reboots). Save first if you changed the effect.</p>
+            <label class="check-row standalone" style="margin-top:16px">
               <input type="checkbox" name="ambientEnabled" id="ambientEnabled" %CHK_AMBIENTENABLED%>
               <span class="check-box" aria-hidden="true"></span>
-              <span class="check-text"><strong>Scheduled ambient mode</strong><span class="ct-hint">Show a relaxing full-screen effect instead of the clock during set hours.</span></span>
+              <span class="check-text"><strong>Scheduled ambient mode</strong><span class="ct-hint">Also show the effect automatically during set hours.</span></span>
             </label>
             <div class="subcard" id="ambientFields" style="display:%DSP_AMBIENTENABLED%">
               <div class="grid-2">
-                <div class="field" style="margin-bottom:0">
-                  <label class="field-label" for="ambientStyle">Effect</label>
-                  <div class="select-wrap">
-                    <select name="ambientStyle" id="ambientStyle">
-                      <option value="0" %SEL_AMBIENTSTYLE_0%>Doom fire</option>
-                      <option value="1" %SEL_AMBIENTSTYLE_1%>Plasma</option>
-                      <option value="2" %SEL_AMBIENTSTYLE_2%>Lava lamp</option>
-                      <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
-                      <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="field" style="margin-bottom:0">
-                  <label class="field-label" for="ambientFirePalette">Fire palette</label>
-                  <div class="select-wrap">
-                    <select name="ambientFirePalette" id="ambientFirePalette">
-                      <option value="0" %SEL_AMBFIREPAL_0%>Classic orange</option>
-                      <option value="1" %SEL_AMBFIREPAL_1%>Blue</option>
-                      <option value="2" %SEL_AMBFIREPAL_2%>Green</option>
-                      <option value="3" %SEL_AMBFIREPAL_3%>Purple</option>
-                    </select>
-                  </div>
-                  <p class="field-hint">Used by the Doom fire effect only.</p>
-                </div>
-              </div>
-              <div class="grid-2" style="margin-top:12px">
                 <div class="field" style="margin-bottom:0">
                   <label class="field-label" for="ambientStartHour">From</label>
                   <div class="select-wrap"><select name="ambientStartHour" id="ambientStartHour">%OPT_AMBSTART%</select></div>
@@ -778,15 +788,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <label class="field-label" for="ambientEndHour">Until</label>
                   <div class="select-wrap"><select name="ambientEndHour" id="ambientEndHour">%OPT_AMBEND%</select></div>
                 </div>
-              </div>
-              <label class="check-row standalone" style="margin-top:16px">
-                <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
-                <span class="check-box" aria-hidden="true"></span>
-                <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner of the effect.</span></span>
-              </label>
-              <div class="note">
-                <span class="note-k">api</span>
-                <div><code>/api/mode/ambient</code> forces the effect on right now; <code>/api/mode/auto</code> returns to normal.</div>
               </div>
             </div>
           </div>
@@ -1129,6 +1130,15 @@ var nightChk = $('#enableScheduledDimming');
 if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
 var ambChk = $('#ambientEnabled');
 if (ambChk) { var fa = function () { toggle($('#ambientFields'), ambChk.checked); }; ambChk.addEventListener('change', fa); fa(); }
+function ambCall(path, okMsg) {
+fetch(path).then(function (r) { return r.json(); })
+.then(function () { var s = $('#ambRunStatus'); if (s) s.textContent = okMsg; })
+.catch(function () { var s = $('#ambRunStatus'); if (s) s.textContent = 'Request failed - is the device reachable?'; });
+}
+var ambStart = $('#ambStartBtn');
+if (ambStart) ambStart.addEventListener('click', function () { ambCall('/api/mode/ambient', 'Ambient running. Stop returns to the normal display.'); });
+var ambStop = $('#ambStopBtn');
+if (ambStop) ambStop.addEventListener('click', function () { ambCall('/api/mode/auto', 'Back to normal mode.'); });
 var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
 var marioEnc = $('#marioIdleEncounters');
