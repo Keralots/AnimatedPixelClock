@@ -38,7 +38,7 @@
 #define MX_DECODE_TIME 1.2f      // seconds a changed digit spends decoding
 #define MX_DECODE_SWAP 0.08f     // seconds between decode glyph swaps
 #define MX_MUTATE_RATE 1.2f      // avg glyph mutations per visible cell per second
-#define MX_FADE_LEVELS 8
+#define MX_FADE_LEVELS 32
 
 // Stand-in for the film's katakana: digits, caps and a few dense symbols
 // from the built-in GFX 5x7 font.
@@ -267,9 +267,12 @@ static void drawMatrixRain() {
       if (k == 0) {
         color = headCol;
       } else {
-        int lvl = (MX_FADE_LEVELS - 1) -
-                  (k * (MX_FADE_LEVELS - 1)) / col.trailLen;
-        color = fade[lvl];
+        // Fade off the fractional head position, not the whole-row index,
+        // so every glyph dims a little each frame instead of stepping one
+        // brightness level per row crossing (which read as choppy)
+        float t = 1.0f - (col.headRow - r) / (col.trailLen + 1);
+        if (t < 0.0f) t = 0.0f;
+        color = fade[(int)(t * (MX_FADE_LEVELS - 1))];
       }
       // bg == color skips the background fill (screen is cleared each frame)
       display.drawChar(x, r * MX_CELL_H, mx_chars[c][r], color, color, 1);
