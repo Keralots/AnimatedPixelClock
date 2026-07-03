@@ -20,6 +20,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
+import audio_spectrum
 from constants import MAX_METRICS
 from layout_engine import (
     auto_layout,
@@ -320,9 +321,12 @@ def apply_connection(core, state, form):
     config["esp32_ip"] = ip
     config["udp_port"] = port
     config["update_interval"] = interval
+    config["audio_viz"] = f("audio_viz", "0") == "1"
     core.save_config(config)
     state.set_config(config)
-    return {"success": True, "esp32_ip": ip, "udp_port": port, "update_interval": interval}
+    audio_spectrum.ensure(config)
+    return {"success": True, "esp32_ip": ip, "udp_port": port, "update_interval": interval,
+            "audio_viz": config["audio_viz"]}
 
 
 def do_test(core, state, form):
@@ -417,6 +421,7 @@ def apply_import(core, state, cfg):
         "esp32_ip": cfg.get("esp32_ip", config.get("esp32_ip", "")),
         "udp_port": int(cfg.get("udp_port", config.get("udp_port", 4210))),
         "update_interval": float(cfg.get("update_interval", config.get("update_interval", 3))),
+        "audio_viz": bool(cfg.get("audio_viz", config.get("audio_viz", False))),
         "metrics": cfg.get("metrics", []),
     }
     # Re-number ids 1..N so the layout binds cleanly.
@@ -427,6 +432,7 @@ def apply_import(core, state, cfg):
         out["layout"] = cfg["layout"]
     core.save_config(out)
     state.set_config(out)
+    audio_spectrum.ensure(out)
     return {"success": True, "message": "Configuration imported."}
 
 
@@ -494,7 +500,9 @@ class _Handler(BaseHTTPRequestHandler):
             if path == "/metrics":
                 return self._json(metrics_payload(core, state))
             if path == "/api/status":
-                return self._json(state.status())
+                st = state.status()
+                st.update(audio_spectrum.status())
+                return self._json(st)
             if path == "/api/info":
                 return self._json({"version": "4.0", "ip": state.get_config().get("esp32_ip", "")})
             if path == "/api/sensors":

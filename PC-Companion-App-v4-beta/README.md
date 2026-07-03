@@ -25,3 +25,15 @@ autostart, packaging); everything else is shared from `companion-common/`.
 
 The UDP wire-protocol version stays `2.2` (the contract the firmware speaks); the
 product/config-file version is `4.0`.
+
+## Audio visualizer stream (optional)
+
+The Connection page has an **Audio visualizer stream** checkbox: when enabled, the
+companion captures whatever the PC is playing (WASAPI loopback on Windows,
+PulseAudio monitor on Linux), reduces it to a 32-band spectrum and streams it to
+the device as tiny binary UDP packets (`"FFT1"` + 32 bytes, ~25/s) alongside the
+stats JSON on the same port. The display shows it in its visualizer mode
+(device web UI -> Display -> Audio visualizer -> Start, or `GET /api/mode/viz`).
+
+It needs two extra packages: `pip install soundcard numpy`. Without them the
+checkbox explains what to install and the rest of the app is unaffected.

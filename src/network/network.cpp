@@ -8,6 +8,7 @@
 #include "../display/display.h"
 #include "../utils/utils.h"
 #include "../timezones.h"
+#include "../viz/visualizer.h"
 #include "improv_setup.h"
 #include <Preferences.h>
 
@@ -349,6 +350,13 @@ void handleUDP() {
     int len = udp.read(buffer, sizeof(buffer) - 1);
     if (len > 0) {
       buffer[len] = '\0';
+
+      // Binary spectrum packets ("FFT1" + 32 bands) arrive at ~25 Hz - take
+      // the fast path with no JSON parse and no serial logging. They do NOT
+      // touch lastReceived/online: stats freshness stays truthful.
+      if (vizIngest((const uint8_t*)buffer, len)) {
+        return;
+      }
 
       Serial.print("UDP packet: ");
       Serial.print(packetSize);

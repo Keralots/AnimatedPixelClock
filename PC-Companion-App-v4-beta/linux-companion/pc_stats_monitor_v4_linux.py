@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """PC Companion v4 - Linux core.
 
 Same web UI + tray architecture as the Windows app, but with Linux sensor
@@ -68,6 +68,7 @@ DEFAULT_CONFIG = {
     "esp32_ip": "192.168.0.163",
     "udp_port": 4210,
     "update_interval": 3,
+    "audio_viz": False,
     "metrics": [],
 }
 

@@ -109,6 +109,12 @@
               <input type="number" id="update_interval" name="update_interval" value="3" min="0.5" step="0.5">
               <p class="field-hint">How often to push fresh values. 3s is a good balance; lower is snappier but busier.</p>
             </div>
+            <label class="check-row standalone">
+              <input type="checkbox" id="audio_viz" name="audio_viz">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Audio visualizer stream</strong><span class="ct-hint">Sends your PC's sound spectrum to the display (~25 small packets/s). Show it with the Audio visualizer card on the device's Display page.</span></span>
+            </label>
+            <p class="field-hint" id="audioVizState"></p>
             <div class="page-actions">
               <button type="button" class="btn btn-accent" id="saveConnBtn"><span class="gl"></span>Save connection</button>
               <button type="button" class="btn" id="testConnBtn">Test connection</button>

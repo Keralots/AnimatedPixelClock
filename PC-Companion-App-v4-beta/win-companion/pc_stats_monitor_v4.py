@@ -182,6 +182,7 @@ DEFAULT_CONFIG = {
     "esp32_ip": "192.168.0.163",
     "udp_port": 4210,
     "update_interval": 3,
+    "audio_viz": False,
     "metrics": []
 }
 

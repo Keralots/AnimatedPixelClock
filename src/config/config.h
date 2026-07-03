@@ -104,6 +104,9 @@ struct Settings {
   // Seasonal holiday overlays (date-driven, drawn over clock styles)
   bool holidayOverlays;         // Snow (Dec), fireworks (NYE), hearts (Feb 14), Halloween
 
+  // Audio spectrum visualizer (forced mode fed by the companion)
+  bool vizShowClock;            // Small HH:MM overlay over the bars
+
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s

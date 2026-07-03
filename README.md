@@ -140,6 +140,25 @@ sensor picker.
 
 Data is sent over local UDP (port 4210) as JSON, a few times per second at <1% CPU.
 
+## Audio visualizer (optional)
+
+With the companion app streaming your PC's sound, the display becomes a 32-band
+spectrum analyzer: smooth bars with a green/yellow/red gradient (colors editable),
+falling peak dots, and an optional small clock in the corner.
+
+Setup:
+
+1. On the PC: `pip install soundcard numpy`, then tick **Audio visualizer stream**
+   on the companion's Connection page and save. It captures whatever the PC is
+   playing (WASAPI loopback on Windows, PulseAudio monitor on Linux) - no cables,
+   no microphone.
+2. On the device: Display page -> **Audio visualizer** card -> **Start visualizer**
+   (or `GET /api/mode/viz` from an automation).
+
+The visualizer stays on until you stop it; if the audio stream disappears for 10
+seconds the display falls back to the clock and returns automatically when the
+stream resumes.
+
 ## Building and flashing
 
 Built with [PlatformIO](https://platformio.org/).
@@ -186,6 +205,7 @@ the device on a trusted LAN.
 | `/api/display/brightness?value=0-100` | Set brightness (percent) |
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
 | `/api/mode/ambient` | Force the ambient screensaver on now |
+| `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
 | `/api/clock/style?id=0-14` | Switch the clock style (IDs in the table above) |
 | `/api/reboot` | Soft-restart (settings kept) |
 

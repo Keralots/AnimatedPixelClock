@@ -65,6 +65,9 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_WEATHER_ICON   */ 0xFFE0,  // yellow (sun / cloud body)
     /* COL_WEATHER_ACCENT */ 0x551F,  // light blue (rain / snow / effects)
     /* COL_WEATHER_TEMP   */ 0xFFFF,  // white
+    /* COL_VIZ_LOW        */ 0x07E0,  // green
+    /* COL_VIZ_MID        */ 0xFFE0,  // yellow
+    /* COL_VIZ_PEAK       */ 0xF800,  // red
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
@@ -133,6 +136,7 @@ void loadSettings() {
     settings.ambientShowClock = true;
     settings.ambientFirePalette = 0;
     settings.holidayOverlays = false;
+    settings.vizShowClock = true;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -344,6 +348,8 @@ void loadSettings() {
       preferences.getUChar("ambFirePal", 0); // Default: Classic
   settings.holidayOverlays =
       preferences.getBool("holidayFx", false); // Default: Disabled
+  settings.vizShowClock =
+      preferences.getBool("vizClock", true); // Default: Show time
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -659,6 +665,7 @@ void saveSettings() {
   preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putUChar("ambFirePal", settings.ambientFirePalette);
   preferences.putBool("holidayFx", settings.holidayOverlays);
+  preferences.putBool("vizClock", settings.vizShowClock);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

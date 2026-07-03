@@ -12,6 +12,11 @@ pystray         # System-tray icon for background / autostart mode
 pillow          # Tray icon image (used by pystray)
 pywebview       # Native window hosting the local web UI (Edge WebView2 backend)
 
+# Optional - audio visualizer stream (the checkbox on the Connection page):
+#   python -m pip install soundcard numpy
+# soundcard     # WASAPI loopback capture of what the PC is playing
+# numpy         # FFT for the 32-band spectrum
+
 # On Windows, pywebview uses the Edge WebView2 backend via pythonnet (clr); pip
 # installs pythonnet as a dependency of pywebview. The WebView2 runtime itself
 # ships with Windows 11; on Windows 10 install Microsoft's Evergreen runtime.

@@ -86,6 +86,10 @@ enum ColorSlot {
   COL_WEATHER_ICON,    // primary icon body (sun disc, cloud)
   COL_WEATHER_ACCENT,  // secondary effects (rain, snow, lightning, fog)
   COL_WEATHER_TEMP,    // big temperature readout
+  // Audio spectrum visualizer (forced mode, not a clock style)
+  COL_VIZ_LOW,         // bar gradient: bottom zone
+  COL_VIZ_MID,         // bar gradient: middle zone
+  COL_VIZ_PEAK,        // bar gradient: top zone + peak-hold dots
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

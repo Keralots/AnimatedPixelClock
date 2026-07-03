@@ -598,8 +598,16 @@ if (title) title.textContent = (d.deviceReachable ? 'Device online' : 'Device of
 setText('srDevice', d.deviceIp || '-');
 setText('srSource', d.source || '-');
 setText('srCount', (d.metricCount || 0) + ' metric' + (d.metricCount === 1 ? '' : 's'));
+var avChk = $('#audio_viz'), avState = $('#audioVizState');
+if (avChk && !avHydrated && d.audioVizEnabled !== undefined) { avChk.checked = !!d.audioVizEnabled; avHydrated = true; }
+if (avState && d.audioVizAvailable !== undefined) {
+if (!d.audioVizAvailable) avState.textContent = 'Not available: install the audio packages first (pip install soundcard numpy).';
+else if (d.audioVizEnabled) avState.textContent = d.audioVizSending ? 'Streaming the sound spectrum to the display.' : 'Enabled - waiting for audio playback...';
+else avState.textContent = '';
+}
 }).catch(function () {});
 }
+var avHydrated = false;
 
 // ---- PC companion: connection settings ----------------------------------
 var connResult = $('#connResult');
@@ -615,6 +623,7 @@ var body = new URLSearchParams();
 body.set('esp32_ip', ($('#esp32_ip') || {}).value || '');
 body.set('udp_port', ($('#udp_port') || {}).value || '');
 body.set('update_interval', ($('#update_interval') || {}).value || '');
+body.set('audio_viz', ($('#audio_viz') || {}).checked ? '1' : '0');
 saveConnBtn.disabled = true;
 fetch('/api/connection', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
 .then(function (r) { return r.json(); }).then(function (d) {

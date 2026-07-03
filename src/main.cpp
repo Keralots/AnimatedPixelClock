@@ -49,6 +49,7 @@ unsigned long nextDisplayUpdate = 0;
 bool wifiConnected = false;  // WiFi connection status for icon display
 bool httpForceClock = false;  // HTTP override to force clock mode (via /api/mode/clock)
 bool httpForceAmbient = false;  // HTTP override to force the ambient screen (via /api/mode/ambient)
+bool httpForceViz = false;  // HTTP override to force the audio visualizer (via /api/mode/viz)
 
 // ========== Forward Declarations ==========
 // Redundant forward declarations removed (covered by headers)
@@ -65,6 +66,7 @@ int getOptimalRefreshRate();
 #include "metrics/metrics.h"
 #include "network/network.h"
 #include "notify/notify.h"
+#include "viz/visualizer.h"
 #include "weather/weather.h"
 #include "web/web.h"
 
@@ -96,6 +98,11 @@ int getOptimalRefreshRate() {
 
   // A notification banner may scroll over any screen - keep it silky.
   if (notifyActive()) {
+    return 60;
+  }
+
+  // Audio visualizer: 60 Hz render smooths the ~25 Hz packet stream.
+  if (httpForceViz && vizShouldDisplay()) {
     return 60;
   }
 
@@ -347,8 +354,15 @@ void loop() {
 
     display.clearDisplay();
 
-    bool showStats = metricData.online && !httpForceClock && !httpForceAmbient;
+    // Visualizer wins over everything while forced AND fed; when the packet
+    // stream dies for 10s it falls through (and auto-resumes when it's back).
+    bool showViz = httpForceViz && vizShouldDisplay();
+    bool showStats =
+        !showViz && metricData.online && !httpForceClock && !httpForceAmbient;
 
+    if (showViz) {
+      displayVisualizer();
+    } else
     // Show error status if PC is connected but LHM has issues
     if (showStats && metricData.status != STATUS_OK && metricData.status != 0) {
       displayErrorStatus(metricData.status);

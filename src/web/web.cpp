@@ -15,6 +15,7 @@
 #include "../ambient/ambient.h"
 #include "../notify/notify.h"
 #include "../timezones.h"
+#include "../viz/visualizer.h"
 #include "../weather/weather.h"
 #include "web_pages.h"
 #include <WebServer.h>
@@ -30,6 +31,7 @@ WebServer server(80);
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
 extern bool httpForceAmbient;
+extern bool httpForceViz;
 
 // ========== Web Server Setup ==========
 void setupWebServer() {
@@ -54,6 +56,7 @@ void setupWebServer() {
  server.on("/api/mode/clock", HTTP_GET, handleModeClock);
  server.on("/api/mode/auto", HTTP_GET, handleModeAuto);
  server.on("/api/mode/ambient", HTTP_GET, handleModeAmbient);
+ server.on("/api/mode/viz", HTTP_GET, handleModeViz);
  server.on("/api/clock/style", HTTP_GET, handleSetClockStyle);
  server.on("/api/reboot", HTTP_GET, handleReboot);
 
@@ -161,13 +164,16 @@ void handleStatus() {
  JsonDocument doc;
 
  bool pcOnline = metricData.online;
- bool showStats = pcOnline && !httpForceClock && !httpForceAmbient;
+ bool showViz = httpForceViz && vizShouldDisplay();
+ bool showStats = !showViz && pcOnline && !httpForceClock && !httpForceAmbient;
 
  doc["displayOn"] = !isDisplayForcedOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
- doc["mode"] = ambientActive() ? "ambient" : (showStats ? "metrics" : "clock");
+ doc["mode"] = showViz ? "viz"
+               : (ambientActive() ? "ambient" : (showStats ? "metrics" : "clock"));
  doc["forcedClock"] = httpForceClock;
  doc["forcedAmbient"] = httpForceAmbient;
+ doc["forcedViz"] = httpForceViz;
  doc["brightness"] = (settings.displayBrightness * 100) / 255; // percent
  doc["clockStyle"] = settings.clockStyle;
  doc["pcOnline"] = pcOnline;
@@ -211,6 +217,7 @@ void handleSetBrightness() {
 void handleModeClock() {
  httpForceClock = true;
  httpForceAmbient = false;
+ httpForceViz = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"clock\"}");
 }
@@ -219,6 +226,7 @@ void handleModeClock() {
 void handleModeAuto() {
  httpForceClock = false;
  httpForceAmbient = false;
+ httpForceViz = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
 }
@@ -227,8 +235,20 @@ void handleModeAuto() {
 void handleModeAmbient() {
  httpForceAmbient = true;
  httpForceClock = false;
+ httpForceViz = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"ambient\"}");
+}
+
+// GET /api/mode/viz - force the audio spectrum visualizer (needs the companion
+// streaming spectrum packets; falls back to the clock if the stream dies)
+void handleModeViz() {
+ httpForceViz = true;
+ httpForceClock = false;
+ httpForceAmbient = false;
+ vizNoteForced();
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", "{\"success\":true,\"mode\":\"viz\"}");
 }
 
 // GET /api/clock/style?id=0-14 - switch the active clock animation
@@ -446,6 +466,9 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_WEATHER_ICON, 14, "Icon"},
     {COL_WEATHER_ACCENT, 14, "Rain / effects"},
     {COL_WEATHER_TEMP, 14, "Temperature"},
+    {COL_VIZ_LOW, -3, "Bars (bottom)"},
+    {COL_VIZ_MID, -3, "Bars (middle)"},
+    {COL_VIZ_PEAK, -3, "Bars (top) + peaks"},
 };
 
 // One <label><input type=color></label> row for a single sprite-color slot.
@@ -522,6 +545,9 @@ static String buildColorsCard() {
   return out;
 }
 
+// Visualizer bar-gradient color rows (inside the Display page's viz card).
+static String buildVizColorRows() { return buildColorRows(-3); }
+
 // PC-monitor stat colors as their own card (Display-layout page). "" if none.
 static String buildPcMetricsColorCard() {
   String rows = buildColorRows(-2);
@@ -549,6 +575,9 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "COLOR_GLOBAL")) { out = buildColorsCard(); return true; }
   // PC-monitor stat colors card (Display-layout page).
   if (!strcmp(n, "COLOR_PCMETRICS")) { out = buildPcMetricsColorCard(); return true; }
+  // Visualizer bar colors (rows only; the card lives in web_pages.h).
+  if (!strcmp(n, "COLOR_VIZ")) { out = buildVizColorRows(); return true; }
+  if (!strcmp(n, "CHK_VIZSHOWCLOCK")) { out = String(settings.vizShowClock ? "checked" : ""); return true; }
 
   // --- Brightness help text and minimum ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
@@ -1104,6 +1133,7 @@ void handleSave() {
  if (settings.ambientFirePalette > 3) settings.ambientFirePalette = 0;
  }
  settings.holidayOverlays = server.hasArg("holidayOverlays");
+ settings.vizShowClock = server.hasArg("vizShowClock");
  }
 
  // Save Mario bounce settings
@@ -1585,6 +1615,7 @@ void handleExportConfig() {
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"ambientFirePalette\":" + String(settings.ambientFirePalette) + ",";
  json += "\"holidayOverlays\":" + String(settings.holidayOverlays ? "true" : "false") + ",";
+ json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -1740,6 +1771,7 @@ void handleImportConfig() {
  if (!doc["ambientShowClock"].isNull()) settings.ambientShowClock = doc["ambientShowClock"];
  if (!doc["ambientFirePalette"].isNull()) settings.ambientFirePalette = doc["ambientFirePalette"];
  if (!doc["holidayOverlays"].isNull()) settings.holidayOverlays = doc["holidayOverlays"];
+ if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];
    if (name && strlen(name) > 0 && strlen(name) <= 31) {
