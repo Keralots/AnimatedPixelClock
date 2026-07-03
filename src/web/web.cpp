@@ -734,6 +734,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_AMBIENTSTYLE_2")) { out = String(settings.ambientStyle == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_5")) { out = String(settings.ambientStyle == 5 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_AMBFIREPAL_0")) { out = String(settings.ambientFirePalette == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBFIREPAL_1")) { out = String(settings.ambientFirePalette == 1 ? "selected" : ""); return true; }
@@ -1090,7 +1091,7 @@ void handleSave() {
  if (server.hasArg("ambientStyle")) {
  settings.ambientEnabled = server.hasArg("ambientEnabled");
  settings.ambientStyle = server.arg("ambientStyle").toInt();
- if (settings.ambientStyle > 4) settings.ambientStyle = 0;
+ if (settings.ambientStyle > 5) settings.ambientStyle = 0;
  if (server.hasArg("ambientStartHour")) {
  settings.ambientStartHour = server.arg("ambientStartHour").toInt() % 24;
  }

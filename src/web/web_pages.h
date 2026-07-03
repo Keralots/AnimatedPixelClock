@@ -747,6 +747,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                     <option value="2" %SEL_AMBIENTSTYLE_2%>Lava lamp</option>
                     <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
                     <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
+                    <option value="5" %SEL_AMBIENTSTYLE_5%>Burning room (This is fine)</option>
                   </select>
                 </div>
               </div>

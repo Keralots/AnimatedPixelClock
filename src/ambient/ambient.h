@@ -23,6 +23,11 @@ void ambientPlasmaFrame();
 void ambientLavaFrame();
 void ambientStarsFrame();
 void ambientAquariumFrame();
+void ambientThisIsFineFrame();
+
+// 37-entry fire palette (rebuilt on palette-setting change), shared by the
+// full-screen fire and the burning-room scene.
+const uint16_t* ambientFirePalette37();
 
 // ---- Seasonal holiday overlays (independent of ambient) ----
 

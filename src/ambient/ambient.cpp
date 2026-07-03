@@ -58,6 +58,7 @@ void displayAmbient() {
     case 2: ambientLavaFrame(); break;
     case 3: ambientStarsFrame(); break;
     case 4: ambientAquariumFrame(); break;
+    case 5: ambientThisIsFineFrame(); break;
     default: ambientFireFrame(); break;
   }
   if (settings.ambientShowClock) {
