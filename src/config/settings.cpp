@@ -126,6 +126,13 @@ void loadSettings() {
     settings.weatherLon = 0;
     settings.weatherUseFahrenheit = false;
     settings.weatherApiKey[0] = '\0';
+    settings.ambientEnabled = false;
+    settings.ambientStyle = 0;
+    settings.ambientStartHour = 20;
+    settings.ambientEndHour = 23;
+    settings.ambientShowClock = true;
+    settings.ambientFirePalette = 0;
+    settings.holidayOverlays = false;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -323,6 +330,20 @@ void loadSettings() {
   String loadedWeatherKey = preferences.getString("weatherKey", "");
   strncpy(settings.weatherApiKey, loadedWeatherKey.c_str(), 32);
   settings.weatherApiKey[32] = '\0';
+  settings.ambientEnabled =
+      preferences.getBool("ambEn", false); // Default: Disabled
+  settings.ambientStyle =
+      preferences.getUChar("ambStyle", 0); // Default: Doom fire
+  settings.ambientStartHour =
+      preferences.getUChar("ambStart", 20); // Default: 8 PM
+  settings.ambientEndHour =
+      preferences.getUChar("ambEnd", 23); // Default: 11 PM
+  settings.ambientShowClock =
+      preferences.getBool("ambClock", true); // Default: Show time
+  settings.ambientFirePalette =
+      preferences.getUChar("ambFirePal", 0); // Default: Classic
+  settings.holidayOverlays =
+      preferences.getBool("holidayFx", false); // Default: Disabled
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -631,6 +652,13 @@ void saveSettings() {
   preferences.putFloat("weatherLon", settings.weatherLon);
   preferences.putBool("weatherF", settings.weatherUseFahrenheit);
   preferences.putString("weatherKey", settings.weatherApiKey);
+  preferences.putBool("ambEn", settings.ambientEnabled);
+  preferences.putUChar("ambStyle", settings.ambientStyle);
+  preferences.putUChar("ambStart", settings.ambientStartHour);
+  preferences.putUChar("ambEnd", settings.ambientEndHour);
+  preferences.putBool("ambClock", settings.ambientShowClock);
+  preferences.putUChar("ambFirePal", settings.ambientFirePalette);
+  preferences.putBool("holidayFx", settings.holidayOverlays);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

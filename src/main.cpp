@@ -48,6 +48,7 @@ unsigned long wifiDisconnectTime = 0;
 unsigned long nextDisplayUpdate = 0;
 bool wifiConnected = false;  // WiFi connection status for icon display
 bool httpForceClock = false;  // HTTP override to force clock mode (via /api/mode/clock)
+bool httpForceAmbient = false;  // HTTP override to force the ambient screen (via /api/mode/ambient)
 
 // ========== Forward Declarations ==========
 // Redundant forward declarations removed (covered by headers)
@@ -57,6 +58,7 @@ void displayMetricCompact(Metric *m);
 void drawProgressBar(int x, int y, int width, Metric *m);
 int getOptimalRefreshRate();
 // ========== Module Includes ==========
+#include "ambient/ambient.h"
 #include "display/display.h"
 #include "clocks/clocks.h"
 #include "clocks/clock_globals.h"
@@ -97,8 +99,13 @@ int getOptimalRefreshRate() {
     return 60;
   }
 
-  if (!metricData.online || httpForceClock) {
+  if (!metricData.online || httpForceClock || httpForceAmbient) {
     // Clock mode (offline OR forced via HTTP)
+
+    // Ambient effects (fire, plasma...) live from the frame rate.
+    if (ambientActive()) {
+      return 60;
+    }
 
     // Boost to 60 Hz during active motion for silky-smooth animation (always on;
     // the old opt-out checkbox was removed).
@@ -106,6 +113,7 @@ int getOptimalRefreshRate() {
       return 60;
     }
 
+    int rate;
     if (settings.clockStyle == 0 || settings.clockStyle == 3 ||
         settings.clockStyle == 4 || settings.clockStyle == 5 ||
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
@@ -114,11 +122,15 @@ int getOptimalRefreshRate() {
         settings.clockStyle == 12 || settings.clockStyle == 13 ||
         settings.clockStyle == 14) {
       // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Missile, Weather)
-      return 20; // 20 Hz keeps character movement smooth
+      rate = 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
-      return 2; // 2 Hz is plenty for clock that updates once/second
+      rate = 2; // 2 Hz is plenty for clock that updates once/second
     }
+    // A seasonal overlay (snow, fireworks...) animating over a static clock
+    // needs a floor or it turns into a slideshow.
+    if (seasonalOverlayActive() && rate < 30) rate = 30;
+    return rate;
   } else {
     // Metrics mode (online)
     return 10; // 10 Hz for PC stats (updates every 500ms from Python)
@@ -332,13 +344,16 @@ void loop() {
 
     display.clearDisplay();
 
-    bool showStats = metricData.online && !httpForceClock;
+    bool showStats = metricData.online && !httpForceClock && !httpForceAmbient;
 
     // Show error status if PC is connected but LHM has issues
     if (showStats && metricData.status != STATUS_OK && metricData.status != 0) {
       displayErrorStatus(metricData.status);
     } else if (showStats) {
       displayStats();
+    } else if (ambientActive()) {
+      // Scheduled (or forced) ambient screensaver replaces the clock.
+      displayAmbient();
     } else {
       switch (settings.clockStyle) {
       case 0:
@@ -388,6 +403,10 @@ void loop() {
         displayStandardClock();
         break;
       }
+
+      // Date-driven holiday overlay (no-op outside its windows). Clock
+      // styles only - never over PC stats or ambient scenes.
+      drawSeasonalOverlay();
     }
 
     // Notification banner draws over whatever screen is active.

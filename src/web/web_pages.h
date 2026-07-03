@@ -736,6 +736,71 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
 
           <div class="card">
+            <h2 class="card-title">Ambient screensaver</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="ambientEnabled" id="ambientEnabled" %CHK_AMBIENTENABLED%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Scheduled ambient mode</strong><span class="ct-hint">Show a relaxing full-screen effect instead of the clock during set hours.</span></span>
+            </label>
+            <div class="subcard" id="ambientFields" style="display:%DSP_AMBIENTENABLED%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientStyle">Effect</label>
+                  <div class="select-wrap">
+                    <select name="ambientStyle" id="ambientStyle">
+                      <option value="0" %SEL_AMBIENTSTYLE_0%>Doom fire</option>
+                      <option value="1" %SEL_AMBIENTSTYLE_1%>Plasma</option>
+                      <option value="2" %SEL_AMBIENTSTYLE_2%>Lava lamp</option>
+                      <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
+                      <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientFirePalette">Fire palette</label>
+                  <div class="select-wrap">
+                    <select name="ambientFirePalette" id="ambientFirePalette">
+                      <option value="0" %SEL_AMBFIREPAL_0%>Classic orange</option>
+                      <option value="1" %SEL_AMBFIREPAL_1%>Blue</option>
+                      <option value="2" %SEL_AMBFIREPAL_2%>Green</option>
+                      <option value="3" %SEL_AMBFIREPAL_3%>Purple</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">Used by the Doom fire effect only.</p>
+                </div>
+              </div>
+              <div class="grid-2" style="margin-top:12px">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientStartHour">From</label>
+                  <div class="select-wrap"><select name="ambientStartHour" id="ambientStartHour">%OPT_AMBSTART%</select></div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="ambientEndHour">Until</label>
+                  <div class="select-wrap"><select name="ambientEndHour" id="ambientEndHour">%OPT_AMBEND%</select></div>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner of the effect.</span></span>
+              </label>
+              <div class="note">
+                <span class="note-k">api</span>
+                <div><code>/api/mode/ambient</code> forces the effect on right now; <code>/api/mode/auto</code> returns to normal.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Seasonal effects</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="holidayOverlays" id="holidayOverlays" %CHK_HOLIDAYOVERLAYS%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Holiday overlays</strong><span class="ct-hint">Snow in December, fireworks at New Year's midnight, hearts on Feb 14, a pumpkin and bats in late October - drawn over the clock automatically.</span></span>
+            </label>
+          </div>
+
+          <div class="card">
             <h2 class="card-title">Notifications</h2>
             <label class="check-row standalone">
               <input type="checkbox" name="notifyEnabled" id="notifyEnabled" %CHK_NOTIFYENABLED%>
@@ -1062,6 +1127,8 @@ $$('input[type="range"]').forEach(function (inp) { fmtRange(inp); inp.addEventLi
 function toggle(el, on) { if (el) el.style.display = on ? '' : 'none'; }
 var nightChk = $('#enableScheduledDimming');
 if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
+var ambChk = $('#ambientEnabled');
+if (ambChk) { var fa = function () { toggle($('#ambientFields'), ambChk.checked); }; ambChk.addEventListener('change', fa); fa(); }
 var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
 var marioEnc = $('#marioIdleEncounters');

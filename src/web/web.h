@@ -45,6 +45,7 @@ void handleDisplayOff();
 void handleSetBrightness();
 void handleModeClock();
 void handleModeAuto();
+void handleModeAmbient();
 void handleSetClockStyle();
 void handleReboot();
 

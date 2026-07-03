@@ -93,6 +93,17 @@ struct Settings {
   bool weatherUseFahrenheit;    // false = Celsius
   char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
 
+  // Ambient screensaver (scheduled, replaces the clock)
+  bool ambientEnabled;          // Enable the scheduled ambient window
+  uint8_t ambientStyle;         // 0=Doom fire, 1=Plasma, 2=Lava lamp, 3=Starfield, 4=Aquarium
+  uint8_t ambientStartHour;     // Window start (0-23, wraps midnight)
+  uint8_t ambientEndHour;       // Window end (0-23)
+  bool ambientShowClock;        // Small HH:MM overlay in the corner
+  uint8_t ambientFirePalette;   // Doom fire palette: 0=Classic, 1=Blue, 2=Green, 3=Purple
+
+  // Seasonal holiday overlays (date-driven, drawn over clock styles)
+  bool holidayOverlays;         // Snow (Dec), fireworks (NYE), hearts (Feb 14), Halloween
+
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s

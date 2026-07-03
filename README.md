@@ -102,6 +102,19 @@ fetched every 10 minutes. The optional API key field is only for Open-Meteo
 commercial subscriptions. Icon, effect and temperature colors are editable in the
 style's Colors card like any other clock.
 
+## Ambient screensaver & seasonal effects
+
+On the web interface's Display page you can schedule an **ambient screensaver** that
+replaces the clock during set hours (e.g. 20:00-23:00): Doom fire (four palettes),
+plasma, lava lamp, starfield or an aquarium with fish, bubbles and kelp. An optional
+small clock stays in the corner. `GET /api/mode/ambient` forces the effect on
+immediately, `/api/mode/auto` returns to normal - handy for automations.
+
+A separate **Holiday overlays** toggle adds date-driven effects over whatever clock
+style is active: falling snow through December, a fireworks show around New Year's
+midnight, floating hearts on February 14, and a pumpkin with passing bats in late
+October. Off by default, one checkbox to enable.
+
 ## PC monitor mode (optional)
 
 With the companion app running on your PC, the display switches to live hardware
@@ -170,6 +183,7 @@ the device on a trusted LAN.
 | `/api/display/off` / `/api/display/on` | Blank / restore the panel |
 | `/api/display/brightness?value=0-100` | Set brightness (percent) |
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
+| `/api/mode/ambient` | Force the ambient screensaver on now |
 | `/api/clock/style?id=0-14` | Switch the clock style (IDs in the table above) |
 | `/api/reboot` | Soft-restart (settings kept) |
 

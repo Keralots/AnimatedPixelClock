@@ -12,6 +12,7 @@
 #include "../utils/utils.h"
 #include "../clocks/clocks.h"
 #include "../display/display.h"
+#include "../ambient/ambient.h"
 #include "../notify/notify.h"
 #include "../timezones.h"
 #include "../weather/weather.h"
@@ -28,6 +29,7 @@ WebServer server(80);
 
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
+extern bool httpForceAmbient;
 
 // ========== Web Server Setup ==========
 void setupWebServer() {
@@ -51,6 +53,7 @@ void setupWebServer() {
  server.on("/api/display/brightness", HTTP_GET, handleSetBrightness);
  server.on("/api/mode/clock", HTTP_GET, handleModeClock);
  server.on("/api/mode/auto", HTTP_GET, handleModeAuto);
+ server.on("/api/mode/ambient", HTTP_GET, handleModeAmbient);
  server.on("/api/clock/style", HTTP_GET, handleSetClockStyle);
  server.on("/api/reboot", HTTP_GET, handleReboot);
 
@@ -158,12 +161,13 @@ void handleStatus() {
  JsonDocument doc;
 
  bool pcOnline = metricData.online;
- bool showStats = pcOnline && !httpForceClock;
+ bool showStats = pcOnline && !httpForceClock && !httpForceAmbient;
 
  doc["displayOn"] = !isDisplayForcedOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
- doc["mode"] = showStats ? "metrics" : "clock";
+ doc["mode"] = ambientActive() ? "ambient" : (showStats ? "metrics" : "clock");
  doc["forcedClock"] = httpForceClock;
+ doc["forcedAmbient"] = httpForceAmbient;
  doc["brightness"] = (settings.displayBrightness * 100) / 255; // percent
  doc["clockStyle"] = settings.clockStyle;
  doc["pcOnline"] = pcOnline;
@@ -206,6 +210,7 @@ void handleSetBrightness() {
 // GET /api/mode/clock - force clock display even when the PC is online
 void handleModeClock() {
  httpForceClock = true;
+ httpForceAmbient = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"clock\"}");
 }
@@ -213,8 +218,17 @@ void handleModeClock() {
 // GET /api/mode/auto - resume automatic mode (metrics when PC online, clock otherwise)
 void handleModeAuto() {
  httpForceClock = false;
+ httpForceAmbient = false;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"auto\"}");
+}
+
+// GET /api/mode/ambient - force the ambient screensaver regardless of schedule
+void handleModeAmbient() {
+ httpForceAmbient = true;
+ httpForceClock = false;
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", "{\"success\":true,\"mode\":\"ambient\"}");
 }
 
 // GET /api/clock/style?id=0-14 - switch the active clock animation
@@ -547,9 +561,13 @@ static bool resolvePlaceholder(const char* n, String& out) {
     return true;
   }
 
-  // --- Scheduled-dimming hour dropdowns ---
-  if (!strcmp(n, "OPT_DIMSTART") || !strcmp(n, "OPT_DIMEND")) {
-    uint8_t selHour = (!strcmp(n, "OPT_DIMSTART")) ? settings.dimStartHour : settings.dimEndHour;
+  // --- Scheduled-dimming / ambient hour dropdowns ---
+  if (!strcmp(n, "OPT_DIMSTART") || !strcmp(n, "OPT_DIMEND") ||
+      !strcmp(n, "OPT_AMBSTART") || !strcmp(n, "OPT_AMBEND")) {
+    uint8_t selHour = (!strcmp(n, "OPT_DIMSTART"))   ? settings.dimStartHour
+                      : (!strcmp(n, "OPT_DIMEND"))   ? settings.dimEndHour
+                      : (!strcmp(n, "OPT_AMBSTART")) ? settings.ambientStartHour
+                                                     : settings.ambientEndHour;
     for (int i = 0; i < 24; i++) {
       out += "<option value=\"" + String(i) + "\"" + (selHour == i ? " selected" : "") + ">" + String(i) + ":00</option>";
     }
@@ -709,6 +727,19 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "CHK_NOTIFYENABLED")) { out = String(settings.notifyEnabled ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_NOTIFYPOSITION_0")) { out = String(settings.notifyPosition == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_NOTIFYPOSITION_1")) { out = String(settings.notifyPosition == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "block" : "none"); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_0")) { out = String(settings.ambientStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_1")) { out = String(settings.ambientStyle == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_2")) { out = String(settings.ambientStyle == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBFIREPAL_0")) { out = String(settings.ambientFirePalette == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBFIREPAL_1")) { out = String(settings.ambientFirePalette == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBFIREPAL_2")) { out = String(settings.ambientFirePalette == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBFIREPAL_3")) { out = String(settings.ambientFirePalette == 3 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_HOLIDAYOVERLAYS")) { out = String(settings.holidayOverlays ? "checked" : ""); return true; }
   if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
   if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
   if (!strcmp(n, "V_DEVICENAME")) { out = String(settings.deviceName); return true; }
@@ -1052,6 +1083,26 @@ void handleSave() {
  }
  }
  weatherSettingsChanged(); // wake the fetch task for the new location
+ }
+
+ // Save ambient screensaver + seasonal overlay settings (guard on a field
+ // that always posts so a partial form can't silently disable them)
+ if (server.hasArg("ambientStyle")) {
+ settings.ambientEnabled = server.hasArg("ambientEnabled");
+ settings.ambientStyle = server.arg("ambientStyle").toInt();
+ if (settings.ambientStyle > 4) settings.ambientStyle = 0;
+ if (server.hasArg("ambientStartHour")) {
+ settings.ambientStartHour = server.arg("ambientStartHour").toInt() % 24;
+ }
+ if (server.hasArg("ambientEndHour")) {
+ settings.ambientEndHour = server.arg("ambientEndHour").toInt() % 24;
+ }
+ settings.ambientShowClock = server.hasArg("ambientShowClock");
+ if (server.hasArg("ambientFirePalette")) {
+ settings.ambientFirePalette = server.arg("ambientFirePalette").toInt();
+ if (settings.ambientFirePalette > 3) settings.ambientFirePalette = 0;
+ }
+ settings.holidayOverlays = server.hasArg("holidayOverlays");
  }
 
  // Save Mario bounce settings
@@ -1526,6 +1577,13 @@ void handleExportConfig() {
  json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
  json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
  json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
+ json += "\"ambientEnabled\":" + String(settings.ambientEnabled ? "true" : "false") + ",";
+ json += "\"ambientStyle\":" + String(settings.ambientStyle) + ",";
+ json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
+ json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
+ json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
+ json += "\"ambientFirePalette\":" + String(settings.ambientFirePalette) + ",";
+ json += "\"holidayOverlays\":" + String(settings.holidayOverlays ? "true" : "false") + ",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -1674,6 +1732,13 @@ void handleImportConfig() {
      settings.weatherApiKey[32] = '\0';
    }
  }
+ if (!doc["ambientEnabled"].isNull()) settings.ambientEnabled = doc["ambientEnabled"];
+ if (!doc["ambientStyle"].isNull()) settings.ambientStyle = doc["ambientStyle"];
+ if (!doc["ambientStartHour"].isNull()) settings.ambientStartHour = doc["ambientStartHour"];
+ if (!doc["ambientEndHour"].isNull()) settings.ambientEndHour = doc["ambientEndHour"];
+ if (!doc["ambientShowClock"].isNull()) settings.ambientShowClock = doc["ambientShowClock"];
+ if (!doc["ambientFirePalette"].isNull()) settings.ambientFirePalette = doc["ambientFirePalette"];
+ if (!doc["holidayOverlays"].isNull()) settings.holidayOverlays = doc["holidayOverlays"];
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];
    if (name && strlen(name) > 0 && strlen(name) <= 31) {
