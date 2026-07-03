@@ -38,6 +38,7 @@
 #define MC_MAX_ENEMIES 6
 #define MC_MAX_COUNTERS 3
 #define MC_MAX_BOOMS 6
+#define MC_MAX_SPARKS 24
 #define MC_ENEMY_BASE_SPEED 9.0f   // px/s at speed setting 1.0
 #define MC_COUNTER_SPEED_MULT 3.0f // counter speed = enemy base speed x this
 #define MC_CHANGE_SPEED 60.0f      // px/s for digit-change missiles
@@ -78,6 +79,14 @@ struct McBoom {
   float x, y;
 };
 
+// Debris thrown out by a detonation: ballistic pixels with a short life.
+struct McSpark {
+  bool active;
+  float x, y;
+  float vx, vy;
+  float life;
+};
+
 // City x-centres (3 per side of the cannon) and the ground gaps between
 // them that idle missiles are allowed to strike.
 static const int MC_CITY_X[6] = {10, 28, 46, 82, 100, 118};
@@ -86,6 +95,7 @@ static const int MC_GAP_X[6] = {19, 37, 55, 73, 91, 109};
 static McMissile mc_enemies[MC_MAX_ENEMIES];
 static McCounter mc_counters[MC_MAX_COUNTERS];
 static McBoom mc_booms[MC_MAX_BOOMS];
+static McSpark mc_sparks[MC_MAX_SPARKS];
 static float mc_volley_timer = 0.0f;
 
 // Minute-change bookkeeping
@@ -141,6 +151,23 @@ static int mcFindEnemySlot(bool forChange) {
   return -1;
 }
 
+// Debris burst: sparks fly out radially with a slight upward bias, then
+// arc down under gravity and burn out.
+static void mcSpawnSparks(float x, float y, int count) {
+  for (int i = 0; i < MC_MAX_SPARKS && count > 0; i++) {
+    if (mc_sparks[i].active) continue;
+    float ang = mcRandf(0.0f, 6.2832f);
+    float spd = mcRandf(14.0f, 34.0f);
+    mc_sparks[i].active = true;
+    mc_sparks[i].x = x;
+    mc_sparks[i].y = y;
+    mc_sparks[i].vx = cosf(ang) * spd;
+    mc_sparks[i].vy = sinf(ang) * spd - 8.0f;
+    mc_sparks[i].life = mcRandf(0.35f, 0.7f);
+    count--;
+  }
+}
+
 static void mcSpawnBoom(float x, float y, float maxR, bool isChange,
                         int8_t slot, uint8_t newVal) {
   for (int i = 0; i < MC_MAX_BOOMS; i++) {
@@ -156,6 +183,7 @@ static void mcSpawnBoom(float x, float y, float maxR, bool isChange,
     mc_booms[i].holdT = MC_BOOM_HOLD;
     mc_booms[i].x = x;
     mc_booms[i].y = y;
+    mcSpawnSparks(x, y, isChange ? 12 : 8);
     return;
   }
 }
@@ -186,6 +214,7 @@ void resetMissileAnimation() {
   for (int i = 0; i < MC_MAX_ENEMIES; i++) mc_enemies[i].active = false;
   for (int i = 0; i < MC_MAX_COUNTERS; i++) mc_counters[i].active = false;
   for (int i = 0; i < MC_MAX_BOOMS; i++) mc_booms[i].active = false;
+  for (int i = 0; i < MC_MAX_SPARKS; i++) mc_sparks[i].active = false;
   mc_volley_timer = mcVolleyDelay() * 0.5f;  // first volley comes sooner
   last_minute_mc = -1;
   mc_triggered = false;
@@ -344,12 +373,30 @@ static void updateMissileAnimation(struct tm *timeinfo) {
       }
     }
 
-    // The blast catches idle attackers flying through it
+    // The blast catches idle attackers flying through it: the warhead
+    // cooks off in a chain detonation of its own (smaller ring + debris)
     for (int e = 0; e < MC_MAX_ENEMIES; e++) {
       McMissile &m = mc_enemies[e];
       if (!m.active || m.isChange || m.launchDelay > 0.0f) continue;
       float ddx = m.x - b.x, ddy = m.y - b.y;
-      if (ddx * ddx + ddy * ddy < b.r * b.r) m.active = false;
+      if (ddx * ddx + ddy * ddy < b.r * b.r) {
+        m.active = false;
+        mcSpawnBoom(m.x, m.y, MC_BOOM_R_IDLE * 0.7f, false, -1, 0);
+      }
+    }
+  }
+
+  // ----- Sparks -----
+  for (int i = 0; i < MC_MAX_SPARKS; i++) {
+    McSpark &s = mc_sparks[i];
+    if (!s.active) continue;
+    s.life -= dt;
+    s.vy += 40.0f * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    if (s.life <= 0.0f || s.y >= MC_GROUND_Y || s.x < 0.0f ||
+        s.x >= SCREEN_WIDTH) {
+      s.active = false;
     }
   }
 }
@@ -405,7 +452,7 @@ void displayClockWithMissileCommand() {
 
   mcDrawBattlefield();
 
-  // Missile trails fly behind the digit plates
+  // Missile trails fly behind the digits
   for (int i = 0; i < MC_MAX_ENEMIES; i++) {
     const McMissile &m = mc_enemies[i];
     if (!m.active || m.launchDelay > 0.0f) continue;
@@ -421,7 +468,9 @@ void displayClockWithMissileCommand() {
     display.drawPixel((int)c.x, (int)c.y, flick ? DISPLAY_WHITE : col);
   }
 
-  // Time digits (size 3) on solid plates; the sky is a shooting gallery
+  // Time digits (size 3), always transparent: no black plates, so the
+  // trails, counter fire and blasts stay visible through and around the
+  // glyph strokes (digits are drawn after trails, so they win the pixels)
   display.setTextSize(3);
   display.setTextColor(digitColor());
   char dch[5];
@@ -431,24 +480,42 @@ void displayClockWithMissileCommand() {
   dch[3] = '0' + displayed_min / 10;
   dch[4] = '0' + displayed_min % 10;
   for (int i = 0; i < 5; i++) {
-    int dx = DIGIT_X[i];
-    display.fillRect(dx - 1, gy - 1, MC_DIGIT_W + 2, MC_DIGIT_H + 2,
-                     DISPLAY_BLACK);
-    display.setCursor(dx, gy);
+    display.setCursor(DIGIT_X[i], gy);
     display.print(dch[i]);
   }
   display.setTextColor(DISPLAY_WHITE);  // restore for date chrome
 
-  // Explosion rings burn over everything, including the digit they wipe
-  uint16_t boomCol =
-      ((millis() / 70) % 2 == 0) ? SPRITE_COLOR(COL_MC_EXPLOSION) : DISPLAY_WHITE;
+  // Explosions burn over everything, including the digit they wipe:
+  // colour-cycling fireball rim with a flickering white-hot core, each
+  // boom offset in phase so simultaneous blasts don't strobe in sync
+  uint32_t bt = millis() / 50;
   for (int i = 0; i < MC_MAX_BOOMS; i++) {
     const McBoom &b = mc_booms[i];
     if (!b.active || b.r < 1.0f) continue;
-    display.fillCircle((int)b.x, (int)b.y, (int)b.r, boomCol);
+    uint16_t rim;
+    switch ((bt + i) % 3) {
+      case 0: rim = SPRITE_COLOR(COL_MC_EXPLOSION); break;
+      case 1: rim = DISPLAY_WHITE; break;
+      default: rim = SPRITE_COLOR(COL_MC_MISSILE); break;
+    }
+    display.fillCircle((int)b.x, (int)b.y, (int)b.r, rim);
+    if (b.r >= 4.0f) {
+      uint16_t core = ((bt + i) % 2 == 0) ? DISPLAY_WHITE
+                                          : SPRITE_COLOR(COL_MC_EXPLOSION);
+      display.fillCircle((int)b.x, (int)b.y, (int)(b.r * 0.55f), core);
+    }
   }
 
-  // Optional date row (top), on its own plate
+  // Debris sparks on top, flickering as they burn out
+  for (int i = 0; i < MC_MAX_SPARKS; i++) {
+    const McSpark &s = mc_sparks[i];
+    if (!s.active) continue;
+    uint16_t col = ((bt + i) % 2 == 0) ? SPRITE_COLOR(COL_MC_EXPLOSION)
+                                       : DISPLAY_WHITE;
+    display.drawPixel((int)s.x, (int)s.y, col);
+  }
+
+  // Optional date row (top)
   if (settings.mcShowDate) {
     display.setTextSize(1);
     char dateStr[12];
@@ -459,12 +526,10 @@ void displayClockWithMissileCommand() {
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
     int dateX = (SCREEN_WIDTH - 60) / 2;
-    display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
     display.setCursor(dateX, 4);
     display.print(dateStr);
   }
   if (!settings.use24Hour) {
-    display.fillRect(109, 3, 14, 10, DISPLAY_BLACK);
     drawMeridiemIndicator(110, 4, displayed_is_pm);
   }
 
