@@ -59,6 +59,11 @@ static void buildFirePalette() {
     firePalette[i] =
         ((r2 >> 3) << 11) | ((g2 >> 2) << 5) | (b2 >> 3);
   }
+  // The coldest levels ({7,7,7} etc.) round to a faint green in RGB565,
+  // which reads as a flickering dim haze over the whole "black" area of
+  // the panel. Force them to true black.
+  firePalette[0] = 0x0000;
+  firePalette[1] = 0x0000;
   builtPaletteId = settings.ambientFirePalette;
 }
 
@@ -71,24 +76,34 @@ void ambientFireFrame() {
     fireSeeded = true;
   }
 
-  // Propagate upward with 1px random wind and random decay.
-  for (int y = 0; y < FIRE_H - 1; y++) {
-    uint8_t* dstRow = &heat[y * FIRE_W];
-    uint8_t* srcRow = &heat[(y + 1) * FIRE_W];
-    for (int x = 0; x < FIRE_W; x++) {
-      uint32_t r = fireRnd();
-      int wind = (int)(r % 3) - 1;
-      int dx = x + wind;
-      if (dx < 0) dx = 0;
-      if (dx >= FIRE_W) dx = FIRE_W - 1;
-      int v = srcRow[x] - (int)(r & 1);
-      dstRow[dx] = v < 0 ? 0 : (uint8_t)v;
+  // Propagate at ~30 Hz, not every 60 Hz render frame: the original effect
+  // ran well below 60 and updating per frame makes the shimmer frantic
+  // while doubling the CPU cost.
+  static unsigned long lastPropagate = 0;
+  unsigned long now = millis();
+  if (now - lastPropagate >= 33) {
+    lastPropagate = now;
+    // Propagate upward with 1px random wind and random decay.
+    for (int y = 0; y < FIRE_H - 1; y++) {
+      uint8_t* dstRow = &heat[y * FIRE_W];
+      uint8_t* srcRow = &heat[(y + 1) * FIRE_W];
+      for (int x = 0; x < FIRE_W; x++) {
+        uint32_t r = fireRnd();
+        int wind = (int)(r % 3) - 1;
+        int dx = x + wind;
+        if (dx < 0) dx = 0;
+        if (dx >= FIRE_W) dx = FIRE_W - 1;
+        int v = srcRow[x] - (int)(r & 1);
+        dstRow[dx] = v < 0 ? 0 : (uint8_t)v;
+      }
     }
   }
 
   for (int y = 0; y < FIRE_H; y++) {
+    uint8_t* row = &heat[y * FIRE_W];
     for (int x = 0; x < FIRE_W; x++) {
-      display.drawPixel(x, y, firePalette[heat[y * FIRE_W + x]]);
+      // Level 0/1 map to true black; the frame starts cleared, skip them.
+      if (row[x] > 1) display.drawPixel(x, y, firePalette[row[x]]);
     }
   }
 }
