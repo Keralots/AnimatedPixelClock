@@ -67,11 +67,6 @@ static void buildFirePalette() {
   builtPaletteId = settings.ambientFirePalette;
 }
 
-const uint16_t* ambientFirePalette37() {
-  if (builtPaletteId != settings.ambientFirePalette) buildFirePalette();
-  return firePalette;
-}
-
 void ambientFireFrame() {
   if (builtPaletteId != settings.ambientFirePalette) buildFirePalette();
   if (!fireSeeded) {
