@@ -696,6 +696,25 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               </div>
             </div>
           </div>
+
+          <div class="card">
+            <h2 class="card-title">Notifications</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="notifyEnabled" id="notifyEnabled" %CHK_NOTIFYENABLED%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Notification banner</strong><span class="ct-hint">Allow POST /api/notify to show a scrolling message over any screen (Home Assistant, scripts).</span></span>
+            </label>
+            <div class="field" style="margin:14px 0 0">
+              <label class="field-label" for="notifyPosition">Banner position</label>
+              <div class="select-wrap">
+                <select name="notifyPosition" id="notifyPosition">
+                  <option value="0" %SEL_NOTIFYPOSITION_0%>Bottom</option>
+                  <option value="1" %SEL_NOTIFYPOSITION_1%>Top</option>
+                </select>
+              </div>
+              <p class="field-hint">Default edge for the banner. A request can override it per message.</p>
+            </div>
+          </div>
         </section>
 
         <!-- DISPLAY LAYOUT -->

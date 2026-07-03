@@ -12,6 +12,7 @@
 #include "../utils/utils.h"
 #include "../clocks/clocks.h"
 #include "../display/display.h"
+#include "../notify/notify.h"
 #include "../timezones.h"
 #include "web_pages.h"
 #include <WebServer.h>
@@ -39,6 +40,8 @@ void setupWebServer() {
  server.on("/api/export", HTTP_GET, handleExportConfig);
  server.on("/api/import", HTTP_POST, handleImportConfig);
  server.on("/api/rename", HTTP_POST, handleRename);
+ server.on("/api/notify", HTTP_POST, handleNotify);
+ server.on("/api/notify/dismiss", HTTP_GET, handleNotifyDismiss);
 
  // Runtime control API (display power, mode, brightness, clock style, reboot)
  server.on("/api/status", HTTP_GET, handleStatus);
@@ -275,6 +278,84 @@ void handleRename() {
  initMDNS();
 
  server.send(200, "application/json", "{\"success\":true,\"name\":\"" + String(settings.deviceName) + "\"}");
+}
+
+// POST /api/notify - show a banner over the current screen.
+// Body: {"text":"...","color":"#RRGGBB","icon":"bell","duration":5000,"position":"top"}
+// Only "text" is required.
+void handleNotify() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+
+ if (!settings.notifyEnabled) {
+   server.send(403, "application/json", "{\"error\":\"Notifications disabled in settings\"}");
+   return;
+ }
+ if (!server.hasArg("plain")) {
+   server.send(400, "application/json", "{\"error\":\"Missing body\"}");
+   return;
+ }
+
+ JsonDocument doc;
+ DeserializationError error = deserializeJson(doc, server.arg("plain"));
+ if (error) {
+   server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+   return;
+ }
+
+ const char* text = doc["text"];
+ if (!text || strlen(text) == 0) {
+   server.send(400, "application/json", "{\"error\":\"Missing text\"}");
+   return;
+ }
+ if (strlen(text) > NOTIFY_TEXT_MAX) {
+   server.send(400, "application/json",
+               "{\"error\":\"Text too long (max " + String(NOTIFY_TEXT_MAX) + " chars)\"}");
+   return;
+ }
+
+ uint16_t color = DISPLAY_WHITE;
+ const char* colorStr = doc["color"];
+ if (colorStr && strlen(colorStr) == 7 && colorStr[0] == '#') {
+   bool ok = true;
+   for (int k = 1; k < 7; k++) { if (!isxdigit((int)colorStr[k])) { ok = false; break; } }
+   if (ok) {
+     long rgb = strtol(colorStr + 1, nullptr, 16);
+     uint8_t r8 = (rgb >> 16) & 0xFF, g8 = (rgb >> 8) & 0xFF, b8 = rgb & 0xFF;
+     color = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
+   }
+ }
+
+ int icon = -1;
+ const char* iconStr = doc["icon"];
+ if (iconStr && strlen(iconStr) > 0) {
+   icon = notifyIconIdByName(iconStr);
+   if (icon < 0) {
+     server.send(400, "application/json",
+                 "{\"error\":\"Unknown icon. Valid: " + String(notifyIconNames()) + "\"}");
+     return;
+   }
+ }
+
+ long duration = doc["duration"] | 5000;
+ if (duration < 1000) duration = 1000;
+ if (duration > 60000) duration = 60000;
+
+ uint8_t position = settings.notifyPosition;
+ const char* posStr = doc["position"];
+ if (posStr) {
+   if (!strcmp(posStr, "top")) position = 1;
+   else if (!strcmp(posStr, "bottom")) position = 0;
+ }
+
+ notifySet(text, color, (int8_t)icon, (uint32_t)duration, position);
+ server.send(200, "application/json", "{\"success\":true}");
+}
+
+// GET /api/notify/dismiss - clear the current banner early.
+void handleNotifyDismiss() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ notifyDismiss();
+ server.send(200, "application/json", "{\"success\":true}");
 }
 
 // ========== Config Page (streamed PROGMEM template) ==========
@@ -614,6 +695,9 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "PCT_DISPLAYBRIGHTNESS")) { out = String((settings.displayBrightness * 100) / 255); return true; }
   if (!strcmp(n, "CHK_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "block" : "none"); return true; }
+  if (!strcmp(n, "CHK_NOTIFYENABLED")) { out = String(settings.notifyEnabled ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_NOTIFYPOSITION_0")) { out = String(settings.notifyPosition == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_NOTIFYPOSITION_1")) { out = String(settings.notifyPosition == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
   if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
   if (!strcmp(n, "V_DEVICENAME")) { out = String(settings.deviceName); return true; }
@@ -930,6 +1014,12 @@ void handleSave() {
 
  if (brightnessSettingsChanged) {
  refreshDisplayBrightnessNow();
+ }
+
+ // Save notification banner settings
+ settings.notifyEnabled = server.hasArg("notifyEnabled");
+ if (server.hasArg("notifyPosition")) {
+ settings.notifyPosition = server.arg("notifyPosition").toInt() == 1 ? 1 : 0;
  }
 
  // Save Mario bounce settings
@@ -1397,6 +1487,8 @@ void handleExportConfig() {
  json += "\"useNetworkMBFormat\":" + String(settings.useNetworkMBFormat ? "true" : "false") + ",";
  json += "\"deviceName\":\"" + String(settings.deviceName) + "\",";
  json += "\"showIPAtBoot\":" + String(settings.showIPAtBoot ? "true" : "false") + ",";
+ json += "\"notifyEnabled\":" + String(settings.notifyEnabled ? "true" : "false") + ",";
+ json += "\"notifyPosition\":" + String(settings.notifyPosition) + ",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -1532,6 +1624,8 @@ void handleImportConfig() {
  if (!doc["useRpmKFormat"].isNull()) settings.useRpmKFormat = doc["useRpmKFormat"];
  if (!doc["useNetworkMBFormat"].isNull()) settings.useNetworkMBFormat = doc["useNetworkMBFormat"];
  if (!doc["showIPAtBoot"].isNull()) settings.showIPAtBoot = doc["showIPAtBoot"];
+ if (!doc["notifyEnabled"].isNull()) settings.notifyEnabled = doc["notifyEnabled"];
+ if (!doc["notifyPosition"].isNull()) settings.notifyPosition = doc["notifyPosition"];
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];
    if (name && strlen(name) > 0 && strlen(name) <= 31) {

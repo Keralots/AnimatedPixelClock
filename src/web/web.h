@@ -34,6 +34,10 @@ void handleRename();
 void handleExportConfig();
 void handleImportConfig();
 
+// Notification banner API
+void handleNotify();
+void handleNotifyDismiss();
+
 // Runtime control API (display power, mode, brightness, clock style, reboot)
 void handleStatus();
 void handleDisplayOn();

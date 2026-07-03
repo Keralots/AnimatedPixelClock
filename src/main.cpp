@@ -62,6 +62,7 @@ int getOptimalRefreshRate();
 #include "clocks/clock_globals.h"
 #include "metrics/metrics.h"
 #include "network/network.h"
+#include "notify/notify.h"
 #include "web/web.h"
 
 
@@ -89,6 +90,12 @@ int getOptimalRefreshRate() {
   // Always adaptive. The manual fixed-Hz override (and its web control) was
   // removed - a user-pinned low rate only made animations choppy. The adaptive
   // rates below are what keep motion smooth.
+
+  // A notification banner may scroll over any screen - keep it silky.
+  if (notifyActive()) {
+    return 60;
+  }
+
   if (!metricData.online || httpForceClock) {
     // Clock mode (offline OR forced via HTTP)
 
@@ -370,6 +377,11 @@ void loop() {
         displayStandardClock();
         break;
       }
+    }
+
+    // Notification banner draws over whatever screen is active.
+    if (notifyActive()) {
+      drawNotifyOverlay();
     }
 
     display.display();

@@ -168,6 +168,41 @@ rest_command:
     url: "http://pixelclock.local/api/display/on"
 ```
 
+## Notifications API
+
+Push a message banner onto the display from anything that can send an HTTP request.
+The banner appears over whatever is on screen (clock or PC stats), scrolls if the
+text is too long, and disappears on its own.
+
+```bash
+curl -X POST http://pixelclock.local/api/notify \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Doorbell!","icon":"bell","color":"#FFAA00","duration":8000}'
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `text` | yes | Message, up to 200 characters |
+| `color` | no | Banner color as `#RRGGBB` (default white) |
+| `icon` | no | One of `bell`, `mail`, `alert`, `heart`, `check`, `cross`, `info`, `home`, `music`, `star` |
+| `duration` | no | Display time in ms, 1000-60000 (default 5000) |
+| `position` | no | `top` or `bottom` (default: the position set in the web interface) |
+
+`GET /api/notify/dismiss` clears the banner early. A new POST replaces the current
+banner. The feature can be disabled entirely on the web interface's Display page
+(Notifications card), where the default banner position is also set.
+
+Home Assistant example:
+
+```yaml
+rest_command:
+  clock_notify:
+    url: "http://pixelclock.local/api/notify"
+    method: POST
+    content_type: "application/json"
+    payload: '{"text":"{{ message }}","icon":"{{ icon | default(''info'') }}","color":"{{ color | default(''#FFFFFF'') }}"}'
+```
+
 ## Libraries
 
 - [ESP32-HUB75-MatrixPanel-DMA](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-I2S-DMA) (matrix driver)

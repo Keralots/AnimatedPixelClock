@@ -115,6 +115,8 @@ void loadSettings() {
     settings.dimStartHour = 22;
     settings.dimEndHour = 7;
     settings.dimBrightness = sanitizeBrightnessValue(50);
+    settings.notifyEnabled = true;
+    settings.notifyPosition = 0;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -299,6 +301,10 @@ void loadSettings() {
       preferences.getUChar("dimEnd", 7); // Default: 7 AM
   settings.dimBrightness =
       preferences.getUChar("dimBright", 50); // Default: ~20% (50/255)
+  settings.notifyEnabled =
+      preferences.getBool("notifyEn", true); // Default: Enabled
+  settings.notifyPosition =
+      preferences.getUChar("notifyPos", 0); // Default: Bottom
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -600,6 +606,8 @@ void saveSettings() {
   preferences.putUChar("dimStart", settings.dimStartHour);
   preferences.putUChar("dimEnd", settings.dimEndHour);
   preferences.putUChar("dimBright", settings.dimBrightness);
+  preferences.putBool("notifyEn", settings.notifyEnabled);
+  preferences.putUChar("notifyPos", settings.notifyPosition);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

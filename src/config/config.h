@@ -82,6 +82,10 @@ struct Settings {
   uint8_t dimEndHour;           // Hour to end dimming (0-23)
   uint8_t dimBrightness;        // Brightness level during dim period (0-255)
 
+  // Notification banner (POST /api/notify)
+  bool notifyEnabled;           // Master toggle for the /api/notify endpoint
+  uint8_t notifyPosition;       // Default banner position: 0=Bottom, 1=Top
+
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s
