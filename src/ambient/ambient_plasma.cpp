@@ -41,14 +41,17 @@ static void initPlasma() {
 void ambientPlasmaFrame() {
   if (!plasmaInit) initPlasma();
 
+  // Computed at half resolution and drawn as 2x2 blocks: quarter the math
+  // and a quarter of the (expensive) per-pixel panel writes. Invisible at
+  // P2.5 pitch for a pattern this smooth.
   uint32_t t = millis() / 16;
-  for (int y = 0; y < SCREEN_HEIGHT; y++) {
-    uint8_t sy = sinLUT[(uint8_t)(y * 3 + (t >> 1))];
-    for (int x = 0; x < SCREEN_WIDTH; x++) {
-      uint8_t v = (uint8_t)((sinLUT[(uint8_t)(x * 2 + t)] +
-                             sinLUT[(uint8_t)(x + y * 2 - t)] + sy) /
+  for (int y = 0; y < SCREEN_HEIGHT / 2; y++) {
+    uint8_t sy = sinLUT[(uint8_t)(y * 6 + (t >> 1))];
+    for (int x = 0; x < SCREEN_WIDTH / 2; x++) {
+      uint8_t v = (uint8_t)((sinLUT[(uint8_t)(x * 4 + t)] +
+                             sinLUT[(uint8_t)(x * 2 + y * 4 - t)] + sy) /
                             3);
-      display.drawPixel(x, y, rainbow[(uint8_t)(v + t)]);
+      display.fillRect(x * 2, y * 2, 2, 2, rainbow[(uint8_t)(v + t)]);
     }
   }
 }

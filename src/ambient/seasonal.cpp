@@ -27,7 +27,7 @@ static bool seasonChecked = false;
 
 static SeasonKind computeSeason() {
   struct tm t;
-  if (!getTimeWithTimeout(&t, 10)) return SEASON_NONE;
+  if (!getTimeWithTimeout(&t, 0)) return SEASON_NONE;  // non-blocking; result cached 30s
 
   // Fireworks window wins over December snow.
   if ((t.tm_mon == 11 && t.tm_mday == 31 && t.tm_hour == 23 && t.tm_min >= 50) ||

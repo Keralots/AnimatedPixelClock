@@ -102,9 +102,12 @@ int getOptimalRefreshRate() {
   if (!metricData.online || httpForceClock || httpForceAmbient) {
     // Clock mode (offline OR forced via HTTP)
 
-    // Ambient effects (fire, plasma...) live from the frame rate.
+    // Ambient effects (fire, plasma...) redraw the FULL panel every frame.
+    // 30 Hz, not 60: the effects look identical, the per-frame pixel load
+    // halves, and the buffer-flip rate stops beating against the panel's
+    // DMA scan (visible as rolling dim bands on full-screen content).
     if (ambientActive()) {
-      return 60;
+      return 30;
     }
 
     // Boost to 60 Hz during active motion for silky-smooth animation (always on;
