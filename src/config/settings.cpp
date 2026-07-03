@@ -59,10 +59,15 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_MC_EXPLOSION   */ 0xFFE0,  // yellow
     /* COL_MC_CITY        */ 0x34DF,  // blue (#3399ff)
     /* COL_MC_GROUND      */ 0xBC40,  // ochre (#bf8800)
+    /* COL_DIGITS_S0..S13 */ 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                             0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,  // per-style digits, white
 };
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
               "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
+// digitColor() relies on the 14 per-style digit slots being contiguous, in order.
+static_assert(COL_DIGITS_S13 - COL_DIGITS_S0 == 13,
+              "COL_DIGITS_S0..S13 must be 14 contiguous slots in ascending order");
 
 // Zero saved brightness would leave the panel permanently dark with no local
 // control to recover it (runtime off goes through /api/display, not settings),
@@ -547,8 +552,17 @@ void loadSettings() {
     settings.spriteColors[i] = SPRITE_COLOR_DEFAULTS[i];
   }
   // getBytes copies min(stored, requested) bytes, leaving extra slots at default.
+  size_t storedColorBytes = preferences.getBytesLength("spriteCols");
   preferences.getBytes("spriteCols", settings.spriteColors,
                        COL_COUNT * sizeof(uint16_t));
+  // Upgrade path: blobs saved before per-style digit colors existed end before the
+  // COL_DIGITS_S* slots. Seed each style's digit color from the old single global
+  // COL_DIGITS so existing devices keep whatever digit color the user had.
+  if (storedColorBytes <= COL_DIGITS_S0 * sizeof(uint16_t)) {
+    for (int s = COL_DIGITS_S0; s <= COL_DIGITS_S13; s++) {
+      settings.spriteColors[s] = settings.spriteColors[COL_DIGITS];
+    }
+  }
 
   preferences.end();
 

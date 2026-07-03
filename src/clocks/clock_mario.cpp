@@ -81,7 +81,7 @@ static float shellSlideSpeed = 0;
 // ========== Draw Time With Bounce Effect ==========
 void drawTimeWithBounce() {
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
 
   char digits[5];
   digits[0] = '0' + (displayed_hour / 10);

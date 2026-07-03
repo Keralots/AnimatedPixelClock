@@ -295,12 +295,12 @@ static String rgb565ToHex(uint16_t c) {
 }
 
 // One editable color per row. `style` = the clock style this element belongs to
-// (its picker shows inside that style's settings subcard), -1 = global (shown
-// always, e.g. the digits color), -2 = PC-monitor stats (own always-visible
-// group, not a clock style). APPEND rows as modes are colored.
+// (its picker shows inside that style's settings subcard), -2 = PC-monitor stats
+// (own card on the Display-layout page, not a clock style). The per-style time
+// digit color is emitted separately (buildDigitRow) so it can also cover styles
+// that have no settings subcard. APPEND rows as modes are colored.
 struct SpriteColorRow { uint8_t slot; int style; const char* label; };
 static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
-    {COL_DIGITS, -1, "Time digits + colon"},
     {COL_STAT_TEXT, -2, "Metric text"},
     {COL_STAT_BAR, -2, "Bar fill"},
     {COL_STAT_BAR_BG, -2, "Bar outline"},
@@ -346,21 +346,32 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_MC_GROUND, 13, "Ground"},
 };
 
-// Emit <input type=color> rows for one clock style (-1 = global). "" if none.
+// One <label><input type=color></label> row for a single sprite-color slot.
+static String colorInputRow(uint8_t slot, const char* label) {
+  String s = F("<label style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0\"><span>");
+  s += label;
+  s += F("</span><input type=\"color\" name=\"color_");
+  s += String(slot);
+  s += F("\" value=\"");
+  s += rgb565ToHex(settings.spriteColors[slot]);
+  s += F("\"></label>");
+  return s;
+}
+
+// Emit <input type=color> rows for one clock style (-2 = PC stats). "" if none.
 static String buildColorRows(int style) {
   String s;
   for (size_t i = 0; i < sizeof(SPRITE_COLOR_ROWS) / sizeof(SPRITE_COLOR_ROWS[0]); i++) {
     const SpriteColorRow& r = SPRITE_COLOR_ROWS[i];
     if (r.style != style) continue;
-    s += F("<label style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0\"><span>");
-    s += r.label;
-    s += F("</span><input type=\"color\" name=\"color_");
-    s += String(r.slot);
-    s += F("\" value=\"");
-    s += rgb565ToHex(settings.spriteColors[r.slot]);
-    s += F("\"></label>");
+    s += colorInputRow(r.slot, r.label);
   }
   return s;
+}
+
+// The per-style time-digit + colon color row (slot COL_DIGITS_S0 + style).
+static String buildDigitRow(int style) {
+  return colorInputRow((uint8_t)(COL_DIGITS_S0 + style), "Time digits + colon");
 }
 
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
@@ -375,26 +386,46 @@ static const StyleCard STYLE_CARDS[] = {
     {13, "missileSettings"},
 };
 
-// The single per-page "Colors" card: the selected style's rows (hidden until
-// syncClockPanels reveals the block), then the always-shown global rows + reset.
+// Clock styles that appear in the style selector, each shown a per-style digit
+// color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
+// has no picker; its digit slot still exists and defaults to white.)
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+
+// The single per-page "Colors" card on the Clock page: the selected style's sprite
+// rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
+// color row (class "digitc", toggled by clock style value), then reset. PC-monitor
+// stat colors live on the Display-layout page (buildPcMetricsColorCard), not here.
 static String buildColorsCard() {
   String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
   for (size_t i = 0; i < sizeof(STYLE_CARDS) / sizeof(STYLE_CARDS[0]); i++) {
     String rows = buildColorRows(STYLE_CARDS[i].style);
-    if (rows.length() == 0) continue;  // this style has no color rows yet
+    if (rows.length() == 0) continue;  // this style has no sprite color rows yet
     out += F("<div id=\"");
     out += STYLE_CARDS[i].panelId;
     out += F("Colors\" style=\"display:none\">");
     out += rows;
     out += F("</div>");
   }
-  out += buildColorRows(-1);  // global Time-digits row, always visible
-  String statRows = buildColorRows(-2);  // PC-monitor stats rows, always visible
-  if (statRows.length()) {
-    out += F("<div style=\"margin-top:14px;font-weight:600;opacity:.75\">PC Monitor</div>");
-    out += statRows;
+  // Per-style time-digit color: one row per selectable style, JS reveals the one
+  // matching the current clock style (works for styles with no settings subcard).
+  for (size_t i = 0; i < sizeof(DIGIT_STYLES) / sizeof(DIGIT_STYLES[0]); i++) {
+    out += F("<div class=\"digitc\" data-ds=\"");
+    out += String(DIGIT_STYLES[i]);
+    out += F("\" style=\"display:none\">");
+    out += buildDigitRow(DIGIT_STYLES[i]);
+    out += F("</div>");
   }
   out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
+  out += F("</div>");
+  return out;
+}
+
+// PC-monitor stat colors as their own card (Display-layout page). "" if none.
+static String buildPcMetricsColorCard() {
+  String rows = buildColorRows(-2);
+  if (rows.length() == 0) return String();
+  String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
+  out += rows;
   out += F("</div>");
   return out;
 }
@@ -412,9 +443,10 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
   if (!strcmp(n, "DISPLAYMODEL")) { out = "HUB75 Matrix"; return true; }
   if (!strcmp(n, "BOARDNAME")) { out = "ESP32-S3"; return true; }
-  // The single per-page "Colors" card (contextual: the selected style's pickers
-  // + global digits + reset).
+  // The Clock-page "Colors" card (selected style's pickers + its digit color).
   if (!strcmp(n, "COLOR_GLOBAL")) { out = buildColorsCard(); return true; }
+  // PC-monitor stat colors card (Display-layout page).
+  if (!strcmp(n, "COLOR_PCMETRICS")) { out = buildPcMetricsColorCard(); return true; }
 
   // --- Brightness help text and minimum ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
@@ -575,11 +607,6 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_COLONBLINKMODE_2")) { out = String(settings.colonBlinkMode == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "V_COLONBLINKRATE")) { out = String(settings.colonBlinkRate); return true; }
   if (!strcmp(n, "F_COLONBLINKRATE")) { out = String(settings.colonBlinkRate / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_REFRESHRATEMODE_0")) { out = String(settings.refreshRateMode == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_REFRESHRATEMODE_1")) { out = String(settings.refreshRateMode == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "DSP_REFRESHRATEMODE_1")) { out = String(settings.refreshRateMode == 1 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_REFRESHRATEHZ")) { out = String(settings.refreshRateHz); return true; }
-  if (!strcmp(n, "CHK_BOOSTANIMATIONREFRESH")) { out = String(settings.boostAnimationRefresh ? "checked" : ""); return true; }
   if (!strcmp(n, "V_DISPLAYBRIGHTNESS")) { out = String(settings.displayBrightness); return true; }
   if (!strcmp(n, "PCT_DISPLAYBRIGHTNESS")) { out = String((settings.displayBrightness * 100) / 255); return true; }
   if (!strcmp(n, "CHK_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "checked" : ""); return true; }
@@ -792,16 +819,11 @@ void handleSave() {
  settings.colonBlinkRate = server.arg("colonBlinkRate").toInt();
  }
 
- // Save refresh rate settings
- if (server.hasArg("refreshRateMode")) {
- settings.refreshRateMode = server.arg("refreshRateMode").toInt();
- }
- if (server.hasArg("refreshRateHz")) {
- settings.refreshRateHz = server.arg("refreshRateHz").toInt();
- }
-
- // Save animation boost checkbox
- settings.boostAnimationRefresh = server.hasArg("boostAnim");
+ // Refresh rate is always adaptive (the manual-Hz control was removed); force Auto
+ // so any value persisted by an older firmware can't pin a fixed rate. Animation
+ // boost is always on (its checkbox was removed) - it is what keeps motion smooth.
+ settings.refreshRateMode = 0;
+ settings.boostAnimationRefresh = true;
 
  bool brightnessSettingsChanged = false;
 

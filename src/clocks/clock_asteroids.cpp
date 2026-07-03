@@ -624,7 +624,7 @@ static void drawAstShards() {
     float c = cosf(sh.angle) * halfLen, s = sinf(sh.angle) * halfLen;
     display.drawLine((int)(sh.x - c), (int)(sh.y - s),
                      (int)(sh.x + c), (int)(sh.y + s),
-                     sh.fromDigit ? SPRITE_COLOR(COL_DIGITS) : SPRITE_COLOR(COL_AST_ROCK));
+                     sh.fromDigit ? digitColor() : SPRITE_COLOR(COL_AST_ROCK));
   }
 }
 
@@ -658,7 +658,7 @@ void displayClockWithAsteroids() {
   // reads as flying *behind* the time, then print the glyph. The digit
   // being shattered stays hidden until its debris clears.
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;

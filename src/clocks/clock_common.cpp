@@ -8,6 +8,16 @@
 #include "clock_globals.h"
 #include "../display/display.h"
 
+// Time-digit + colon color for the ACTIVE clock style. Each style keeps its own
+// digit color (COL_DIGITS_S0 + style). Cycle All (style 9) uses its own slot for
+// every screen it rotates through. Declared in display.h so every renderer can
+// call it in place of the old global digitColor().
+uint16_t digitColor() {
+  uint8_t s = settings.clockStyle;
+  if (s > 13) s = 1;  // out-of-range -> Standard clock's slot
+  return SPRITE_COLOR((ColorSlot)(COL_DIGITS_S0 + s));
+}
+
 static void advanceDisplayTimeState(int& hour, int& minute, bool& isPM) {
   minute++;
   if (minute < 60) {
@@ -274,7 +284,7 @@ void displayStandardClock() {
   int time_width = 5 * 18;  // 5 chars * 18px
   int time_x = (SCREEN_WIDTH - time_width) / 2;
   display.setCursor(time_x, 8);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   display.print(timeStr);
   display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 
@@ -348,7 +358,7 @@ void displayLargeClock() {
   // Center time: 5 chars * 24px = 120px, centered in 128px
   int time_x = (SCREEN_WIDTH - 120) / 2;
   display.setCursor(time_x, 4);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   display.print(timeStr);
   display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
 

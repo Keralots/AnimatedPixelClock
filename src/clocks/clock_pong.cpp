@@ -254,7 +254,7 @@ void drawPongFragments() {
     if (pong_fragments[i].active) {
       int fx = (int)pong_fragments[i].x;
       int fy = (int)pong_fragments[i].y;
-      display.fillRect(fx, fy, 2, 2, SPRITE_COLOR(COL_DIGITS));  // digit debris
+      display.fillRect(fx, fy, 2, 2, digitColor());  // digit debris
     }
   }
 }
@@ -783,7 +783,7 @@ void drawPongBall() {
 // Draw Pong clock digits with custom pop-in animation
 void drawPongDigits() {
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
 
   // Build digit string
   char digits[6];

@@ -219,8 +219,8 @@ void displayClockWithPacman() {
         // M1 starts at: DIGIT_X_PACMAN[3]
         // Center the colon in the gap between them
         int colon_x = (DIGIT_X_PACMAN[1] + 4 * PELLET_SPACING + DIGIT_X_PACMAN[3]) / 2;
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 8, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));   // Top dot (lowered)
-        display.fillCircle(colon_x, TIME_Y_PACMAN + 18, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));  // Bottom dot (lowered)
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 8, PELLET_SIZE, digitColor());   // Top dot (lowered)
+        display.fillCircle(colon_x, TIME_Y_PACMAN + 18, PELLET_SIZE, digitColor());  // Bottom dot (lowered)
       }
       continue;
     }
@@ -254,7 +254,7 @@ void displayClockWithPacman() {
           // Draw pellet (small circle like patrol pellets)
           int px = base_x + col * PELLET_SPACING;
           int py = base_y + row * PELLET_SPACING;
-          display.fillCircle(px, py, PELLET_SIZE, SPRITE_COLOR(COL_DIGITS));
+          display.fillCircle(px, py, PELLET_SIZE, digitColor());
         }
       }
     }

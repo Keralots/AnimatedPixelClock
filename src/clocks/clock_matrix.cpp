@@ -300,7 +300,7 @@ void displayClockWithMatrixRain() {
   // Time digits (size 3) on solid plates so they stay readable over the busy
   // rain; transparent mode skips every mask and lets the rain fall through.
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -319,7 +319,7 @@ void displayClockWithMatrixRain() {
       // Bright decode flicker until the new value locks in
       display.setTextColor(SPRITE_COLOR(COL_MATRIX_HEAD));
       display.print(mx_decode_char[i]);
-      display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+      display.setTextColor(digitColor());
     } else {
       display.print(dch[i]);
     }

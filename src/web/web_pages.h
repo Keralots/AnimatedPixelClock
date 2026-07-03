@@ -629,7 +629,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
 
           <div class="card">
-            <h2 class="card-title">Colon &amp; refresh</h2>
+            <h2 class="card-title">Clock colon</h2>
             <div class="grid-2">
               <div class="field" style="margin-bottom:0">
                 <label class="field-label" for="colonBlinkMode">Clock colon</label>
@@ -650,26 +650,9 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <p class="field-hint">Blink speed. 1.0 Hz is once per second.</p>
               </div>
             </div>
-            <div class="field" style="margin:18px 0 0">
-              <label class="field-label" for="refreshRateMode">Refresh rate</label>
-              <div class="select-wrap">
-                <select name="refreshRateMode" id="refreshRateMode">
-                  <option value="0" %SEL_REFRESHRATEMODE_0%>Auto (adaptive)</option>
-                  <option value="1" %SEL_REFRESHRATEMODE_1%>Manual</option>
-                </select>
-              </div>
-            </div>
-            <div class="field" id="refreshRateFields" style="display:%DSP_REFRESHRATEMODE_1%;margin:16px 0 0">
-              <label class="field-label" for="refreshRateHz">Manual refresh rate</label>
-              <div class="range-row">
-                <input type="range" name="refreshRateHz" id="refreshRateHz" min="1" max="60" step="1" value="%V_REFRESHRATEHZ%" data-suffix="Hz">
-                <span class="range-val" data-for="refreshRateHz">%V_REFRESHRATEHZ%Hz</span>
-              </div>
-              <p class="field-hint">Updates per second. Higher is smoother but uses more power.</p>
-            </div>
             <div class="note">
               <span class="note-k">auto</span>
-              <div>Adaptive mode runs static clocks at <strong>2&nbsp;Hz</strong>, idle animations at <strong>20&nbsp;Hz</strong>, and active scenes up to <strong>40&nbsp;Hz</strong> - a blinking colon reduces static burn-in.</div>
+              <div>The refresh rate is automatic: static clocks run at <strong>2&nbsp;Hz</strong>, idle animations at <strong>20&nbsp;Hz</strong>, and active scenes up to <strong>60&nbsp;Hz</strong>.</div>
             </div>
           </div>
 
@@ -683,11 +666,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               </div>
               <p class="field-hint">%HELP_DISPBRIGHT%</p>
             </div>
-            <label class="check-row standalone" style="margin-top:6px">
-              <input type="checkbox" name="boostAnim" id="boostAnim" %CHK_BOOSTANIMATIONREFRESH%>
-              <span class="check-box" aria-hidden="true"></span>
-              <span class="check-text"><strong>Smooth animations</strong><span class="ct-hint">Boost the refresh rate during bounces and explosions, then settle back to save power.</span></span>
-            </label>
           </div>
 
           <div class="card">
@@ -779,6 +757,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               </label>
             </div>
           </div>
+          %COLOR_PCMETRICS%
         </section>
 
         <!-- VISIBLE METRICS -->
@@ -1028,8 +1007,6 @@ var nightChk = $('#enableScheduledDimming');
 if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); fn(); }
 var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
-var refSel = $('#refreshRateMode');
-if (refSel) { var fr = function () { toggle($('#refreshRateFields'), refSel.value === '1'); }; refSel.addEventListener('change', fr); fr(); }
 var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
 var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','13':'missileSettings' };
@@ -1040,11 +1017,15 @@ ALL_PANELS.forEach(function (id) {
 var el = document.getElementById(id); if (el) el.style.display = 'none';
 var c = document.getElementById(id + 'Colors'); if (c) c.style.display = 'none';
 });
+var dcs = document.querySelectorAll('.digitc');
+for (var i = 0; i < dcs.length; i++) dcs[i].style.display = 'none';
 var show = STYLE_PANELS[clockStyle.value];
 if (show) {
 var e = document.getElementById(show); if (e) e.style.display = '';
 var c = document.getElementById(show + 'Colors'); if (c) c.style.display = '';
 }
+var dc = document.querySelector('.digitc[data-ds="' + clockStyle.value + '"]');
+if (dc) dc.style.display = '';
 }
 if (clockStyle) { clockStyle.addEventListener('change', syncClockPanels); syncClockPanels(); }
 var dn = $('#deviceName');

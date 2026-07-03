@@ -423,7 +423,7 @@ void displayClockWithMissileCommand() {
 
   // Time digits (size 3) on solid plates; the sky is a shooting gallery
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;

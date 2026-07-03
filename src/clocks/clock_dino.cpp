@@ -453,7 +453,7 @@ void displayClockWithDino() {
   // the pterodactyl instead of in its slot; the slot stays empty until the
   // new digit drops in from above.
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));  // kept through the carried ptero digit
+  display.setTextColor(digitColor());  // kept through the carried ptero digit
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;

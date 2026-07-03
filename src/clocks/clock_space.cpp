@@ -295,7 +295,7 @@ void drawSpaceFragments() {
     if (space_fragments[i].active) {
       // Digit blown apart -> digit color (matches Snake/Tetris/Asteroids debris).
       display.fillRect((int)space_fragments[i].x,
-                      (int)space_fragments[i].y, 2, 2, SPRITE_COLOR(COL_DIGITS));
+                      (int)space_fragments[i].y, 2, 2, digitColor());
     }
   }
 }
@@ -437,7 +437,7 @@ void displayClockWithSpaceInvader() {
   digits[3] = '0' + (displayed_min / 10);
   digits[4] = '0' + (displayed_min % 10);
 
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   for (int i = 0; i < 5; i++) {
     display.setCursor(DIGIT_X[i], SPACE_TIME_Y);
     display.print(digits[i]);

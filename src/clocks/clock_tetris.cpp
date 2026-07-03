@@ -178,7 +178,7 @@ static void tetDrawCells(int idx, uint8_t val, int rowStart, int rowEnd, int yOf
       if ((bits >> (TET_GRID_W - 1 - col)) & 1) {
         int px = DIGIT_X[idx] + col * TET_PITCH;
         int py = tetTimeY() + row * TET_PITCH + yOff;
-        display.fillRect(px, py, bs, bs, SPRITE_COLOR(COL_DIGITS));
+        display.fillRect(px, py, bs, bs, digitColor());
       }
     }
   }
@@ -674,7 +674,7 @@ static void tetDrawActiveDigit(int i) {
     for (int k = 0; k < dot_n; k++) {
       if (dot_frame < dot_delay[k]) continue;  // not yet appeared
       int y = dot_locked[k] ? dot_ty[k] : (int)dot_cy[k];
-      display.fillRect(dot_tx[k], y, bs, bs, SPRITE_COLOR(COL_DIGITS));
+      display.fillRect(dot_tx[k], y, bs, bs, digitColor());
     }
   } else {
     // Drop-in slabs: settled slabs at rest, the current slab falling in.
@@ -730,8 +730,8 @@ void displayClockWithTetris() {
       // Block colon
       if (shouldShowColon()) {
         int cx = (DIGIT_X[1] + 4 * TET_PITCH + DIGIT_X[3]) / 2;
-        display.fillRect(cx, tetTimeY() + 2 * TET_PITCH, bs, bs, SPRITE_COLOR(COL_DIGITS));
-        display.fillRect(cx, tetTimeY() + 4 * TET_PITCH, bs, bs, SPRITE_COLOR(COL_DIGITS));
+        display.fillRect(cx, tetTimeY() + 2 * TET_PITCH, bs, bs, digitColor());
+        display.fillRect(cx, tetTimeY() + 4 * TET_PITCH, bs, bs, digitColor());
       }
       continue;
     }
@@ -746,7 +746,7 @@ void displayClockWithTetris() {
 
   // Fragments from cleared digits (drop-in slab style)
   for (int i = 0; i < TET_MAX_FRAG; i++) {
-    if (tet_frags[i].active) display.fillRect((int)tet_frags[i].x, (int)tet_frags[i].y, 2, 2, SPRITE_COLOR(COL_DIGITS));
+    if (tet_frags[i].active) display.fillRect((int)tet_frags[i].x, (int)tet_frags[i].y, 2, 2, digitColor());
   }
 
   // Idle Tetris game (bottom well)

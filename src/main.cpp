@@ -86,18 +86,15 @@ bool getTimeWithTimeout(struct tm *timeinfo, unsigned long timeout_ms) {
 
 // Returns optimal refresh rate in Hz based on current display mode
 int getOptimalRefreshRate() {
-  if (settings.refreshRateMode == 1) {
-    // Manual mode - use user-specified rate
-    return settings.refreshRateHz;
-  }
-
-  // Auto mode - adaptive based on content
+  // Always adaptive. The manual fixed-Hz override (and its web control) was
+  // removed - a user-pinned low rate only made animations choppy. The adaptive
+  // rates below are what keep motion smooth.
   if (!metricData.online || httpForceClock) {
     // Clock mode (offline OR forced via HTTP)
 
-    // Check for animation boost (smooth animations during active motion)
-    if (settings.boostAnimationRefresh && isAnimationActive()) {
-      // Animation is happening - boost to 40 Hz for silky smooth motion!
+    // Boost to 60 Hz during active motion for silky-smooth animation (always on;
+    // the old opt-out checkbox was removed).
+    if (isAnimationActive()) {
       return 60;
     }
 

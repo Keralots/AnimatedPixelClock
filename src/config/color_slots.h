@@ -17,7 +17,8 @@
 #include <Arduino.h>
 
 enum ColorSlot {
-  COL_DIGITS = 0,        // time digits + colon
+  COL_DIGITS = 0,        // legacy single digit color (superseded by COL_DIGITS_S*,
+                         //   kept only to seed the per-style slots on upgrade)
   COL_MARIO_HAT,
   COL_MARIO_OVERALLS,
   COL_MARIO_SKIN,
@@ -71,6 +72,13 @@ enum ColorSlot {
   COL_MC_EXPLOSION,  // explosion rings (white flicker partner is hardcoded)
   COL_MC_CITY,       // city silhouettes
   COL_MC_GROUND,     // ground strip + cannon mound
+  // Per-clock time-digit + colon colors, one per clock style (0..13). MUST stay
+  // contiguous and in ascending style order - digitColor() indexes them as
+  // COL_DIGITS_S0 + settings.clockStyle. A static_assert guards the span.
+  COL_DIGITS_S0,  COL_DIGITS_S1,  COL_DIGITS_S2,  COL_DIGITS_S3,
+  COL_DIGITS_S4,  COL_DIGITS_S5,  COL_DIGITS_S6,  COL_DIGITS_S7,
+  COL_DIGITS_S8,  COL_DIGITS_S9,  COL_DIGITS_S10, COL_DIGITS_S11,
+  COL_DIGITS_S12, COL_DIGITS_S13,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

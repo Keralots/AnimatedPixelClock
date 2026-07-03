@@ -568,7 +568,7 @@ void displayClockWithSnake() {
   // Time digits (size 3). The digit being eaten is shown as its leftover
   // pellets; the digit being vacated is left blank until the snake clears it.
   display.setTextSize(3);
-  display.setTextColor(SPRITE_COLOR(COL_DIGITS));
+  display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -597,7 +597,7 @@ void displayClockWithSnake() {
   if (snake_phase == SNAKE_EAT && (millis() / 300) % 2 == 0) {
     for (int i = 0; i < snake_pellet_count; i++) {
       if (snake_pellets[i].active)
-        display.fillRect(snake_pellets[i].px, snake_pellets[i].py, 3, 3, SPRITE_COLOR(COL_DIGITS));
+        display.fillRect(snake_pellets[i].px, snake_pellets[i].py, 3, 3, digitColor());
     }
   }
 

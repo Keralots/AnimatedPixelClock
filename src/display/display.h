@@ -25,6 +25,10 @@ extern MatrixDisplay display;
 // config/color_slots.h.
 #define SPRITE_COLOR(slot) (settings.spriteColors[(slot)])
 
+// Time-digit + colon color for the active clock style (per-style, replaces the
+// old single global COL_DIGITS). Defined in clocks/clock_common.cpp.
+uint16_t digitColor();
+
 // Initialize display - returns true on success
 bool initDisplay();
 void applyDisplayBrightness();
