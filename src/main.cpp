@@ -356,13 +356,21 @@ void loop() {
       nextDisplayUpdate = millis() + frameInterval;
     }
 
-    display.clearDisplay();
-
     // Visualizer wins over everything while forced AND fed; when the packet
     // stream dies for 10s it falls through (and auto-resumes when it's back).
     bool showViz = httpForceViz && vizShouldDisplay();
     bool showStats =
         !showViz && metricData.online && !httpForceClock && !httpForceAmbient;
+
+    // The DMA flip only takes effect at the end of the panel's current scan
+    // (the library does not wait for the buffer to be free), so anything we
+    // draw in the first ms after flipping can appear on screen. Clearing to
+    // black is the worst offender - a visible dark flash on full-screen
+    // content. The custom animation player overwrites every pixel of the
+    // frame, so skip the redundant clear when it is what renders this tick.
+    bool animFullRepaint = !showViz && !showStats && ambientActive() &&
+                           settings.ambientStyle == 6 && ambientCustomPlaying();
+    if (!animFullRepaint) display.clearDisplay();
 
     if (showViz) {
       displayVisualizer();
