@@ -34,26 +34,34 @@
 
 static PcaHeader pcaHdr;
 static uint16_t pcaPalette[PCA_MAX_PALETTE];
-static uint16_t* pcaDelays = nullptr;  // frameCount entries
-static uint8_t* pcaFrame = nullptr;    // frame being drawn
-static uint8_t* pcaNext = nullptr;     // prefetched next frame
+// Fixed buffers, never heap-allocated: an open attempt right after a save
+// runs while the config page reload has the heap under pressure (lwIP
+// buffers + page streaming), and a failed 4KB malloc there stranded the
+// player on the fire fallback until the user saved again (hardware-seen,
+// failReason=alloc). ~9KB of BSS buys an open path that cannot OOM.
+static uint16_t pcaDelays[PCA_MAX_FRAMES];
+static uint8_t pcaBufA[PCA_FRAME_BYTES];
+static uint8_t pcaBufB[PCA_FRAME_BYTES];
+static uint8_t* pcaFrame = pcaBufA;    // frame being drawn
+static uint8_t* pcaNext = pcaBufB;     // prefetched next frame
 static int pcaNextIndex = -1;          // frame held in pcaNext (-1 = none)
 static bool pcaWantPrefetch = false;   // loop() should fetch pcaNextIndex
 static uint32_t pcaFrameOffset = 0;    // file offset of frame 0
 static int pcaIndex = -1;
 static unsigned long pcaNextAdvance = 0;
 static bool pcaOpen = false;
-static bool pcaFailed = false;  // don't retry/spam until invalidated
+static bool pcaFailed = false;         // last attempt failed; retried on a timer
+static unsigned long pcaRetryAt = 0;   // next automatic retry (2s backoff)
+// Why the last open/playback attempt failed (kept across invalidate for
+// /api/anim/list diagnostics): 0=ok 1=gate 2=validate 3=header-read
+// 4=first-frame 5=prefetch-read 6=alloc
+static uint8_t pcaFailReason = 0;
 
 bool ambientCustomPlaying() { return pcaOpen && !pcaFailed; }
 
+uint8_t ambientCustomFailReason() { return pcaFailReason; }
+
 void ambientCustomInvalidate() {
-  free(pcaDelays);
-  free(pcaFrame);
-  free(pcaNext);
-  pcaDelays = nullptr;
-  pcaFrame = nullptr;
-  pcaNext = nullptr;
   pcaNextIndex = -1;
   pcaWantPrefetch = false;
   pcaOpen = false;
@@ -72,28 +80,27 @@ static bool pcaReadFrame(int index, uint8_t* dst) {
 }
 
 static bool pcaTryOpen() {
-  if (!animFsUsable() || !animValidName(settings.ambientCustomFile))
+  if (!animFsUsable() || !animValidName(settings.ambientCustomFile)) {
+    pcaFailReason = 1;
     return false;
+  }
 
   File f = LittleFS.open(animPath(settings.ambientCustomFile), "r");
   if (!animValidatePca(f, &pcaHdr)) {
+    pcaFailReason = 2;
     if (f) f.close();
     return false;
   }
 
-  pcaDelays = (uint16_t*)malloc(pcaHdr.frameCount * sizeof(uint16_t));
-  pcaFrame = (uint8_t*)malloc(PCA_FRAME_BYTES);
-  pcaNext = (uint8_t*)malloc(PCA_FRAME_BYTES);
   uint8_t palRaw[PCA_MAX_PALETTE * 2];
-  bool ok = pcaDelays && pcaFrame && pcaNext && f.seek(PCA_HEADER_BYTES) &&
+  bool ok = f.seek(PCA_HEADER_BYTES) &&
             f.read(palRaw, pcaHdr.paletteLen * 2) ==
                 (size_t)pcaHdr.paletteLen * 2 &&
             f.read((uint8_t*)pcaDelays, pcaHdr.frameCount * 2) ==
                 (size_t)pcaHdr.frameCount * 2;
   f.close();
   if (!ok) {
-    ambientCustomInvalidate();
-    pcaFailed = true;  // invalidate cleared it; stay failed until next change
+    pcaFailReason = 3;
     return false;
   }
   for (int i = 0; i < pcaHdr.paletteLen; i++)
@@ -107,14 +114,14 @@ static bool pcaTryOpen() {
                    (uint32_t)pcaHdr.frameCount * 2;
   pcaIndex = 0;
   if (!pcaReadFrame(0, pcaFrame)) {  // one-time hitch at open is fine
-    ambientCustomInvalidate();
-    pcaFailed = true;
+    pcaFailReason = 4;
     return false;
   }
   pcaNextAdvance = millis() + pcaDelays[0];
   pcaNextIndex = -1;
   pcaWantPrefetch = true;  // loop() pulls frame 1 in before it's due
   pcaOpen = true;
+  pcaFailReason = 0;
   return true;
 }
 
@@ -127,6 +134,8 @@ void ambientCustomPrefetch() {
   } else {  // file vanished (deleted mid-play?) - fail, render falls back
     ambientCustomInvalidate();
     pcaFailed = true;
+    pcaRetryAt = millis() + 2000;
+    pcaFailReason = 5;
   }
   pcaWantPrefetch = false;
 }
@@ -153,15 +162,24 @@ static void pcaDrawFrame() {
 
 void ambientCustomFrame() {
   if (!pcaOpen) {
-    if (pcaFailed || !pcaTryOpen()) {
-      if (!pcaFailed) {
-        Serial.printf("AnimStore: cannot play '%s', falling back to fire\n",
-                      settings.ambientCustomFile);
-        pcaFailed = true;
-      }
+    // A failed attempt shows the fire fallback but retries every 2s: open
+    // can fail transiently (e.g. during the post-save page-reload burst)
+    // and must not strand the user on fire until the next manual save.
+    if (pcaFailed && millis() < pcaRetryAt) {
       ambientFireFrame();
       return;
     }
+    if (!pcaTryOpen()) {
+      if (!pcaFailed) {
+        Serial.printf("AnimStore: cannot play '%s' (reason %d), retrying\n",
+                      settings.ambientCustomFile, pcaFailReason);
+      }
+      pcaFailed = true;
+      pcaRetryAt = millis() + 2000;
+      ambientFireFrame();
+      return;
+    }
+    pcaFailed = false;
   }
 
   unsigned long now = millis();

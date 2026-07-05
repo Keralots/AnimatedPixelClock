@@ -410,6 +410,8 @@ void handleAnimList() {
  JsonDocument doc;
  doc["usable"] = animFsUsable();
  doc["playing"] = ambientCustomPlaying();
+ doc["failReason"] = ambientCustomFailReason();
+ doc["maxAlloc"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
  doc["free"] = (uint32_t)animFsFree();
  doc["total"] = (uint32_t)animFsTotal();
  doc["current"] = settings.ambientCustomFile;

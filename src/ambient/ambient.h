@@ -32,6 +32,9 @@ void ambientCustomInvalidate();
 // True while the custom player has an animation loaded and not failed.
 bool ambientCustomPlaying();
 
+// Why the last open/playback attempt failed (0 = ok; see ambient_custom.cpp).
+uint8_t ambientCustomFailReason();
+
 // Prefetch the next animation frame from flash. Call from loop() every pass
 // (cheap no-op when idle) - keeps filesystem reads out of the render tick,
 // whose delayed buffer flips otherwise beat against the DMA scan.
