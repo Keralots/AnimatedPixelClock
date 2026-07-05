@@ -13,6 +13,7 @@
 #include "../clocks/clocks.h"
 #include "../display/display.h"
 #include "../ambient/ambient.h"
+#include "../ambient/anim_store.h"
 #include "../notify/notify.h"
 #include "../timezones.h"
 #include "../viz/visualizer.h"
@@ -20,6 +21,7 @@
 #include "web_pages.h"
 #include <WebServer.h>
 #include <Update.h>
+#include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <esp_task_wdt.h>
@@ -47,6 +49,11 @@ void setupWebServer() {
  server.on("/api/rename", HTTP_POST, handleRename);
  server.on("/api/notify", HTTP_POST, handleNotify);
  server.on("/api/notify/dismiss", HTTP_GET, handleNotifyDismiss);
+
+ // Custom animation storage (uploaded .pca files, see tools/gif2pca.py)
+ server.on("/api/anim/list", HTTP_GET, handleAnimList);
+ server.on("/api/anim/delete", HTTP_GET, handleAnimDelete);
+ server.on("/api/anim/upload", HTTP_POST, handleAnimUploadDone, handleAnimUploadChunk);
 
  // Runtime control API (display power, mode, brightness, clock style, reboot)
  server.on("/api/status", HTTP_GET, handleStatus);
@@ -391,6 +398,134 @@ void handleNotifyDismiss() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  notifyDismiss();
  server.send(200, "application/json", "{\"success\":true}");
+}
+
+// ========== Custom Animation Storage API ==========
+// Uploaded .pca animations (tools/gif2pca.py) on LittleFS, played by ambient
+// style 6. Disabled when the FS partition is too small (4MB min_spiffs).
+
+// GET /api/anim/list - {"usable":bool,"free":n,"total":n,"current":s,"anims":[...]}
+void handleAnimList() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ JsonDocument doc;
+ doc["usable"] = animFsUsable();
+ doc["free"] = (uint32_t)animFsFree();
+ doc["total"] = (uint32_t)animFsTotal();
+ doc["current"] = settings.ambientCustomFile;
+ JsonArray anims = doc["anims"].to<JsonArray>();
+ if (animFsUsable()) {
+   File dir = LittleFS.open(ANIM_DIR);
+   for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+     String name = f.name(); // basename on the ESP32 core
+     if (!name.endsWith(".pca")) continue;
+     name.remove(name.length() - 4);
+     PcaHeader hdr;
+     if (!animValidatePca(f, &hdr)) continue;
+     JsonObject o = anims.add<JsonObject>();
+     o["name"] = name;
+     o["bytes"] = (uint32_t)f.size();
+     o["frames"] = hdr.frameCount;
+   }
+ }
+ String json;
+ serializeJson(doc, json);
+ server.send(200, "application/json", json);
+}
+
+// GET /api/anim/delete?name=<basename>
+void handleAnimDelete() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ String name = server.arg("name");
+ if (!animFsUsable() || !animValidName(name.c_str()) ||
+     !LittleFS.exists(animPath(name.c_str()))) {
+   server.send(404, "application/json", "{\"success\":false,\"error\":\"not found\"}");
+   return;
+ }
+ ambientCustomInvalidate(); // the player may hold this file open
+ LittleFS.remove(animPath(name.c_str()));
+ server.send(200, "application/json", "{\"success\":true}");
+}
+
+// POST /api/anim/upload (multipart). Streams into a temp file with the size
+// cap enforced per chunk, validates the finished file, then renames it into
+// place - so /api/anim/list can never see a partial or corrupt animation.
+static File animUpFile;
+static uint32_t animUpWritten = 0;
+static uint32_t animUpCap = 0;
+static String animUpName;
+static const char* animUpError = nullptr;
+
+static void animUploadAbort(const char* why) {
+ if (animUpFile) animUpFile.close();
+ if (LittleFS.exists(ANIM_TMP)) LittleFS.remove(ANIM_TMP);
+ if (!animUpError) animUpError = why;
+}
+
+void handleAnimUploadChunk() {
+ HTTPUpload& upload = server.upload();
+ if (upload.status == UPLOAD_FILE_START) {
+   animUpError = nullptr;
+   animUpWritten = 0;
+   if (!animFsUsable()) { animUpError = "animation storage unavailable on this board"; return; }
+   // Name from ?name= or the uploaded filename (minus extension).
+   animUpName = server.arg("name");
+   if (animUpName.length() == 0) {
+     animUpName = upload.filename;
+     int dot = animUpName.lastIndexOf('.');
+     if (dot > 0) animUpName.remove(dot);
+   }
+   if (!animValidName(animUpName.c_str())) { animUpError = "bad name (use 1-24 of A-z 0-9 _ -)"; return; }
+   size_t freeBytes = animFsFree();
+   // Replacing an existing animation frees its space on rename.
+   String target = animPath(animUpName.c_str());
+   if (LittleFS.exists(target)) {
+     File old = LittleFS.open(target, "r");
+     if (old) { freeBytes += old.size(); old.close(); }
+   }
+   uint32_t cap = freeBytes > ANIM_FS_FREE_MARGIN ? freeBytes - ANIM_FS_FREE_MARGIN : 0;
+   animUpCap = cap < PCA_MAX_BYTES ? cap : PCA_MAX_BYTES;
+   if (animUpCap < PCA_HEADER_BYTES + PCA_FRAME_BYTES) { animUpError = "not enough free space"; return; }
+   ambientCustomInvalidate(); // release any open handle before FS writes
+   animUpFile = LittleFS.open(ANIM_TMP, "w");
+   if (!animUpFile) animUpError = "cannot open temp file";
+ } else if (upload.status == UPLOAD_FILE_WRITE) {
+   if (animUpError) return;
+   if (animUpWritten + upload.currentSize > animUpCap) {
+     animUploadAbort("file too large");
+     return;
+   }
+   if (animUpFile.write(upload.buf, upload.currentSize) != upload.currentSize) {
+     animUploadAbort("write failed (flash full?)");
+     return;
+   }
+   animUpWritten += upload.currentSize;
+ } else if (upload.status == UPLOAD_FILE_END) {
+   if (animUpError) return;
+   animUpFile.close();
+   File f = LittleFS.open(ANIM_TMP, "r");
+   bool ok = animValidatePca(f, nullptr);
+   if (f) f.close();
+   if (!ok) {
+     animUploadAbort("not a valid .pca file");
+     return;
+   }
+   String target = animPath(animUpName.c_str());
+   if (LittleFS.exists(target)) LittleFS.remove(target);
+   if (!LittleFS.rename(ANIM_TMP, target)) animUploadAbort("rename failed");
+ } else if (upload.status == UPLOAD_FILE_ABORTED) {
+   animUploadAbort("upload aborted");
+ }
+}
+
+void handleAnimUploadDone() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (animUpError) {
+   String msg = String("{\"success\":false,\"error\":\"") + animUpError + "\"}";
+   server.send(400, "application/json", msg);
+ } else {
+   String msg = String("{\"success\":true,\"name\":\"") + animUpName + "\"}";
+   server.send(200, "application/json", msg);
+ }
 }
 
 // ========== Config Page (streamed PROGMEM template) ==========
@@ -764,6 +899,8 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_5")) { out = String(settings.ambientStyle == 5 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_AMBIENTSTYLE_6")) { out = String(settings.ambientStyle == 6 ? "selected" : ""); return true; }
+  if (!strcmp(n, "V_AMBIENTCUSTOMFILE")) { out = String(settings.ambientCustomFile); return true; }
   if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_AMBFIREPAL_0")) { out = String(settings.ambientFirePalette == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBFIREPAL_1")) { out = String(settings.ambientFirePalette == 1 ? "selected" : ""); return true; }
@@ -1120,7 +1257,19 @@ void handleSave() {
  if (server.hasArg("ambientStyle")) {
  settings.ambientEnabled = server.hasArg("ambientEnabled");
  settings.ambientStyle = server.arg("ambientStyle").toInt();
- if (settings.ambientStyle > 5) settings.ambientStyle = 0;
+ if (settings.ambientStyle > 6) settings.ambientStyle = 0;
+ if (settings.ambientStyle == 6 && !animFsUsable()) settings.ambientStyle = 0;
+ if (server.hasArg("ambientCustomFile")) {
+ String animName = server.arg("ambientCustomFile");
+ if (animName.length() == 0) {
+ settings.ambientCustomFile[0] = '\0';
+ ambientCustomInvalidate();
+ } else if (animValidName(animName.c_str())) {
+ strncpy(settings.ambientCustomFile, animName.c_str(), 27);
+ settings.ambientCustomFile[27] = '\0';
+ ambientCustomInvalidate();
+ }
+ }
  if (server.hasArg("ambientStartHour")) {
  settings.ambientStartHour = server.arg("ambientStartHour").toInt() % 24;
  }
@@ -1614,6 +1763,7 @@ void handleExportConfig() {
  json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"ambientFirePalette\":" + String(settings.ambientFirePalette) + ",";
+ json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
  json += "\"holidayOverlays\":" + String(settings.holidayOverlays ? "true" : "false") + ",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
 
@@ -1770,6 +1920,14 @@ void handleImportConfig() {
  if (!doc["ambientEndHour"].isNull()) settings.ambientEndHour = doc["ambientEndHour"];
  if (!doc["ambientShowClock"].isNull()) settings.ambientShowClock = doc["ambientShowClock"];
  if (!doc["ambientFirePalette"].isNull()) settings.ambientFirePalette = doc["ambientFirePalette"];
+ if (!doc["ambientCustomFile"].isNull()) {
+ const char* animName = doc["ambientCustomFile"];
+ if (animName && (animName[0] == '\0' || animValidName(animName))) {
+ strncpy(settings.ambientCustomFile, animName, 27);
+ settings.ambientCustomFile[27] = '\0';
+ ambientCustomInvalidate();
+ }
+ }
  if (!doc["holidayOverlays"].isNull()) settings.holidayOverlays = doc["holidayOverlays"];
  if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
  if (!doc["deviceName"].isNull()) {

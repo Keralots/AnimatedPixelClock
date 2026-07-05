@@ -135,6 +135,7 @@ void loadSettings() {
     settings.ambientEndHour = 23;
     settings.ambientShowClock = true;
     settings.ambientFirePalette = 0;
+    settings.ambientCustomFile[0] = '\0';
     settings.holidayOverlays = false;
     settings.vizShowClock = true;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
@@ -346,6 +347,9 @@ void loadSettings() {
       preferences.getBool("ambClock", true); // Default: Show time
   settings.ambientFirePalette =
       preferences.getUChar("ambFirePal", 0); // Default: Classic
+  String loadedAnimFile = preferences.getString("ambCustom", "");
+  strncpy(settings.ambientCustomFile, loadedAnimFile.c_str(), 27);
+  settings.ambientCustomFile[27] = '\0';
   settings.holidayOverlays =
       preferences.getBool("holidayFx", false); // Default: Disabled
   settings.vizShowClock =
@@ -664,6 +668,7 @@ void saveSettings() {
   preferences.putUChar("ambEnd", settings.ambientEndHour);
   preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putUChar("ambFirePal", settings.ambientFirePalette);
+  preferences.putString("ambCustom", settings.ambientCustomFile);
   preferences.putBool("holidayFx", settings.holidayOverlays);
   preferences.putBool("vizClock", settings.vizShowClock);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);

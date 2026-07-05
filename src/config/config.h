@@ -95,11 +95,13 @@ struct Settings {
 
   // Ambient screensaver (scheduled, replaces the clock)
   bool ambientEnabled;          // Enable the scheduled ambient window
-  uint8_t ambientStyle;         // 0=Doom fire, 1=Plasma, 2=Lava lamp, 3=Starfield, 4=Aquarium
+  uint8_t ambientStyle;         // 0=Doom fire, 1=Plasma, 2=Lava lamp, 3=Starfield, 4=Aquarium,
+                                // 5=Burning room, 6=Custom animation (uploaded .pca)
   uint8_t ambientStartHour;     // Window start (0-23, wraps midnight)
   uint8_t ambientEndHour;       // Window end (0-23)
   bool ambientShowClock;        // Small HH:MM overlay in the corner
   uint8_t ambientFirePalette;   // Doom fire palette: 0=Classic, 1=Blue, 2=Green, 3=Purple
+  char ambientCustomFile[28];   // Basename of the uploaded .pca for style 6 ("" = none)
 
   // Seasonal holiday overlays (date-driven, drawn over clock styles)
   bool holidayOverlays;         // Snow (Dec), fireworks (NYE), hearts (Feb 14), Halloween

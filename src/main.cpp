@@ -60,6 +60,7 @@ void drawProgressBar(int x, int y, int width, Metric *m);
 int getOptimalRefreshRate();
 // ========== Module Includes ==========
 #include "ambient/ambient.h"
+#include "ambient/anim_store.h"
 #include "display/display.h"
 #include "clocks/clocks.h"
 #include "clocks/clock_globals.h"
@@ -203,6 +204,9 @@ void setup() {
 
   // Load settings from flash
   loadSettings();
+
+  // Mount the animation filesystem (formats the partition on first use)
+  animStoreInit();
 
   // Initialize display
   displayAvailable = initDisplay();

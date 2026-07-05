@@ -748,6 +748,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                     <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
                     <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
                     <option value="5" %SEL_AMBIENTSTYLE_5%>Burning room (This is fine)</option>
+                    <option value="6" %SEL_AMBIENTSTYLE_6%>Custom animation (uploaded)</option>
                   </select>
                 </div>
               </div>
@@ -763,6 +764,16 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 </div>
                 <p class="field-hint">Used by the Doom fire effect only.</p>
               </div>
+            </div>
+            <div class="field" id="animCustomField" style="display:none;margin-top:16px">
+              <label class="field-label" for="ambientCustomFile">Custom animation</label>
+              <div class="select-wrap"><select name="ambientCustomFile" id="ambientCustomFile" data-cur="%V_AMBIENTCUSTOMFILE%"></select></div>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+                <input type="file" id="animFile" accept=".pca">
+                <button type="button" class="btn" id="animUploadBtn">Upload</button>
+                <button type="button" class="btn" id="animDeleteBtn">Delete selected</button>
+              </div>
+              <p class="field-hint" id="animStatus">Convert any GIF on your PC with tools/gif2pca.py, upload the .pca here, then select it and Save.</p>
             </div>
             <label class="check-row standalone" style="margin-top:16px">
               <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
@@ -1156,6 +1167,47 @@ var ambStart = $('#ambStartBtn');
 if (ambStart) ambStart.addEventListener('click', function () { ambCall('/api/mode/ambient', 'Ambient running. Stop returns to the normal display.'); });
 var ambStop = $('#ambStopBtn');
 if (ambStop) ambStop.addEventListener('click', function () { ambCall('/api/mode/auto', 'Back to normal mode.'); });
+var animSel = $('#ambientCustomFile'), animField = $('#animCustomField'), ambStyleSel = $('#ambientStyle');
+var animUsable = false;
+function syncAnimField() { if (animField) animField.style.display = (animUsable && ambStyleSel && ambStyleSel.value === '6') ? '' : 'none'; }
+function animStatus(t) { var s = $('#animStatus'); if (s) s.textContent = t; }
+function animRefresh() {
+if (!animSel) return;
+fetch('/api/anim/list').then(function (r) { return r.json(); }).then(function (d) {
+animUsable = !!d.usable;
+if (!d.usable) { var o = ambStyleSel && ambStyleSel.querySelector('option[value="6"]'); if (o) o.remove(); syncAnimField(); return; }
+var cur = animSel.dataset.cur || '';
+animSel.innerHTML = '';
+var none = document.createElement('option'); none.value = ''; none.textContent = '- none -'; animSel.appendChild(none);
+(d.anims || []).forEach(function (a) {
+var o = document.createElement('option'); o.value = a.name;
+o.textContent = a.name + ' (' + a.frames + ' frames, ' + Math.round(a.bytes / 1024) + ' KiB)';
+if (a.name === cur) o.selected = true;
+animSel.appendChild(o);
+});
+animStatus(Math.round(d.free / 1024) + ' KiB free of ' + Math.round(d.total / 1024) + ' KiB. Convert GIFs with tools/gif2pca.py.');
+syncAnimField();
+}).catch(function () {});
+}
+if (ambStyleSel) ambStyleSel.addEventListener('change', syncAnimField);
+animRefresh();
+var animUp = $('#animUploadBtn');
+if (animUp) animUp.addEventListener('click', function () {
+var fi = $('#animFile');
+if (!fi || !fi.files.length) { animStatus('Choose a .pca file first (made by tools/gif2pca.py).'); return; }
+var fd = new FormData(); fd.append('anim', fi.files[0]);
+animStatus('Uploading...');
+fetch('/api/anim/upload', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (d) {
+if (d.success) { if (animSel) animSel.dataset.cur = d.name; animStatus('Uploaded ' + d.name + '. Select it and Save.'); animRefresh(); }
+else animStatus('Upload failed: ' + (d.error || 'unknown'));
+}).catch(function () { animStatus('Upload failed - device unreachable?'); });
+});
+var animDel = $('#animDeleteBtn');
+if (animDel) animDel.addEventListener('click', function () {
+if (!animSel || !animSel.value) { animStatus('Select an animation to delete.'); return; }
+fetch('/api/anim/delete?name=' + encodeURIComponent(animSel.value)).then(function (r) { return r.json(); })
+.then(function () { animStatus('Deleted.'); animRefresh(); }).catch(function () {});
+});
 function vizCall(path, okMsg) {
 fetch(path).then(function (r) { return r.json(); })
 .then(function () { var s = $('#vizRunStatus'); if (s) s.textContent = okMsg; })

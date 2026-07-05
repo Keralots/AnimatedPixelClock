@@ -24,6 +24,10 @@ void ambientLavaFrame();
 void ambientStarsFrame();
 void ambientAquariumFrame();
 void ambientThisIsFineFrame();
+void ambientCustomFrame();
+
+// Drop the custom player's cached file/buffers (after upload/delete/save).
+void ambientCustomInvalidate();
 
 // ---- Seasonal holiday overlays (independent of ambient) ----
 

@@ -117,6 +117,36 @@ style is active: falling snow through December, a fireworks show around New Year
 midnight, floating hearts on February 14, and a pumpkin with passing bats in late
 October. Off by default, one checkbox to enable.
 
+### Custom animations (upload your own GIFs)
+
+The **Custom animation** ambient effect plays animations you upload to the device
+(16MB boards only - the 4MB variant's filesystem is too small, so the option hides
+itself there). Convert any animated GIF on your PC with the bundled tool:
+
+```bash
+pip install pillow
+python tools/gif2pca.py my.gif                        # writes my.pca
+python tools/gif2pca.py my.gif --preview check.gif    # eyeball the result first
+python tools/gif2pca.py my.gif --upload http://pixelclock.local   # convert + upload
+```
+
+The converter fits the GIF to the 128x64 panel (`--fit crop|pad|stretch`, with
+`--anchor start|center|end` choosing which edge survives a crop - use `--anchor end`
+to keep a caption at the bottom), quantizes all frames to one 16-color palette and
+packs them into a compact `.pca` file (about 4KB per frame, 1.5MB max, up to 360
+frames; use `--frame-skip 2` for long GIFs).
+
+Upload either with `--upload`, with the file picker on the Display page (select the
+ambient effect "Custom animation" to see it), or with curl:
+
+```bash
+curl -F "anim=@my.pca" "http://pixelclock.local/api/anim/upload"
+```
+
+Then pick the animation in the dropdown, **Save**, and **Start now**. Uploaded
+animations survive reboots and firmware updates; manage them with
+`GET /api/anim/list` and `GET /api/anim/delete?name=<name>`.
+
 ## PC monitor mode (optional)
 
 With the companion app running on your PC, the display switches to live hardware

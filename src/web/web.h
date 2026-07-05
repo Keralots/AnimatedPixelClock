@@ -38,6 +38,12 @@ void handleImportConfig();
 void handleNotify();
 void handleNotifyDismiss();
 
+// Custom animation storage API (uploaded .pca files on LittleFS)
+void handleAnimList();
+void handleAnimDelete();
+void handleAnimUploadDone();
+void handleAnimUploadChunk();
+
 // Runtime control API (display power, mode, brightness, clock style, reboot)
 void handleStatus();
 void handleDisplayOn();
