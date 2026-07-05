@@ -29,6 +29,14 @@ void ambientCustomFrame();
 // Drop the custom player's cached file/buffers (after upload/delete/save).
 void ambientCustomInvalidate();
 
+// True while the custom player has an animation loaded and not failed.
+bool ambientCustomPlaying();
+
+// Prefetch the next animation frame from flash. Call from loop() every pass
+// (cheap no-op when idle) - keeps filesystem reads out of the render tick,
+// whose delayed buffer flips otherwise beat against the DMA scan.
+void ambientCustomPrefetch();
+
 // ---- Seasonal holiday overlays (independent of ambient) ----
 
 // True while a date-driven overlay is animating (drives the 30 Hz refresh floor).

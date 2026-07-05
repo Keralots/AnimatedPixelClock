@@ -409,6 +409,7 @@ void handleAnimList() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  JsonDocument doc;
  doc["usable"] = animFsUsable();
+ doc["playing"] = ambientCustomPlaying();
  doc["free"] = (uint32_t)animFsFree();
  doc["total"] = (uint32_t)animFsTotal();
  doc["current"] = settings.ambientCustomFile;

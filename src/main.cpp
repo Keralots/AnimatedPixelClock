@@ -436,6 +436,11 @@ void loop() {
     }
 
     display.display();
+
+    // Right after the flip = maximum headroom before the next render tick;
+    // the custom animation reads its next frame from flash here so the I/O
+    // never delays a flip (delayed flips beat against the DMA scan).
+    ambientCustomPrefetch();
   }
 
   // WiFi reconnection handling
