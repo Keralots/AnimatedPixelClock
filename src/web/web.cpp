@@ -463,6 +463,10 @@ static void animUploadAbort(const char* why) {
 
 void handleAnimUploadChunk() {
  HTTPUpload& upload = server.upload();
+ // A large upload keeps loop() inside handleClient for many seconds and
+ // LittleFS writes are slow - feed the task WDT per chunk or it reboots
+ // the device mid-upload (same starvation class as the page streaming fix).
+ esp_task_wdt_reset();
  if (upload.status == UPLOAD_FILE_START) {
    animUpError = nullptr;
    animUpWritten = 0;
