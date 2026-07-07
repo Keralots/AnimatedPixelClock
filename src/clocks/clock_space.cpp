@@ -18,14 +18,17 @@ SpaceFragment* findFreeSpaceFragment();
 
 // ========== Space Clock Animation Functions (Clock Style 3 - Unified) ==========
 
-// Draw Space character sprite (Invader or Ship based on settings.spaceCharacterType)
-void drawSpaceCharacter(int x, int y, int frame) {
+// Draw Space character sprite (Invader or Ship). forceType: -1 = follow
+// settings.spaceCharacterType (clock use), 0 = invader, 1 = ship (ambient use).
+// Default arg lives only in the clocks.h declaration.
+void drawSpaceCharacter(int x, int y, int frame, int forceType) {
   // Bounds check
   if (x < -12 || x > SCREEN_WIDTH + 12) return;
   if (y < -10 || y > SCREEN_HEIGHT + 10) return;
 
+  int type = (forceType >= 0) ? forceType : settings.spaceCharacterType;
   uint16_t col = SPRITE_COLOR(COL_INVADER);  // whole sprite (invader or ship)
-  if (settings.spaceCharacterType == 0) {
+  if (type == 0) {
     // Draw Invader sprite (11x11 pixels, classic invader design)
     int sx = x - 5;
     int sy = y - 4;

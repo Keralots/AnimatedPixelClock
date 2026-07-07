@@ -110,7 +110,7 @@ int getOptimalRefreshRate() {
   if (!metricData.online || httpForceClock || httpForceAmbient) {
     // Clock mode (offline OR forced via HTTP)
 
-    // Ambient effects (fire, plasma...) redraw the FULL panel every frame.
+    // Ambient effects (Space Invaders, starfield...) redraw the FULL panel every frame.
     // 30 Hz, not 60: the effects look identical, the per-frame pixel load
     // halves, and the buffer-flip rate stops beating against the panel's
     // DMA scan (visible as rolling dim bands on full-screen content).

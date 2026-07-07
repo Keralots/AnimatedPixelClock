@@ -67,6 +67,9 @@ void drawMario(int x, int y, bool facingRight, int frame, bool jumping);
 
 // ========== Space Invaders Clock ==========
 void displayClockWithSpaceInvader();
+// forceType: -1 = use settings.spaceCharacterType, 0 = invader, 1 = ship.
+// The ambient Space Invaders effect passes 0 so it never draws the ship variant.
+void drawSpaceCharacter(int x, int y, int frame, int forceType = -1);
 void updateSpaceAnimation(struct tm* timeinfo);
 void handleSpacePatrolState();
 void handleSpaceSlidingState();

@@ -902,17 +902,12 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "DSP_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "block" : "none"); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_0")) { out = String(settings.ambientStyle == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_1")) { out = String(settings.ambientStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_2")) { out = String(settings.ambientStyle == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_5")) { out = String(settings.ambientStyle == 5 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_AMBIENTSTYLE_6")) { out = String(settings.ambientStyle == 6 ? "selected" : ""); return true; }
   if (!strcmp(n, "V_AMBIENTCUSTOMFILE")) { out = String(settings.ambientCustomFile); return true; }
   if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBFIREPAL_0")) { out = String(settings.ambientFirePalette == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBFIREPAL_1")) { out = String(settings.ambientFirePalette == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBFIREPAL_2")) { out = String(settings.ambientFirePalette == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBFIREPAL_3")) { out = String(settings.ambientFirePalette == 3 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_HOLIDAYOVERLAYS")) { out = String(settings.holidayOverlays ? "checked" : ""); return true; }
   if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
   if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
@@ -1263,8 +1258,9 @@ void handleSave() {
  // that always posts so a partial form can't silently disable them)
  if (server.hasArg("ambientStyle")) {
  settings.ambientEnabled = server.hasArg("ambientEnabled");
- settings.ambientStyle = server.arg("ambientStyle").toInt();
- if (settings.ambientStyle > 6) settings.ambientStyle = 0;
+ // normalizeAmbientStyle maps the retired lava slot (2) and any out-of-range
+ // value to 0 (Space Invaders); parse as int first so it can't wrap.
+ settings.ambientStyle = normalizeAmbientStyle(server.arg("ambientStyle").toInt());
  if (settings.ambientStyle == 6 && !animFsUsable()) settings.ambientStyle = 0;
  if (server.hasArg("ambientCustomFile")) {
  String animName = server.arg("ambientCustomFile");
@@ -1284,10 +1280,6 @@ void handleSave() {
  settings.ambientEndHour = server.arg("ambientEndHour").toInt() % 24;
  }
  settings.ambientShowClock = server.hasArg("ambientShowClock");
- if (server.hasArg("ambientFirePalette")) {
- settings.ambientFirePalette = server.arg("ambientFirePalette").toInt();
- if (settings.ambientFirePalette > 3) settings.ambientFirePalette = 0;
- }
  settings.holidayOverlays = server.hasArg("holidayOverlays");
  settings.vizShowClock = server.hasArg("vizShowClock");
  }
@@ -1769,7 +1761,6 @@ void handleExportConfig() {
  json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
  json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
- json += "\"ambientFirePalette\":" + String(settings.ambientFirePalette) + ",";
  json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
  json += "\"holidayOverlays\":" + String(settings.holidayOverlays ? "true" : "false") + ",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
@@ -1922,11 +1913,12 @@ void handleImportConfig() {
    }
  }
  if (!doc["ambientEnabled"].isNull()) settings.ambientEnabled = doc["ambientEnabled"];
- if (!doc["ambientStyle"].isNull()) settings.ambientStyle = doc["ambientStyle"];
+ // Read as int and normalize so the retired lava slot (2) or a bad value maps
+ // to 0 (Space Invaders) rather than wrapping into the uint8_t field.
+ if (!doc["ambientStyle"].isNull()) settings.ambientStyle = normalizeAmbientStyle(doc["ambientStyle"].as<int>());
  if (!doc["ambientStartHour"].isNull()) settings.ambientStartHour = doc["ambientStartHour"];
  if (!doc["ambientEndHour"].isNull()) settings.ambientEndHour = doc["ambientEndHour"];
  if (!doc["ambientShowClock"].isNull()) settings.ambientShowClock = doc["ambientShowClock"];
- if (!doc["ambientFirePalette"].isNull()) settings.ambientFirePalette = doc["ambientFirePalette"];
  if (!doc["ambientCustomFile"].isNull()) {
  const char* animName = doc["ambientCustomFile"];
  if (animName && (animName[0] == '\0' || animValidName(animName))) {

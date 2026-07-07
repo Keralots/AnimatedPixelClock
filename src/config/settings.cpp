@@ -134,7 +134,6 @@ void loadSettings() {
     settings.ambientStartHour = 20;
     settings.ambientEndHour = 23;
     settings.ambientShowClock = true;
-    settings.ambientFirePalette = 0;
     settings.ambientCustomFile[0] = '\0';
     settings.holidayOverlays = false;
     settings.vizShowClock = true;
@@ -338,15 +337,23 @@ void loadSettings() {
   settings.ambientEnabled =
       preferences.getBool("ambEn", false); // Default: Disabled
   settings.ambientStyle =
-      preferences.getUChar("ambStyle", 0); // Default: Doom fire
+      preferences.getUChar("ambStyle", 0); // Default: Space Invaders
+  {
+    // Retire the removed lava slot (2): normalize in RAM and, if the stored
+    // value actually changed, write it back now (Preferences is already open)
+    // so NVS no longer holds a 2 that a future Mario effect would inherit.
+    uint8_t normalized = normalizeAmbientStyle(settings.ambientStyle);
+    if (normalized != settings.ambientStyle) {
+      settings.ambientStyle = normalized;
+      preferences.putUChar("ambStyle", normalized);
+    }
+  }
   settings.ambientStartHour =
       preferences.getUChar("ambStart", 20); // Default: 8 PM
   settings.ambientEndHour =
       preferences.getUChar("ambEnd", 23); // Default: 11 PM
   settings.ambientShowClock =
       preferences.getBool("ambClock", true); // Default: Show time
-  settings.ambientFirePalette =
-      preferences.getUChar("ambFirePal", 0); // Default: Classic
   String loadedAnimFile = preferences.getString("ambCustom", "");
   strncpy(settings.ambientCustomFile, loadedAnimFile.c_str(), 27);
   settings.ambientCustomFile[27] = '\0';
@@ -667,7 +674,6 @@ void saveSettings() {
   preferences.putUChar("ambStart", settings.ambientStartHour);
   preferences.putUChar("ambEnd", settings.ambientEndHour);
   preferences.putBool("ambClock", settings.ambientShowClock);
-  preferences.putUChar("ambFirePal", settings.ambientFirePalette);
   preferences.putString("ambCustom", settings.ambientCustomFile);
   preferences.putBool("holidayFx", settings.holidayOverlays);
   preferences.putBool("vizClock", settings.vizShowClock);

@@ -737,32 +737,17 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
           <div class="card">
             <h2 class="card-title">Ambient screensaver</h2>
-            <div class="grid-2">
-              <div class="field" style="margin-bottom:0">
-                <label class="field-label" for="ambientStyle">Effect</label>
-                <div class="select-wrap">
-                  <select name="ambientStyle" id="ambientStyle">
-                    <option value="0" %SEL_AMBIENTSTYLE_0%>Doom fire</option>
-                    <option value="1" %SEL_AMBIENTSTYLE_1%>Plasma</option>
-                    <option value="2" %SEL_AMBIENTSTYLE_2%>Lava lamp</option>
-                    <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
-                    <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
-                    <option value="5" %SEL_AMBIENTSTYLE_5%>Burning room (This is fine)</option>
-                    <option value="6" %SEL_AMBIENTSTYLE_6%>Custom animation (uploaded)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="field" style="margin-bottom:0">
-                <label class="field-label" for="ambientFirePalette">Fire palette</label>
-                <div class="select-wrap">
-                  <select name="ambientFirePalette" id="ambientFirePalette">
-                    <option value="0" %SEL_AMBFIREPAL_0%>Classic orange</option>
-                    <option value="1" %SEL_AMBFIREPAL_1%>Blue</option>
-                    <option value="2" %SEL_AMBFIREPAL_2%>Green</option>
-                    <option value="3" %SEL_AMBFIREPAL_3%>Purple</option>
-                  </select>
-                </div>
-                <p class="field-hint">Used by the Doom fire effect only.</p>
+            <div class="field">
+              <label class="field-label" for="ambientStyle">Effect</label>
+              <div class="select-wrap">
+                <select name="ambientStyle" id="ambientStyle">
+                  <option value="0" %SEL_AMBIENTSTYLE_0%>Space Invaders</option>
+                  <option value="1" %SEL_AMBIENTSTYLE_1%>Pac-Man chase</option>
+                  <option value="3" %SEL_AMBIENTSTYLE_3%>Starfield</option>
+                  <option value="4" %SEL_AMBIENTSTYLE_4%>Aquarium</option>
+                  <option value="5" %SEL_AMBIENTSTYLE_5%>Burning room (This is fine)</option>
+                  <option value="6" %SEL_AMBIENTSTYLE_6%>Custom animation (uploaded)</option>
+                </select>
               </div>
             </div>
             <div class="field" id="animCustomField" style="display:none;margin-top:16px">

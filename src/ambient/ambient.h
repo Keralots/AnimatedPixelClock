@@ -3,7 +3,9 @@
  *
  * Full-screen ambient effects shown instead of the clock during a scheduled
  * window (or when forced via /api/mode/ambient). Each effect keeps its own
- * file-local state and renders one frame per call at the 60 Hz boost rate.
+ * file-local state and renders one frame per call at the 30 Hz ambient rate
+ * (a full-panel redraw+flip at 60 Hz beats against the DMA scan as rolling
+ * dim bands, so ambient is gated to 30 in getOptimalRefreshRate()).
  */
 
 #ifndef AMBIENT_H
@@ -18,9 +20,8 @@ bool ambientActive();
 void displayAmbient();
 
 // Per-effect frames (called by displayAmbient's dispatcher).
-void ambientFireFrame();
-void ambientPlasmaFrame();
-void ambientLavaFrame();
+void ambientInvadersFrame();
+void ambientPacmanChaseFrame();
 void ambientStarsFrame();
 void ambientAquariumFrame();
 void ambientThisIsFineFrame();

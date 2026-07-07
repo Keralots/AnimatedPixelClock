@@ -105,7 +105,7 @@ style's Colors card like any other clock.
 ## Ambient screensaver & seasonal effects
 
 On the web interface's Display page you can run an **ambient screensaver** instead of
-the clock: Doom fire (four palettes), plasma, lava lamp, starfield, an aquarium with
+the clock: a Space Invaders battle, a Pac-Man chase, a starfield, an aquarium with
 fish, bubbles and kelp, or a burning room where a very calm dog insists everything is
 fine. An optional small clock stays in the corner. Press **Start
 now** to keep the effect on until you stop it, or enable the schedule to have it come

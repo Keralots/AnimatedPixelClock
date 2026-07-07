@@ -53,14 +53,15 @@ static void drawAmbientClock() {
 
 void displayAmbient() {
   switch (settings.ambientStyle) {
-    case 0: ambientFireFrame(); break;
-    case 1: ambientPlasmaFrame(); break;
-    case 2: ambientLavaFrame(); break;
+    case 0: ambientInvadersFrame(); break;
+    case 1: ambientPacmanChaseFrame(); break;
+    // case 2 (old lava) removed; reserved for a future Mario effect. Stored
+    // 2 values are normalized to 0 on load/import (see settings.cpp).
     case 3: ambientStarsFrame(); break;
     case 4: ambientAquariumFrame(); break;
     case 5: ambientThisIsFineFrame(); break;
     case 6: ambientCustomFrame(); break;
-    default: ambientFireFrame(); break;
+    default: ambientInvadersFrame(); break;
   }
   if (settings.ambientShowClock) {
     drawAmbientClock();

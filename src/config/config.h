@@ -21,6 +21,14 @@
 #define METRIC_UNIT_LEN 8
 #define TIMEOUT STATS_TIMEOUT
 
+// Ambient effect slots in use: 0,1,3,4,5,6 (2 reserved for a future Mario
+// effect after old lava was removed). Map the retired slot 2 and any
+// out-of-range value to 0 (Space Invaders) so the web <select> always has a
+// matching option and a stray import can't select a dead effect.
+static inline uint8_t normalizeAmbientStyle(int s) {
+  return (s == 2 || s < 0 || s > 6) ? 0 : (uint8_t)s;
+}
+
 // ========== Metric Structures ==========
 struct Metric {
   uint8_t id;
@@ -95,12 +103,11 @@ struct Settings {
 
   // Ambient screensaver (scheduled, replaces the clock)
   bool ambientEnabled;          // Enable the scheduled ambient window
-  uint8_t ambientStyle;         // 0=Doom fire, 1=Plasma, 2=Lava lamp, 3=Starfield, 4=Aquarium,
-                                // 5=Burning room, 6=Custom animation (uploaded .pca)
+  uint8_t ambientStyle;         // 0=Space Invaders, 1=Pac-Man chase, (2 reserved), 3=Starfield,
+                                // 4=Aquarium, 5=Burning room, 6=Custom animation (uploaded .pca)
   uint8_t ambientStartHour;     // Window start (0-23, wraps midnight)
   uint8_t ambientEndHour;       // Window end (0-23)
   bool ambientShowClock;        // Small HH:MM overlay in the corner
-  uint8_t ambientFirePalette;   // Doom fire palette: 0=Classic, 1=Blue, 2=Green, 3=Purple
   char ambientCustomFile[28];   // Basename of the uploaded .pca for style 6 ("" = none)
 
   // Seasonal holiday overlays (date-driven, drawn over clock styles)

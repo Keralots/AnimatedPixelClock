@@ -5,7 +5,7 @@
  * settings.ambientCustomFile. Header, palette and the per-frame delay table
  * are cached at open. Rendering matches the This-is-fine player: equal-color
  * runs become single HLine calls. Missing or corrupt files fall back to the
- * Doom fire effect.
+ * Space Invaders effect.
  *
  * Two hardware-earned rules shape this file:
  *
@@ -37,7 +37,7 @@ static uint16_t pcaPalette[PCA_MAX_PALETTE];
 // Fixed buffers, never heap-allocated: an open attempt right after a save
 // runs while the config page reload has the heap under pressure (lwIP
 // buffers + page streaming), and a failed 4KB malloc there stranded the
-// player on the fire fallback until the user saved again (hardware-seen,
+// player on the Invaders fallback until the user saved again (hardware-seen,
 // failReason=alloc). ~9KB of BSS buys an open path that cannot OOM.
 static uint16_t pcaDelays[PCA_MAX_FRAMES];
 static uint8_t pcaBufA[PCA_FRAME_BYTES];
@@ -162,11 +162,11 @@ static void pcaDrawFrame() {
 
 void ambientCustomFrame() {
   if (!pcaOpen) {
-    // A failed attempt shows the fire fallback but retries every 2s: open
+    // A failed attempt shows the Invaders fallback but retries every 2s: open
     // can fail transiently (e.g. during the post-save page-reload burst)
-    // and must not strand the user on fire until the next manual save.
+    // and must not strand the user on the fallback until the next manual save.
     if (pcaFailed && millis() < pcaRetryAt) {
-      ambientFireFrame();
+      ambientInvadersFrame();
       return;
     }
     if (!pcaTryOpen()) {
@@ -176,7 +176,7 @@ void ambientCustomFrame() {
       }
       pcaFailed = true;
       pcaRetryAt = millis() + 2000;
-      ambientFireFrame();
+      ambientInvadersFrame();
       return;
     }
     pcaFailed = false;
