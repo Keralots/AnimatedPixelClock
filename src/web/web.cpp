@@ -174,8 +174,9 @@ void handleStatus() {
  bool showViz = httpForceViz && vizShouldDisplay();
  bool showStats = !showViz && pcOnline && !httpForceClock && !httpForceAmbient;
 
- doc["displayOn"] = !isDisplayForcedOff() && settings.displayBrightness > 0;
+ doc["displayOn"] = !isDisplayForcedOff() && !isDisplayScheduledOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
+ doc["scheduledOff"] = isDisplayScheduledOff();
  doc["mode"] = showViz ? "viz"
                : (ambientActive() ? "ambient" : (showStats ? "metrics" : "clock"));
  doc["forcedClock"] = httpForceClock;
@@ -732,16 +733,27 @@ static bool resolvePlaceholder(const char* n, String& out) {
     return true;
   }
 
-  // --- Scheduled-dimming / ambient hour dropdowns ---
-  if (!strcmp(n, "OPT_DIMSTART") || !strcmp(n, "OPT_DIMEND") ||
-      !strcmp(n, "OPT_AMBSTART") || !strcmp(n, "OPT_AMBEND")) {
-    uint8_t selHour = (!strcmp(n, "OPT_DIMSTART"))   ? settings.dimStartHour
-                      : (!strcmp(n, "OPT_DIMEND"))   ? settings.dimEndHour
-                      : (!strcmp(n, "OPT_AMBSTART")) ? settings.ambientStartHour
-                                                     : settings.ambientEndHour;
+  // --- Ambient window hour dropdowns (whole hours) ---
+  if (!strcmp(n, "OPT_AMBSTART") || !strcmp(n, "OPT_AMBEND")) {
+    uint8_t selHour = (!strcmp(n, "OPT_AMBSTART")) ? settings.ambientStartHour
+                                                   : settings.ambientEndHour;
     for (int i = 0; i < 24; i++) {
       out += "<option value=\"" + String(i) + "\"" + (selHour == i ? " selected" : "") + ">" + String(i) + ":00</option>";
     }
+    return true;
+  }
+
+  // --- Scheduled dim / power-off HH:MM values (native time inputs) ---
+  if (!strcmp(n, "V_DIMSTART") || !strcmp(n, "V_DIMEND") ||
+      !strcmp(n, "V_OFFSTART") || !strcmp(n, "V_OFFEND")) {
+    uint8_t h, m;
+    if (!strcmp(n, "V_DIMSTART"))      { h = settings.dimStartHour; m = settings.dimStartMinute; }
+    else if (!strcmp(n, "V_DIMEND"))   { h = settings.dimEndHour;   m = settings.dimEndMinute; }
+    else if (!strcmp(n, "V_OFFSTART")) { h = settings.offStartHour; m = settings.offStartMinute; }
+    else                               { h = settings.offEndHour;   m = settings.offEndMinute; }
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%02u:%02u", h % 24, m % 60);
+    out = buf;
     return true;
   }
 
@@ -895,6 +907,8 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "PCT_DISPLAYBRIGHTNESS")) { out = String((settings.displayBrightness * 100) / 255); return true; }
   if (!strcmp(n, "CHK_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "block" : "none"); return true; }
+  if (!strcmp(n, "CHK_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "checked" : ""); return true; }
+  if (!strcmp(n, "DSP_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "block" : "none"); return true; }
   if (!strcmp(n, "CHK_NOTIFYENABLED")) { out = String(settings.notifyEnabled ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_NOTIFYPOSITION_0")) { out = String(settings.notifyPosition == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_NOTIFYPOSITION_1")) { out = String(settings.notifyPosition == 1 ? "selected" : ""); return true; }
@@ -908,7 +922,6 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_AMBIENTSTYLE_6")) { out = String(settings.ambientStyle == 6 ? "selected" : ""); return true; }
   if (!strcmp(n, "V_AMBIENTCUSTOMFILE")) { out = String(settings.ambientCustomFile); return true; }
   if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_HOLIDAYOVERLAYS")) { out = String(settings.holidayOverlays ? "checked" : ""); return true; }
   if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
   if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
   if (!strcmp(n, "V_DEVICENAME")) { out = String(settings.deviceName); return true; }
@@ -1107,6 +1120,19 @@ void handlePortalJs() {
   streamStatic(PORTAL_JS, sizeof(PORTAL_JS) - 1, "application/javascript");
 }
 
+// Parse an "HH:MM" time-input value into hour (0-23) + minute (0-59). Returns
+// false (leaving outputs untouched) if the string is malformed or out of range.
+static bool parseHHMM(const String &v, uint8_t &hour, uint8_t &minute) {
+ int colon = v.indexOf(':');
+ if (colon < 1) return false;
+ int h = v.substring(0, colon).toInt();
+ int m = v.substring(colon + 1).toInt();
+ if (h < 0 || h > 23 || m < 0 || m > 59) return false;
+ hour = (uint8_t)h;
+ minute = (uint8_t)m;
+ return true;
+}
+
 void handleSave() {
  if (server.hasArg("clockStyle")) {
  settings.clockStyle = server.arg("clockStyle").toInt();
@@ -1201,17 +1227,21 @@ void handleSave() {
  } else {
  settings.enableScheduledDimming = scheduledDimmingEnabled;
  }
- if (server.hasArg("dimStartHour")) {
- uint8_t newDimStartHour = server.arg("dimStartHour").toInt();
- if (newDimStartHour != settings.dimStartHour) {
- settings.dimStartHour = newDimStartHour;
+ if (server.hasArg("dimStartTime")) {
+ uint8_t h, m;
+ if (parseHHMM(server.arg("dimStartTime"), h, m) &&
+     (h != settings.dimStartHour || m != settings.dimStartMinute)) {
+ settings.dimStartHour = h;
+ settings.dimStartMinute = m;
  brightnessSettingsChanged = true;
  }
  }
- if (server.hasArg("dimEndHour")) {
- uint8_t newDimEndHour = server.arg("dimEndHour").toInt();
- if (newDimEndHour != settings.dimEndHour) {
- settings.dimEndHour = newDimEndHour;
+ if (server.hasArg("dimEndTime")) {
+ uint8_t h, m;
+ if (parseHHMM(server.arg("dimEndTime"), h, m) &&
+     (h != settings.dimEndHour || m != settings.dimEndMinute)) {
+ settings.dimEndHour = h;
+ settings.dimEndMinute = m;
  brightnessSettingsChanged = true;
  }
  }
@@ -1219,6 +1249,31 @@ void handleSave() {
  uint8_t newDimBrightness = sanitizeBrightnessValue(server.arg("dimBrightness").toInt());
  if (newDimBrightness != settings.dimBrightness) {
  settings.dimBrightness = newDimBrightness;
+ brightnessSettingsChanged = true;
+ }
+ }
+
+ // Save scheduled power-off window
+ bool scheduledOffEnabled = server.hasArg("enableScheduledOff");
+ if (scheduledOffEnabled != settings.enableScheduledOff) {
+ settings.enableScheduledOff = scheduledOffEnabled;
+ brightnessSettingsChanged = true;
+ }
+ if (server.hasArg("offStartTime")) {
+ uint8_t h, m;
+ if (parseHHMM(server.arg("offStartTime"), h, m) &&
+     (h != settings.offStartHour || m != settings.offStartMinute)) {
+ settings.offStartHour = h;
+ settings.offStartMinute = m;
+ brightnessSettingsChanged = true;
+ }
+ }
+ if (server.hasArg("offEndTime")) {
+ uint8_t h, m;
+ if (parseHHMM(server.arg("offEndTime"), h, m) &&
+     (h != settings.offEndHour || m != settings.offEndMinute)) {
+ settings.offEndHour = h;
+ settings.offEndMinute = m;
  brightnessSettingsChanged = true;
  }
  }
@@ -1254,8 +1309,8 @@ void handleSave() {
  weatherSettingsChanged(); // wake the fetch task for the new location
  }
 
- // Save ambient screensaver + seasonal overlay settings (guard on a field
- // that always posts so a partial form can't silently disable them)
+ // Save ambient screensaver settings (guard on a field that always posts so
+ // a partial form can't silently disable them)
  if (server.hasArg("ambientStyle")) {
  settings.ambientEnabled = server.hasArg("ambientEnabled");
  // normalizeAmbientStyle maps the retired lava slot (2) and any out-of-range
@@ -1280,7 +1335,6 @@ void handleSave() {
  settings.ambientEndHour = server.arg("ambientEndHour").toInt() % 24;
  }
  settings.ambientShowClock = server.hasArg("ambientShowClock");
- settings.holidayOverlays = server.hasArg("holidayOverlays");
  settings.vizShowClock = server.hasArg("vizShowClock");
  }
 
@@ -1762,7 +1816,6 @@ void handleExportConfig() {
  json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
- json += "\"holidayOverlays\":" + String(settings.holidayOverlays ? "true" : "false") + ",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
 
  // Metric labels
@@ -1927,7 +1980,6 @@ void handleImportConfig() {
  ambientCustomInvalidate();
  }
  }
- if (!doc["holidayOverlays"].isNull()) settings.holidayOverlays = doc["holidayOverlays"];
  if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];

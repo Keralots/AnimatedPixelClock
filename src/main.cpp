@@ -138,9 +138,6 @@ int getOptimalRefreshRate() {
       // Static clocks (Standard, Large)
       rate = 2; // 2 Hz is plenty for clock that updates once/second
     }
-    // A seasonal overlay (snow, fireworks...) animating over a static clock
-    // needs a floor or it turns into a slideshow.
-    if (seasonalOverlayActive() && rate < 30) rate = 30;
     return rate;
   } else {
     // Metrics mode (online)
@@ -252,6 +249,14 @@ void setup() {
 
   // Initialize NTP
   initNTP();
+
+  // Apply the scheduled dim/off level now that the time is (usually) synced, so
+  // the panel comes up at the correct night brightness instead of the un-dimmed
+  // boot value. The loop's checkScheduledBrightness() covers the case where NTP
+  // was not yet ready here.
+  if (displayAvailable) {
+    refreshDisplayBrightnessNow();
+  }
 
   // Initialize WiFi connection status flag
   wifiConnected = (WiFi.status() == WL_CONNECTED);
@@ -432,10 +437,6 @@ void loop() {
         displayStandardClock();
         break;
       }
-
-      // Date-driven holiday overlay (no-op outside its windows). Clock
-      // styles only - never over PC stats or ambient scenes.
-      drawSeasonalOverlay();
     }
 
     // Notification banner draws over whatever screen is active.

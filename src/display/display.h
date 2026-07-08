@@ -35,6 +35,9 @@ void applyDisplayBrightness();
 void refreshDisplayBrightnessNow();
 void checkScheduledBrightness();
 
+// True while the scheduled power-off window is currently active (panel dark).
+bool isDisplayScheduledOff();
+
 // Runtime display control (HTTP API) - not persisted to flash
 void setDisplayForcedOff(bool off);
 bool isDisplayForcedOff();

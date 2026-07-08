@@ -41,12 +41,4 @@ uint8_t ambientCustomFailReason();
 // whose delayed buffer flips otherwise beat against the DMA scan.
 void ambientCustomPrefetch();
 
-// ---- Seasonal holiday overlays (independent of ambient) ----
-
-// True while a date-driven overlay is animating (drives the 30 Hz refresh floor).
-bool seasonalOverlayActive();
-
-// Draw the active overlay over the current clock frame (no-op outside windows).
-void drawSeasonalOverlay();
-
 #endif // AMBIENT_H

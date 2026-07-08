@@ -13,6 +13,11 @@
 static uint8_t lastAppliedBrightness = 255;
 static unsigned long lastBrightnessCheck = 0;
 const unsigned long BRIGHTNESS_CHECK_INTERVAL = 60000; // Check every minute
+// False until the first time-resolved brightness has been applied. Keeps the
+// scheduled check polling every loop pass right after boot (while NTP may still
+// be syncing) so dimming/off engages the instant a valid time is available,
+// instead of leaving the panel at the un-dimmed boot brightness for a minute.
+static bool scheduledBrightnessApplied = false;
 
 // Runtime override: when true, the panel is held off (e.g. via HTTP /api/display/off).
 // Scheduled dimming and brightness re-applies are suppressed so they don't turn it back on.
@@ -30,10 +35,27 @@ static void applyBrightnessLevel(uint8_t brightness) {
   lastAppliedBrightness = brightness;
 }
 
+// True when minute-of-day `now` falls inside [start, end). Equal bounds = empty
+// window. Handles windows that wrap past midnight (start > end). All args are
+// minutes since midnight (0-1439).
+static bool minuteInWindow(uint16_t now, uint16_t start, uint16_t end) {
+  if (start == end) {
+    return false;
+  }
+  if (start < end) {
+    return (now >= start && now < end);
+  }
+  return (now >= start || now < end);
+}
+
+static inline uint16_t minuteOfDay(uint8_t hour, uint8_t minute) {
+  return (uint16_t)hour * 60 + minute;
+}
+
 static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
   targetBrightness = sanitizeBrightnessValue(settings.displayBrightness);
 
-  if (!settings.enableScheduledDimming) {
+  if (!settings.enableScheduledDimming && !settings.enableScheduledOff) {
     return true;
   }
 
@@ -42,22 +64,39 @@ static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
     return false;
   }
 
-  const uint8_t currentHour = timeinfo.tm_hour;
-  bool isDimPeriod = false;
+  const uint16_t now = minuteOfDay(timeinfo.tm_hour, timeinfo.tm_min);
 
-  if (settings.dimStartHour == settings.dimEndHour) {
-    isDimPeriod = false;
-  } else if (settings.dimStartHour < settings.dimEndHour) {
-    isDimPeriod =
-        (currentHour >= settings.dimStartHour && currentHour < settings.dimEndHour);
-  } else {
-    isDimPeriod =
-        (currentHour >= settings.dimStartHour || currentHour < settings.dimEndHour);
+  // Scheduled off wins over dimming: brightness 0 (NOT sanitized - the panel
+  // must go fully dark to spare the LEDs, sanitizing would floor it to 1).
+  if (settings.enableScheduledOff &&
+      minuteInWindow(now, minuteOfDay(settings.offStartHour, settings.offStartMinute),
+                     minuteOfDay(settings.offEndHour, settings.offEndMinute))) {
+    targetBrightness = 0;
+    return true;
   }
 
-  targetBrightness = sanitizeBrightnessValue(
-      isDimPeriod ? settings.dimBrightness : settings.displayBrightness);
+  if (settings.enableScheduledDimming &&
+      minuteInWindow(now, minuteOfDay(settings.dimStartHour, settings.dimStartMinute),
+                     minuteOfDay(settings.dimEndHour, settings.dimEndMinute))) {
+    targetBrightness = sanitizeBrightnessValue(settings.dimBrightness);
+  }
   return true;
+}
+
+// True while the scheduled-off window is currently active (live time check,
+// independent of the once-a-minute applied value). Reported to Home Assistant
+// via /api/status so it can see the panel is dark on schedule.
+bool isDisplayScheduledOff() {
+  if (!settings.enableScheduledOff) {
+    return false;
+  }
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return false;
+  }
+  return minuteInWindow(minuteOfDay(timeinfo.tm_hour, timeinfo.tm_min),
+                        minuteOfDay(settings.offStartHour, settings.offStartMinute),
+                        minuteOfDay(settings.offEndHour, settings.offEndMinute));
 }
 
 // Initialize display - returns true on success
@@ -84,10 +123,9 @@ void refreshDisplayBrightnessNow() {
     return;
   }
 
-  uint8_t targetBrightness = settings.displayBrightness;
-  if (settings.enableScheduledDimming &&
-      !resolveScheduledBrightnessTarget(targetBrightness)) {
-    return;
+  uint8_t targetBrightness;
+  if (!resolveScheduledBrightnessTarget(targetBrightness)) {
+    return; // no valid time yet - leave the current brightness untouched
   }
 
   if (lastAppliedBrightness != targetBrightness) {
@@ -101,14 +139,26 @@ void checkScheduledBrightness() {
     return;
   }
 
-  // Only check every minute to avoid unnecessary updates
   unsigned long currentTime = millis();
-  if (currentTime - lastBrightnessCheck < BRIGHTNESS_CHECK_INTERVAL) {
+
+  // Throttle to once a minute only after a scheduled value has actually been
+  // applied. Before that (right after boot) poll every pass so the correct
+  // dim/off level engages immediately once the clock has a valid time.
+  if (scheduledBrightnessApplied &&
+      currentTime - lastBrightnessCheck < BRIGHTNESS_CHECK_INTERVAL) {
     return;
   }
-  lastBrightnessCheck = currentTime;
 
-  refreshDisplayBrightnessNow();
+  uint8_t target;
+  if (!resolveScheduledBrightnessTarget(target)) {
+    return; // no valid time yet - retry on the next loop pass
+  }
+
+  lastBrightnessCheck = currentTime;
+  scheduledBrightnessApplied = true;
+  if (lastAppliedBrightness != target) {
+    applyBrightnessLevel(target);
+  }
 }
 
 // ---- Runtime display power / brightness control (HTTP API) ----

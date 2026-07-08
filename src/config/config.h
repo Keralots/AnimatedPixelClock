@@ -84,11 +84,22 @@ struct Settings {
   bool boostAnimationRefresh;  // Enable 40 Hz boost during animations
   uint8_t displayBrightness;   // Display brightness 0-255 (default: 255)
 
-  // Scheduled dimming (night mode)
+  // Scheduled dimming (night mode). Start/end are hour:minute of day.
   bool enableScheduledDimming;  // Enable time-based automatic dimming
   uint8_t dimStartHour;         // Hour to start dimming (0-23)
+  uint8_t dimStartMinute;       // Minute to start dimming (0-59)
   uint8_t dimEndHour;           // Hour to end dimming (0-23)
+  uint8_t dimEndMinute;         // Minute to end dimming (0-59)
   uint8_t dimBrightness;        // Brightness level during dim period (0-255)
+
+  // Scheduled power-off (nightly full-dark window; spares the LEDs). Takes
+  // priority over dimming. Home Assistant can also toggle live via
+  // /api/display/on|off (runtime override, separate from this schedule).
+  bool enableScheduledOff;      // Enable the nightly off window
+  uint8_t offStartHour;         // Hour to power the panel off (0-23)
+  uint8_t offStartMinute;       // Minute to power the panel off (0-59)
+  uint8_t offEndHour;           // Hour to power it back on (0-23)
+  uint8_t offEndMinute;         // Minute to power it back on (0-59)
 
   // Notification banner (POST /api/notify)
   bool notifyEnabled;           // Master toggle for the /api/notify endpoint
@@ -109,9 +120,6 @@ struct Settings {
   uint8_t ambientEndHour;       // Window end (0-23)
   bool ambientShowClock;        // Small HH:MM overlay in the corner
   char ambientCustomFile[28];   // Basename of the uploaded .pca for style 6 ("" = none)
-
-  // Seasonal holiday overlays (date-driven, drawn over clock styles)
-  bool holidayOverlays;         // Snow (Dec), fireworks (NYE), hearts (Feb 14), Halloween
 
   // Audio spectrum visualizer (forced mode fed by the companion)
   bool vizShowClock;            // Small HH:MM overlay over the bars

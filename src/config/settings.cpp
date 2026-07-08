@@ -120,8 +120,15 @@ void loadSettings() {
     settings.displayBrightness = sanitizeBrightnessValue(255);
     settings.enableScheduledDimming = false;
     settings.dimStartHour = 22;
+    settings.dimStartMinute = 0;
     settings.dimEndHour = 7;
+    settings.dimEndMinute = 0;
     settings.dimBrightness = sanitizeBrightnessValue(50);
+    settings.enableScheduledOff = false;
+    settings.offStartHour = 0;
+    settings.offStartMinute = 0;
+    settings.offEndHour = 7;
+    settings.offEndMinute = 0;
     settings.notifyEnabled = true;
     settings.notifyPosition = 0;
     settings.weatherEnabled = false;
@@ -135,7 +142,6 @@ void loadSettings() {
     settings.ambientEndHour = 23;
     settings.ambientShowClock = true;
     settings.ambientCustomFile[0] = '\0';
-    settings.holidayOverlays = false;
     settings.vizShowClock = true;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
@@ -317,10 +323,24 @@ void loadSettings() {
       preferences.getBool("schedDim", false); // Default: Disabled
   settings.dimStartHour =
       preferences.getUChar("dimStart", 22); // Default: 10 PM
+  settings.dimStartMinute =
+      preferences.getUChar("dimStartMin", 0);
   settings.dimEndHour =
       preferences.getUChar("dimEnd", 7); // Default: 7 AM
+  settings.dimEndMinute =
+      preferences.getUChar("dimEndMin", 0);
   settings.dimBrightness =
       preferences.getUChar("dimBright", 50); // Default: ~20% (50/255)
+  settings.enableScheduledOff =
+      preferences.getBool("schedOff", false); // Default: Disabled
+  settings.offStartHour =
+      preferences.getUChar("offStart", 0); // Default: midnight
+  settings.offStartMinute =
+      preferences.getUChar("offStartMin", 0);
+  settings.offEndHour =
+      preferences.getUChar("offEnd", 7); // Default: 7 AM
+  settings.offEndMinute =
+      preferences.getUChar("offEndMin", 0);
   settings.notifyEnabled =
       preferences.getBool("notifyEn", true); // Default: Enabled
   settings.notifyPosition =
@@ -357,8 +377,6 @@ void loadSettings() {
   String loadedAnimFile = preferences.getString("ambCustom", "");
   strncpy(settings.ambientCustomFile, loadedAnimFile.c_str(), 27);
   settings.ambientCustomFile[27] = '\0';
-  settings.holidayOverlays =
-      preferences.getBool("holidayFx", false); // Default: Disabled
   settings.vizShowClock =
       preferences.getBool("vizClock", true); // Default: Show time
   settings.marioBounceHeight =
@@ -660,8 +678,15 @@ void saveSettings() {
   preferences.putUChar("brightness", settings.displayBrightness);
   preferences.putBool("schedDim", settings.enableScheduledDimming);
   preferences.putUChar("dimStart", settings.dimStartHour);
+  preferences.putUChar("dimStartMin", settings.dimStartMinute);
   preferences.putUChar("dimEnd", settings.dimEndHour);
+  preferences.putUChar("dimEndMin", settings.dimEndMinute);
   preferences.putUChar("dimBright", settings.dimBrightness);
+  preferences.putBool("schedOff", settings.enableScheduledOff);
+  preferences.putUChar("offStart", settings.offStartHour);
+  preferences.putUChar("offStartMin", settings.offStartMinute);
+  preferences.putUChar("offEnd", settings.offEndHour);
+  preferences.putUChar("offEndMin", settings.offEndMinute);
   preferences.putBool("notifyEn", settings.notifyEnabled);
   preferences.putUChar("notifyPos", settings.notifyPosition);
   preferences.putBool("weatherEn", settings.weatherEnabled);
@@ -675,7 +700,6 @@ void saveSettings() {
   preferences.putUChar("ambEnd", settings.ambientEndHour);
   preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putString("ambCustom", settings.ambientCustomFile);
-  preferences.putBool("holidayFx", settings.holidayOverlays);
   preferences.putBool("vizClock", settings.vizShowClock);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);

@@ -73,7 +73,8 @@ Once on WiFi, open the device's IP address or `http://pixelclock.local` in a bro
 - **Clock settings**: style, 12/24 hour, date format, position, per-style animation
   options, per-element colors with one-click reset to defaults
 - **Display**: brightness (live slider), colon blink mode/rate, adaptive refresh rate,
-  scheduled night dimming (start/end hour + dim level)
+  scheduled night dimming (start/end time to the minute + dim level) and a scheduled
+  power-off window that blanks the panel overnight to spare the LEDs
 - **Timezone**: ~76 regions with automatic DST transitions (POSIX TZ database, no
   manual toggles)
 - **Network**: DHCP or static IP, device name (mDNS), show IP at boot
@@ -102,7 +103,7 @@ fetched every 10 minutes. The optional API key field is only for Open-Meteo
 commercial subscriptions. Icon, effect and temperature colors are editable in the
 style's Colors card like any other clock.
 
-## Ambient screensaver & seasonal effects
+## Ambient screensaver
 
 On the web interface's Display page you can run an **ambient screensaver** instead of
 the clock: a Space Invaders battle, a Pac-Man chase, a starfield, an aquarium with
@@ -111,11 +112,6 @@ fine. An optional small clock stays in the corner. Press **Start
 now** to keep the effect on until you stop it, or enable the schedule to have it come
 on automatically during set hours (e.g. 20:00-23:00). `GET /api/mode/ambient` /
 `/api/mode/auto` do the same from automations.
-
-A separate **Holiday overlays** toggle adds date-driven effects over whatever clock
-style is active: falling snow through December, a fireworks show around New Year's
-midnight, floating hearts on February 14, and a pumpkin with passing bats in late
-October. Off by default, one checkbox to enable.
 
 ### Custom animations (upload your own GIFs)
 
