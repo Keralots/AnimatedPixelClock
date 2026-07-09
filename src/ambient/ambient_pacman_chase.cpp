@@ -1,13 +1,17 @@
 /*
  * AnimatedPixelClock - Ambient: Pac-Man maze
  *
- * A self-playing game of Pac-Man on a 16x8 pillar maze (no clock, no digits).
- * Pac-Man navigates the corridors greedily toward the nearest dot, turning
- * corners like a real player; four ghosts chase him through the maze. Eating a
- * power pellet turns the ghosts blue and sends them fleeing while Pac hunts
- * them into a pair of retreating eyes that scurry back to the pen. Getting
- * caught costs Pac a life (shrink, then the board resets with the dots intact).
- * When every dot is gone a fresh board is laid out.
+ * A self-playing game of Pac-Man that fills the whole 128x64 panel (no clock,
+ * no digits). The maze is a lattice of pillars with an open perimeter loop, so
+ * Pac always has an escape route. Pac plays like a real person: he heads for the
+ * nearest pellet when it is safe but swerves away (and reverses) from any ghost
+ * that gets close, and he turns to hunt the blue ghosts after eating a power
+ * pellet. The four ghosts run classic scatter/chase waves with individual
+ * personalities (Blinky chases directly, Pinky aims ahead of Pac, Inky mirrors
+ * across Blinky, Clyde only closes in from a distance), so they spread out and
+ * corner Pac only rarely instead of dogpiling him. Getting caught costs a life
+ * (shrink, then the board resets with the dots intact); clearing every dot lays
+ * out a fresh board.
  *
  * Pac-Man is reused from the Pac-Man clock (drawPacman, follows COL_PACMAN).
  * Ghosts and the maze are drawn here in hardcoded RGB565.
@@ -19,16 +23,33 @@
 #include "../display/display.h"
 #include "../clocks/clocks.h"
 
-#define MZ_COLS 16
-#define MZ_ROWS 8
-#define MZ_CELL 8           // px per cell (16*8 = 128, 8*8 = 64)
+#define MZ_COLS 15
+#define MZ_ROWS 7
+#define MZ_CELL 8           // px per cell (15*8 = 120, 7*8 = 56)
+#define MZ_OX 4             // origin inset so the maze centers inside a thin
+#define MZ_OY 4             // outer frame instead of bleeding to the panel edge
 #define GHOST_COUNT 4
 
-// Speeds (px/sec)
-#define SPEED_PAC 44.0f
-#define SPEED_GHOST 40.0f
-#define SPEED_FRIGHT 26.0f
+// Speeds (px/sec). Pac keeps a clear edge over the ghosts so a smart player can
+// outrun them along the open perimeter.
+#define SPEED_PAC 48.0f
+#define SPEED_GHOST 36.0f
+#define SPEED_FRIGHT 24.0f
 #define SPEED_EYES 104.0f
+
+// Pac's danger sense: how many cells out a hostile ghost starts to scare him,
+// how hard he weights that fear against pellet-seeking, how hard he refuses to
+// step toward a ghost sharing his corridor, and a small cost for doubling back
+// so he does not dither in the clear.
+#define DANGER_RANGE 5
+#define DANGER_W 10.0f
+#define AHEAD_W 30.0f
+#define REVERSE_PEN 3.0f
+#define HUNT_RANGE 8
+
+// Scatter/chase wave lengths (ms).
+#define SCATTER_MS 6000
+#define CHASE_MS 18000
 
 // Colors (RGB565)
 static const uint16_t GHOST_COLORS[GHOST_COUNT] = {
@@ -48,6 +69,10 @@ static const uint16_t GHOST_COLORS[GHOST_COUNT] = {
 // Pen (ghost home) cell that eaten eyes return to.
 #define PEN_COL 7
 #define PEN_ROW 3
+
+// Each ghost's scatter corner (also Clyde's bail-out target when he crowds Pac).
+static const int8_t SCATTER_C[GHOST_COUNT] = {MZ_COLS - 1, 0, MZ_COLS - 1, 0};
+static const int8_t SCATTER_R[GHOST_COUNT] = {0, 0, MZ_ROWS - 1, MZ_ROWS - 1};
 
 enum GMode { G_NORMAL, G_FRIGHT, G_EYES };
 
@@ -71,23 +96,29 @@ static unsigned long powerUntil = 0;
 static bool powerActive = false;
 static uint16_t deathTimer = 0;   // frames of the caught animation (0 = playing)
 
+static uint8_t ghostPhase = 0;    // 0 = scatter, 1 = chase
+static unsigned long phaseUntil = 0;
+
 static uint8_t mouthFrame = 0;
 static uint8_t skirtFrame = 0;
 static bool mzInit = false;
 static unsigned long lastFrame = 0, lastMouth = 0, lastSkirt = 0;
 
-static inline int ccx(int col) { return col * MZ_CELL + MZ_CELL / 2; }
-static inline int ccy(int row) { return row * MZ_CELL + MZ_CELL / 2; }
+static inline int ccx(int col) { return MZ_OX + col * MZ_CELL + MZ_CELL / 2; }
+static inline int ccy(int row) { return MZ_OY + row * MZ_CELL + MZ_CELL / 2; }
 
-// Border walls + interior pillars at even/even cells. No dead ends, all loops.
+// Interior pillar lattice at even/even cells (2..COLS-2, 2..ROWS-2). The whole
+// perimeter is open corridor, so there are no dead ends and Pac can loop the
+// outside to shake a chaser.
 static bool isWall(int c, int r) {
   if (c < 0 || c >= MZ_COLS || r < 0 || r >= MZ_ROWS) return true;
-  if (c == 0 || c == MZ_COLS - 1 || r == 0 || r == MZ_ROWS - 1) return true;
-  return (c % 2 == 0) && (r % 2 == 0);
+  return (c >= 2 && c <= MZ_COLS - 2 && r >= 2 && r <= MZ_ROWS - 2
+          && (c % 2 == 0) && (r % 2 == 0));
 }
 
+// Power pellets sit in the four corners, classic-style.
 static const struct { int8_t c, r; } POWER_CELLS[4] = {
-  {1, 1}, {14, 1}, {1, 6}, {14, 5},
+  {0, 0}, {MZ_COLS - 1, 0}, {0, MZ_ROWS - 1}, {MZ_COLS - 1, MZ_ROWS - 1},
 };
 
 static void layoutBoard() {
@@ -114,14 +145,16 @@ static void placeActor(Actor& a, int c, int r, int8_t dx, int8_t dy) {
 }
 
 static void resetPositions() {
-  placeActor(pac, 7, 6, -1, 0);
-  pacLastDx = -1; pacLastDy = 0;
-  const int8_t gc[GHOST_COUNT] = {5, 7, 9, 11};
+  placeActor(pac, 1, MZ_ROWS - 1, 1, 0);
+  pacLastDx = 1; pacLastDy = 0;
+  const int8_t gc[GHOST_COUNT] = {4, 6, 8, 10};
   for (int i = 0; i < GHOST_COUNT; i++) {
     placeActor(gh[i], gc[i], PEN_ROW, (i & 1) ? 1 : -1, 0);
     ghMode[i] = G_NORMAL;
   }
   powerActive = false;
+  ghostPhase = 0;                       // open on a scatter wave: Pac gets room
+  phaseUntil = millis() + SCATTER_MS;
 }
 
 // Manhattan distance from (c,r) to the nearest remaining dot/power cell.
@@ -140,27 +173,51 @@ static int nearestDotDist(int c, int r) {
 
 static const int8_t DIRS[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-// Pac heads toward the nearest dot, never reversing unless boxed in.
+// Pac scores each open move: chase the nearest pellet, but flee any hostile
+// ghost within DANGER_RANGE (cost grows sharply as it closes) and instead home
+// in on frightened ghosts to eat them. Reversing is allowed - a real player
+// doubles back to escape - but carries a small cost so he does not jitter when
+// the coast is clear.
 static void choosePacDir(Actor& a) {
   int8_t bestDx = a.dx, bestDy = a.dy;
-  int bestScore = 99999;
+  float bestScore = 1e9f;
   bool found = false;
   int order[4] = {0, 1, 2, 3};
   for (int i = 3; i > 0; i--) { int j = random(i + 1); int t = order[i]; order[i] = order[j]; order[j] = t; }
   for (int k = 0; k < 4; k++) {
     int8_t dx = DIRS[order[k]][0], dy = DIRS[order[k]][1];
-    if (dx == -a.dx && dy == -a.dy) continue;       // no reversing
     int nc = a.col + dx, nr = a.row + dy;
     if (isWall(nc, nr)) continue;
-    int score = nearestDotDist(nc, nr);
+    float score = (float)nearestDotDist(nc, nr);
+    for (int g = 0; g < GHOST_COUNT; g++) {
+      if (ghMode[g] == G_EYES) continue;
+      int gc = gh[g].col, gr = gh[g].row;
+      int gd = abs(gc - nc) + abs(gr - nr);
+      if (ghMode[g] == G_FRIGHT) {
+        if (gd < HUNT_RANGE) score -= (HUNT_RANGE - gd) * 2.0f;   // hunt the blues
+        continue;
+      }
+      if (gd <= DANGER_RANGE) {                                   // recoil from danger
+        int near = DANGER_RANGE - gd + 1;
+        score += near * near * DANGER_W;
+      }
+      // Never step toward a ghost sharing this corridor line - the move that
+      // walks straight into a chaser is exactly what got Pac killed before.
+      int ahead = (gc - a.col) * dx + (gr - a.row) * dy;
+      int lateral = abs((gc - a.col) * dy - (gr - a.row) * dx);
+      if (ahead > 0 && lateral == 0 && ahead <= DANGER_RANGE + 2)
+        score += (DANGER_RANGE + 3 - ahead) * AHEAD_W;
+    }
+    if (dx == -a.dx && dy == -a.dy) score += REVERSE_PEN;
     if (score < bestScore) { bestScore = score; bestDx = dx; bestDy = dy; found = true; }
   }
-  if (!found) { bestDx = -a.dx; bestDy = -a.dy; }   // dead end: turn around
+  if (!found) { bestDx = -a.dx; bestDy = -a.dy; }   // fully boxed: turn around
   a.dx = bestDx; a.dy = bestDy;
   a.tcol = a.col + bestDx; a.trow = a.row + bestDy;
 }
 
-// Ghost greedily chases (or flees) a target cell, never reversing unless boxed.
+// Ghost greedily heads for a target cell (or flees it when frightened), never
+// reversing unless boxed.
 static void chooseGhostDir(Actor& a, uint8_t mode, int tc, int tr) {
   int8_t bestDx = a.dx, bestDy = a.dy;
   int bestScore = (mode == G_FRIGHT) ? -1 : 99999;
@@ -180,6 +237,27 @@ static void chooseGhostDir(Actor& a, uint8_t mode, int tc, int tr) {
   if (!found) { bestDx = -a.dx; bestDy = -a.dy; }
   a.dx = bestDx; a.dy = bestDy;
   a.tcol = a.col + bestDx; a.trow = a.row + bestDy;
+}
+
+// The cell a ghost is currently aiming at, per mode/phase/personality.
+static void ghostTarget(int i, int& tc, int& tr) {
+  if (ghMode[i] == G_EYES) { tc = PEN_COL; tr = PEN_ROW; return; }
+  if (ghMode[i] == G_FRIGHT) { tc = pac.col; tr = pac.row; return; }  // dir chooser flees it
+  if (ghostPhase == 0) { tc = SCATTER_C[i]; tr = SCATTER_R[i]; return; }
+
+  int pdx = pacLastDx, pdy = pacLastDy;
+  switch (i) {
+    case 0:  tc = pac.col;            tr = pac.row;            break;  // Blinky: direct
+    case 1:  tc = pac.col + 4 * pdx;  tr = pac.row + 4 * pdy;  break;  // Pinky: ambush ahead
+    case 2:  tc = 2 * pac.col - gh[0].col; tr = 2 * pac.row - gh[0].row; break;  // Inky: mirror Blinky
+    default: {                                                          // Clyde: shy
+      int cd = abs(gh[3].col - pac.col) + abs(gh[3].row - pac.row);
+      if (cd > 6) { tc = pac.col; tr = pac.row; }
+      else { tc = SCATTER_C[3]; tr = SCATTER_R[3]; }
+    }
+  }
+  if (tc < 0) tc = 0; else if (tc >= MZ_COLS) tc = MZ_COLS - 1;
+  if (tr < 0) tr = 0; else if (tr >= MZ_ROWS) tr = MZ_ROWS - 1;
 }
 
 // Move an actor along its heading; return true when it reaches the next cell
@@ -269,6 +347,13 @@ void ambientPacmanChaseFrame() {
     deathTimer--;
     if (deathTimer == 0) resetPositions();
   } else {
+    // Scatter/chase wave clock: in scatter the ghosts peel off to their corners,
+    // which is what gives Pac (and a human) room to breathe.
+    if (now >= phaseUntil) {
+      ghostPhase ^= 1;
+      phaseUntil = now + (ghostPhase ? CHASE_MS : SCATTER_MS);
+    }
+
     // ---- Pac-Man ----
     if (advanceActor(pac, SPEED_PAC, dt)) {
       if (power[pac.row][pac.col]) {
@@ -292,8 +377,7 @@ void ambientPacmanChaseFrame() {
           ghMode[i] = G_NORMAL;
         }
         int tc, tr;
-        if (ghMode[i] == G_EYES) { tc = PEN_COL; tr = PEN_ROW; }
-        else { tc = pac.col; tr = pac.row; }
+        ghostTarget(i, tc, tr);
         chooseGhostDir(gh[i], ghMode[i], tc, tr);
       }
     }
@@ -314,11 +398,11 @@ void ambientPacmanChaseFrame() {
   }
 
   // ================= Draw =================
-  // Maze: border frame + interior pillars.
-  display.drawRect(MZ_CELL - 1, MZ_CELL - 1,
-                   (MZ_COLS - 2) * MZ_CELL + 2, (MZ_ROWS - 2) * MZ_CELL + 2, COL_WALL);
-  for (int r = 2; r < MZ_ROWS - 1; r += 2) {
-    for (int c = 2; c < MZ_COLS - 1; c += 2) {
+  // Maze: thin outer frame (inset 1px so the perimeter corridor sprites clear
+  // it) + interior pillar lattice.
+  display.drawRect(1, 1, 126, 62, COL_WALL);
+  for (int r = 2; r <= MZ_ROWS - 2; r += 2) {
+    for (int c = 2; c <= MZ_COLS - 2; c += 2) {
       display.fillRect(ccx(c) - 2, ccy(r) - 2, 5, 5, COL_WALL);
     }
   }
