@@ -11,8 +11,8 @@ An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3
 
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20example%20animation-FF0000?logo=youtube&logoColor=white)](https://youtu.be/dw6Jv9x7Knw)
 
-Fourteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
-Runner, Matrix Rain, Missile Command and more), fully configurable from a built-in web
+Thirteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
+Runner, Matrix Rain, Weather and more), fully configurable from a built-in web
 interface: per-element sprite
 colors, brightness with scheduled night dimming, automatic timezone/DST, OTA updates.
 It can also act as a PC performance monitor, showing live CPU/GPU/RAM/network stats
@@ -60,7 +60,6 @@ The E line is required for 64x64 (1/32 scan) panels.
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
-| 13 | Missile Command | Dotted missile trails rain on city silhouettes; explosion rings wipe changed digits |
 | 14 | Weather Clock | Time plus live local weather: animated condition icon, temperature, daily range, humidity, sunrise/sunset |
 
 Every style's sprite colors are individually editable in the web interface (digits,

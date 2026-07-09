@@ -131,10 +131,6 @@ void resetDinoAnimation();
 void displayClockWithMatrixRain();
 void resetMatrixRainAnimation();
 
-// ========== Missile Command Clock ==========
-void displayClockWithMissileCommand();
-void resetMissileAnimation();
-
 // ========== Weather Clock ==========
 void displayClockWithWeather();
 

@@ -601,11 +601,6 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_FIREBALL, 0, "Fireball"},
     {COL_MATRIX_RAIN, 12, "Rain"},
     {COL_MATRIX_HEAD, 12, "Rain head"},
-    {COL_MC_MISSILE, 13, "Missiles"},
-    {COL_MC_COUNTER, 13, "Counter fire"},
-    {COL_MC_EXPLOSION, 13, "Explosions"},
-    {COL_MC_CITY, 13, "Cities"},
-    {COL_MC_GROUND, 13, "Ground"},
     {COL_WEATHER_ICON, 14, "Icon"},
     {COL_WEATHER_ACCENT, 14, "Rain / effects"},
     {COL_WEATHER_TEMP, 14, "Temperature"},
@@ -651,7 +646,7 @@ static const StyleCard STYLE_CARDS[] = {
     {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},
     {6, "pacmanSettings"},  {7, "snakeSettings"},  {8, "tetrisSettings"},
     {10, "asteroidsSettings"}, {11, "dinoSettings"}, {12, "matrixSettings"},
-    {13, "missileSettings"}, {14, "weatherSettings"},
+    {14, "weatherSettings"},
 };
 
 // Clock styles that appear in the style selector, each shown a per-style digit
@@ -783,7 +778,6 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_13")) { out = String(settings.clockStyle == 13 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
@@ -879,19 +873,12 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_MATRIXRAINDENSITY_2")) { out = String(settings.matrixRainDensity == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXTRANSPARENT")) { out = String(settings.matrixTransparent ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_13")) { out = String(settings.clockStyle == 13 ? "block" : "none"); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "block" : "none"); return true; }
   if (!strcmp(n, "CHK_WEATHERENABLED")) { out = String(settings.weatherEnabled ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_WEATHERF")) { out = String(settings.weatherUseFahrenheit ? "checked" : ""); return true; }
   if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
   if (!strcmp(n, "V_WEATHERLON")) { out = String(settings.weatherLon, 4); return true; }
   if (!strcmp(n, "V_WEATHERKEY")) { out = String(settings.weatherApiKey); return true; }
-  if (!strcmp(n, "V_MCMISSILESPEED")) { out = String(settings.mcMissileSpeed); return true; }
-  if (!strcmp(n, "F_MCMISSILESPEED")) { out = String(settings.mcMissileSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_MCMISSILEFREQ_0")) { out = String(settings.mcMissileFreq == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MCMISSILEFREQ_1")) { out = String(settings.mcMissileFreq == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MCMISSILEFREQ_2")) { out = String(settings.mcMissileFreq == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_MCSHOWDATE")) { out = String(settings.mcShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
@@ -1476,15 +1463,6 @@ void handleSave() {
  settings.matrixShowDate = server.hasArg("matrixShowDate");
  settings.matrixTransparent = server.hasArg("matrixTransparent");
 
- // Missile Command settings
- if (server.hasArg("mcMissileSpeed")) {
- settings.mcMissileSpeed = server.arg("mcMissileSpeed").toInt();
- }
- if (server.hasArg("mcMissileFreq")) {
- settings.mcMissileFreq = server.arg("mcMissileFreq").toInt();
- }
- settings.mcShowDate = server.hasArg("mcShowDate");
-
  // Save network configuration
  if (server.hasArg("deviceName")) {
    String name = server.arg("deviceName");
@@ -1717,8 +1695,6 @@ void handleSave() {
  assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
  assertBounds(settings.matrixRainSpeed, 5, 30, "matrixRainSpeed");
  assertBounds(settings.matrixRainDensity, 0, 2, "matrixRainDensity");
- assertBounds(settings.mcMissileSpeed, 5, 30, "mcMissileSpeed");
- assertBounds(settings.mcMissileFreq, 0, 2, "mcMissileFreq");
 
  // Sprite colors. Written straight into settings.spriteColors[] (read every
  // frame by SPRITE_COLOR), so the change is live; saveSettings() persists it.

@@ -130,9 +130,8 @@ int getOptimalRefreshRate() {
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
         settings.clockStyle == 8 || settings.clockStyle == 9 ||
         settings.clockStyle == 10 || settings.clockStyle == 11 ||
-        settings.clockStyle == 12 || settings.clockStyle == 13 ||
-        settings.clockStyle == 14) {
-      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Missile, Weather)
+        settings.clockStyle == 12 || settings.clockStyle == 14) {
+      // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Weather)
       rate = 20; // 20 Hz keeps character movement smooth
     } else {
       // Static clocks (Standard, Large)
@@ -166,11 +165,11 @@ void cycleClockScreens() {
             firstTimeSynced = true;
         }
 
-        // After that, normal cycling. The weather screen (index 12) joins the
+        // After that, normal cycling. The weather screen (index 11) joins the
         // rotation only when weather is enabled and configured.
         if (minuteBlock != lastMinuteBlock) {
             lastMinuteBlock = minuteBlock;
-            int screenCount = weatherConfigured() ? 13 : 12;
+            int screenCount = weatherConfigured() ? 12 : 11;
             currentScreen = (currentScreen + 1) % screenCount;
             resetClockAnimationState(); // Reset animation state when changing screens
         }
@@ -189,8 +188,7 @@ void cycleClockScreens() {
         case 8: displayClockWithAsteroids(); break;
         case 9: displayClockWithDino(); break;
         case 10: displayClockWithMatrixRain(); break;
-        case 11: displayClockWithMissileCommand(); break;
-        case 12: displayClockWithWeather(); break;
+        case 11: displayClockWithWeather(); break;
     }
 }
 
@@ -426,9 +424,6 @@ void loop() {
         break;
       case 12:
         displayClockWithMatrixRain();
-        break;
-      case 13:
-        displayClockWithMissileCommand();
         break;
       case 14:
         displayClockWithWeather();

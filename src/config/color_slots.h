@@ -66,7 +66,7 @@ enum ColorSlot {
   // Matrix Rain (style 12)
   COL_MATRIX_RAIN,   // rain trail base color (fade levels derived from it)
   COL_MATRIX_HEAD,   // column head glyph + digit decode flicker
-  // Missile Command (style 13)
+  // Missile Command (style 13, retired) - slots kept (append-only NVS index)
   COL_MC_MISSILE,    // enemy missile trails + heads
   COL_MC_COUNTER,    // counter-missile trails + cannon barrel
   COL_MC_EXPLOSION,  // explosion rings (white flicker partner is hardcoded)

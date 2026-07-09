@@ -234,6 +234,7 @@ void loadSettings() {
   }
 
   settings.clockStyle = preferences.getInt("clockStyle", 0); // Default: Mario
+  if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
 
   // gmtOffset migration: convert old hours to new minutes format
   int loadedOffset = preferences.getInt("gmtOffset", 60);
