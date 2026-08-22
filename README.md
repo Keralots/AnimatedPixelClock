@@ -25,23 +25,36 @@ sent by a desktop companion app.
 
 | Part | Notes |
 |------|-------|
-| ESP32-S3 board | Developed on an ESP32-S3-WROOM-1 (N16R8) devkit; Waveshare ESP32-S3-Zero also supported |
+| ESP32-S3 board | Developed on an ESP32-S3-WROOM-1 (N16R8) devkit. A compact ESP32-S3 Super Mini also runs the firmware and drops into a much smaller build; the Waveshare ESP32-S3-Zero is supported too |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
-| 5V PSU, ~10A | Power each panel directly, common ground with the ESP32 |
+| 5V power | Two options - see below |
 
 The panels run fine from the ESP32's 3.3V logic directly, no level shifters needed.
 Full bench wiring, power-up order and first-light checklist:
 **[docs/HUB75_WIRING.md](docs/HUB75_WIRING.md)** (with [pinout diagram](docs/hub75_wiring.svg)).
 
+### Powering it
+
+- **Bench / full brightness:** a dedicated 5V PSU (~10A) into each panel's power terminals,
+  sharing a common ground with the ESP32. This is what you want for sustained full-white
+  content at maximum brightness.
+- **Compact USB-C build:** with the ESP32-S3 Super Mini, a single 5V USB-C charger powers
+  the whole thing - board and both panels together, no separate PSU. A typical phone/tablet
+  USB-C charger is plenty for everyday clock and animation content; only sustained full-white
+  at max brightness pushes past what a small charger delivers, so keep the brightness moderate.
+
 ### Pin map
 
-```
-R1=1   G1=2   B1=4     R2=5   G2=6   B2=7
-A=8    B=9    C=10     D=11   E=12
-CLK=13 LAT=14 OE=38
-```
+Same pin map on every supported board:
 
-The E line is required for 64x64 (1/32 scan) panels.
+| Function | Signals | GPIO |
+|----------|---------|------|
+| Upper half RGB | R1 / G1 / B1 | 1 / 2 / 4 |
+| Lower half RGB | R2 / G2 / B2 | 5 / 6 / 7 |
+| Row address | A / B / C / D / E | 8 / 9 / 10 / 11 / 12 |
+| Clock / Latch / Output-enable | CLK / LAT / OE | 13 / 14 / 38 |
+
+The **E** address line is required for 64x64 (1/32 scan) panels.
 
 ## Clock styles
 
@@ -55,7 +68,7 @@ The E line is required for 64x64 (1/32 scan) panels.
 | 5 | Pong / Arkanoid | Breakout-style ball physics, digits shatter and reassemble |
 | 6 | Pac-Man | Pac-Man eats pellet-based digits |
 | 7 | Snake | Nokia-style snake hunts pellets left by changed digits |
-| 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors |
+| 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors; optional small corner-clock mode hands the whole panel to an auto-played game with a much taller stack |
 | 9 | Cycle All Styles | Rotates through every style every 5 minutes |
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
@@ -189,15 +202,16 @@ stream resumes.
 Built with [PlatformIO](https://platformio.org/).
 
 ```bash
-# ESP32-S3-WROOM devkit (default)
+# ESP32-S3-WROOM devkit (default, 16MB)
 pio run -e matrix-s3-wroom -t upload
 
-# Waveshare ESP32-S3-Zero
+# Compact 4MB boards (ESP32-S3 Super Mini, Waveshare ESP32-S3-Zero)
 pio run -e matrix-s3
 ```
 
-The S3-Zero has no USB-UART chip: for the first flash hold BOOT while plugging in
-USB, then use OTA. The `matrix-s3-bringup` / `matrix-wroom-bringup` environments
+The compact 4MB boards use native USB (no separate USB-UART chip): if the first
+flash isn't detected, hold BOOT while plugging in USB, then use OTA for later
+updates. The `matrix-s3-bringup` / `matrix-wroom-bringup` environments
 build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six test
 patterns, useful for verifying wiring before flashing the full firmware.
 
