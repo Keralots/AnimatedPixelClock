@@ -1,13 +1,28 @@
 // AnimatedPixelClock Web Flasher - client logic.
-// Builds an ESP Web Tools manifest on the fly for the single published
-// firmware image (ESP32-S3-WROOM driving the 128x64 HUB75 matrix) and renders
-// the install button once the version is known.
+// Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
+// install button, specs and board photo in sync. Two boards, two firmware
+// images: the ESP32-S3 Super Mini (4MB) and the ESP32-S3-WROOM devkit (16MB),
+// both driving the 128x64 HUB75 matrix.
 
-const BOARD = {
-  chipFamily: 'ESP32-S3',
-  binId: 'AnimatedPixelClock',        // bin id -> AnimatedPixelClock-<ver>-Full.bin
-  display: 'HUB75 · 128×64 RGB',
+const BOARDS = {
+  supermini: {
+    label: 'ESP32-S3 Super Mini (4MB, USB-C)',
+    chipFamily: 'ESP32-S3',
+    firmware: 'supermini',              // AnimatedPixelClock-supermini-<ver>-Full.bin
+    board: 'ESP32-S3 Super Mini',
+    note: 'The compact build: one USB-C charger powers the board and both panels. Native USB - if the serial port does not appear, hold BOOT while plugging in.',
+  },
+  wroom: {
+    label: 'ESP32-S3-WROOM devkit (16MB)',
+    chipFamily: 'ESP32-S3',
+    firmware: 'wroom',                  // AnimatedPixelClock-wroom-<ver>-Full.bin
+    board: 'ESP32-S3-WROOM-1 (N16R8)',
+    note: 'The full-size 16MB devkit (its larger flash also enables the custom-GIF ambient effect). Power the panels from a 5V bench PSU.',
+  },
 };
+
+const DEFAULT_BOARD = 'supermini';
+const DISPLAY = 'HUB75 · 128×64 RGB';
 
 let _version = null;
 let _currentManifestUrl = null;
@@ -20,9 +35,10 @@ async function loadVersion() {
   return text;
 }
 
-function buildManifest(version) {
+function buildManifest(boardId, version) {
+  const board = BOARDS[boardId];
   const binUrl = new URL(
-    `firmware/latest/${BOARD.binId}-${version}-Full.bin`,
+    `firmware/latest/AnimatedPixelClock-${board.firmware}-${version}-Full.bin`,
     location.href,
   ).href;
   return {
@@ -36,27 +52,53 @@ function buildManifest(version) {
     // WiFiManager AP portal stays up in parallel as a fallback.
     new_install_improv_wait_time: 15,
     builds: [{
-      chipFamily: BOARD.chipFamily,
+      chipFamily: board.chipFamily,
       parts: [{ path: binUrl, offset: 0 }],
     }],
   };
 }
 
-function manifestBlobUrl(version) {
+function manifestBlobUrl(boardId, version) {
   if (_currentManifestUrl) {
     URL.revokeObjectURL(_currentManifestUrl);
     _currentManifestUrl = null;
   }
-  const blob = new Blob([JSON.stringify(buildManifest(version))], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(buildManifest(boardId, version))], { type: 'application/json' });
   _currentManifestUrl = URL.createObjectURL(blob);
   return _currentManifestUrl;
 }
 
-function renderInstallButton(version) {
+function populateBoardSelect() {
+  const sel = document.getElementById('board-select');
+  if (!sel) return;
+  for (const [id, info] of Object.entries(BOARDS)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = info.label;
+    sel.appendChild(opt);
+  }
+  sel.value = DEFAULT_BOARD;
+}
+
+function renderSpecs(boardId) {
+  const info = BOARDS[boardId];
+  document.getElementById('spec-chip').textContent = info.chipFamily;
+  const boardEl = document.getElementById('spec-board');
+  if (boardEl) boardEl.textContent = info.board;
+  document.getElementById('spec-display').textContent = DISPLAY;
+  const img = document.getElementById('board-img');
+  if (img) { img.src = `img/boards/${boardId}.jpg`; img.alt = info.board; }
+  const note = document.getElementById('board-note-text');
+  if (note) note.textContent = info.note;
+}
+
+function renderInstallButton(boardId, version) {
+  // ESP Web Tools caches the manifest on first render - recreate the element on
+  // every board switch so the new board's manifest is picked up.
   const slot = document.getElementById('install-slot');
   slot.innerHTML = '';
   const btn = document.createElement('esp-web-install-button');
-  btn.setAttribute('manifest', manifestBlobUrl(version));
+  btn.setAttribute('manifest', manifestBlobUrl(boardId, version));
 
   const fallback = document.createElement('span');
   fallback.setAttribute('slot', 'unsupported');
@@ -104,6 +146,8 @@ function checkBrowserSupport() {
 
 async function init() {
   checkBrowserSupport();
+  populateBoardSelect();
+  renderSpecs(DEFAULT_BOARD);
   wireMonitor();
 
   try {
@@ -114,7 +158,14 @@ async function init() {
   }
 
   showVersion(_version);
-  renderInstallButton(_version);
+  renderInstallButton(DEFAULT_BOARD, _version);
+
+  const sel = document.getElementById('board-select');
+  if (sel) sel.addEventListener('change', (e) => {
+    const boardId = e.target.value;
+    renderSpecs(boardId);
+    renderInstallButton(boardId, _version);
+  });
 }
 
 // ────────── 04 serial monitor ──────────

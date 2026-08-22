@@ -5,18 +5,22 @@ End-to-end release builder for the AnimatedPixelClock web flasher.
 Runs the whole release pipeline for the browser flasher at docs/:
     1. Reads FIRMWARE_VERSION from src/config/config.h  ->  v<ver>
     2. Locates the PlatformIO CLI (PATH, then the standard penv install)
-    3. Builds the matrix firmware (matrix-s3-wroom, the ESP32-S3-WROOM board)
-    4. Merges bootloader + partitions + app into a single "Full" image
-       (flashed at 0x0, what ESP Web Tools writes)
-    5. Copies the Full.bin into docs/firmware/latest/ as
-       AnimatedPixelClock-v<ver>-Full.bin and writes the VERSION file the
+    3. Builds both board variants in a single PlatformIO invocation
+       (matrix-s3-wroom = ESP32-S3-WROOM 16MB, matrix-s3 = ESP32-S3 Super Mini 4MB)
+    4. Merges bootloader + partitions + app into a single "Full" image per
+       variant (flashed at 0x0, what ESP Web Tools writes)
+    5. Copies the Full.bin images into docs/firmware/latest/ as
+       AnimatedPixelClock-<id>-v<ver>-Full.bin and writes the VERSION file the
        flasher page reads
     6. Writes the GitHub Release images into release/v<ver>/:
-         firmware-v<ver>.bin           (new device, full 0x0 image)
-         OTA_ONLY_firmware-v<ver>.bin  (existing device, web UI update)
+         firmware-v<ver>-<id>.bin           (new device, full 0x0 image)
+         OTA_ONLY_firmware-v<ver>-<id>.bin  (existing device, web UI update)
+
+The web flasher reads the firmware id from the BOARDS map in docs/flasher.js:
+each board's `firmware` field must match an id below.
 
 Usage:
-    python release.py                 # build + package
+    python release.py                 # build + package both variants
     python release.py --skip-build    # package whatever .pio/build already has
     python release.py v2.1.0          # override the version string
 """
@@ -28,9 +32,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The single published variant: ESP32-S3-WROOM devkit driving the HUB75 matrix.
-ENV = "matrix-s3-wroom"
-BIN_ID = "AnimatedPixelClock"
+# Variants published by the web flasher.
+# (PlatformIO env, firmware id, label). The firmware id must match the
+# `firmware` field in docs/flasher.js and drives the release/ filenames.
+VARIANTS = [
+    ("matrix-s3-wroom", "wroom",     "ESP32-S3-WROOM devkit (16MB)"),
+    ("matrix-s3",       "supermini", "ESP32-S3 Super Mini (4MB)"),
+]
 
 # Flash offsets for the ESP32-S3 (bootloader starts at 0x0).
 BOOTLOADER_OFFSET = 0x0
@@ -85,13 +93,21 @@ def run(cmd, cwd=REPO_ROOT):
         sys.exit(f"error: command failed with exit code {result.returncode}")
 
 
-def build_dir() -> Path:
-    return REPO_ROOT / ".pio" / "build" / ENV
+def build_envs(pio_path: str):
+    """Build every variant env in a single PlatformIO invocation."""
+    cmd = [pio_path, "run"]
+    for env, *_ in VARIANTS:
+        cmd.extend(["-e", env])
+    run(cmd)
 
 
-def merge_full_bin(out_path: Path):
+def build_dir(env: str) -> Path:
+    return REPO_ROOT / ".pio" / "build" / env
+
+
+def merge_full_bin(env: str, out_path: Path):
     """Merge bootloader + partitions + firmware into a single 0x0 image."""
-    bd = build_dir()
+    bd = build_dir(env)
     bootloader = bd / "bootloader.bin"
     partitions = bd / "partitions.bin"
     firmware = bd / "firmware.bin"
@@ -115,9 +131,9 @@ def merge_full_bin(out_path: Path):
     print(f"  Full: {out_path.relative_to(REPO_ROOT)} ({size / 1024:.1f} KB)")
 
 
-def copy_ota_bin(out_path: Path):
+def copy_ota_bin(env: str, out_path: Path):
     """Copy firmware.bin verbatim as the OTA update image."""
-    firmware = build_dir() / "firmware.bin"
+    firmware = build_dir(env) / "firmware.bin"
     if not firmware.exists():
         sys.exit(f"error: {firmware} not found - run a build first (omit --skip-build).")
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,11 +151,11 @@ def find_old_full_bins(version: str):
     """List Full.bin files in docs/firmware/latest/ not for this version."""
     if not DOCS_LATEST.exists():
         return []
-    pat = re.compile(rf"^{BIN_ID}-(v[^-]+)-Full\.bin$")
+    pat = re.compile(r"^AnimatedPixelClock-(.+)-(v[^-]+)-Full\.bin$")
     old = []
     for f in DOCS_LATEST.iterdir():
         m = pat.match(f.name)
-        if m and m.group(1) != version:
+        if m and m.group(2) != version:
             old.append(f.name)
     return sorted(old)
 
@@ -162,27 +178,32 @@ def main():
     ota_dir = REPO_ROOT / "release" / version
 
     print(f"AnimatedPixelClock web-flasher release: {version}")
-    print(f"Environment: {ENV}")
+    print("Variants: " + ", ".join(f"{env} -> {fid}" for env, fid, *_ in VARIANTS))
 
     if not args.skip_build:
         pio = locate_pio()
         print(f"PlatformIO: {pio}")
-        run([pio, "run", "-e", ENV])
+        build_envs(pio)
     else:
         print("Skipping build (--skip-build)")
 
-    print("\n--- Web flasher image (docs/firmware/latest/) ---")
-    full = DOCS_LATEST / f"{BIN_ID}-{version}-Full.bin"
-    merge_full_bin(full)
+    print("\n--- Web flasher images (docs/firmware/latest/) ---")
+    for env, fid, _label in VARIANTS:
+        out = DOCS_LATEST / f"AnimatedPixelClock-{fid}-{version}-Full.bin"
+        merge_full_bin(env, out)
     write_version_file(version)
     print(f"  VERSION  ({version})")
 
     print(f"\n--- GitHub Release images (release/{version}/) ---")
-    full_out = ota_dir / f"firmware-{version}.bin"
-    full_out.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(full, full_out)
-    print(f"  Full: {full_out.relative_to(REPO_ROOT)} ({full_out.stat().st_size / 1024:.1f} KB)")
-    copy_ota_bin(ota_dir / f"OTA_ONLY_firmware-{version}.bin")
+    for env, fid, _label in VARIANTS:
+        # Full 0x0 image for new devices - same bytes as the docs flasher image.
+        full_src = DOCS_LATEST / f"AnimatedPixelClock-{fid}-{version}-Full.bin"
+        full_out = ota_dir / f"firmware-{version}-{fid}.bin"
+        full_out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(full_src, full_out)
+        print(f"  Full: {full_out.relative_to(REPO_ROOT)} ({full_out.stat().st_size / 1024:.1f} KB)")
+        # OTA-only image for existing devices (web UI update).
+        copy_ota_bin(env, ota_dir / f"OTA_ONLY_firmware-{version}-{fid}.bin")
 
     print("\n" + "=" * 60)
     print(f"Release {version} ready.")

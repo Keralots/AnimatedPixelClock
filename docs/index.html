@@ -87,7 +87,7 @@
           <ul class="checklist">
             <li><strong>Desktop Chrome or Edge.</strong> Web Serial doesn't run on Firefox, Safari, or mobile.</li>
             <li><strong>A real data USB cable.</strong> Power-only cables are silent killers - the port simply won't show up.</li>
-            <li><strong>An ESP32-S3-WROOM devkit.</strong> The firmware drives 2× 64×64 HUB75E panels chained into one 128×64 matrix - see the <a href="https://github.com/Keralots/AnimatedPixelClock/blob/main/docs/HUB75_WIRING.md" target="_blank" rel="noopener">wiring guide</a> for the pin map and power notes.</li>
+            <li><strong>An ESP32-S3 board.</strong> Either the compact Super Mini (runs the whole thing off one USB-C charger) or the full-size WROOM devkit - pick yours in step 01. The firmware drives 2× 64×64 HUB75E panels chained into one 128×64 matrix - see the <a href="https://github.com/Keralots/AnimatedPixelClock/blob/main/docs/HUB75_WIRING.md" target="_blank" rel="noopener">wiring guide</a> for the pin map and power notes.</li>
             <li><strong>Stuck in a connect / disconnect loop?</strong> Hold <code>BOOT</code>, plug in USB while holding, then release. Or hold <code>BOOT</code>, tap <code>RESET</code>, then let go of both.</li>
             <li><strong>Nothing else on the serial port.</strong> Close Arduino IDE, PlatformIO Monitor, and the serial monitor below before flashing.</li>
           </ul>
@@ -100,12 +100,29 @@
             <h2 id="flash-head">Flash your board</h2>
           </header>
 
-          <dl class="specs" aria-label="Firmware specs">
-            <div class="spec-row"><dt>chip</dt><dd id="spec-chip">ESP32-S3</dd></div>
-            <div class="spec-row"><dt>display</dt><dd id="spec-display">HUB75 · 128×64 RGB</dd></div>
-            <div class="spec-row"><dt>firmware</dt><dd id="spec-version">…</dd></div>
-            <div class="spec-row"><dt>flash</dt><dd>0x0 · full image (bootloader + app)</dd></div>
-          </dl>
+          <label for="board-select" class="field-label">Board</label>
+          <div class="select-wrap">
+            <select id="board-select" aria-label="Board"></select>
+          </div>
+
+          <div class="board-card">
+            <div class="board-photo">
+              <img id="board-img" src="" alt="" loading="lazy">
+            </div>
+            <div class="board-info">
+              <p class="board-note" id="board-note">
+                <span class="bn-dot" aria-hidden="true"></span>
+                <span id="board-note-text"></span>
+              </p>
+              <dl class="specs" aria-label="Selected board specs">
+                <div class="spec-row"><dt>chip</dt><dd id="spec-chip">ESP32-S3</dd></div>
+                <div class="spec-row"><dt>board</dt><dd id="spec-board">…</dd></div>
+                <div class="spec-row"><dt>display</dt><dd id="spec-display">HUB75 · 128×64 RGB</dd></div>
+                <div class="spec-row"><dt>firmware</dt><dd id="spec-version">…</dd></div>
+                <div class="spec-row"><dt>flash</dt><dd>0x0 · full image (bootloader + app)</dd></div>
+              </dl>
+            </div>
+          </div>
 
           <p class="status-line" id="status-line" role="status"></p>
 

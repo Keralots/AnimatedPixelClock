@@ -382,6 +382,30 @@ select:focus { outline: none; border-color: var(--green-line); box-shadow: 0 0 0
 .spec-row dt { color: var(--crt-dim); font-size: 12px; letter-spacing: 0.04em; text-transform: lowercase; }
 .spec-row dd { margin: 0; color: var(--crt-fg); word-break: break-word; text-shadow: 0 0 6px rgba(132,243,173,.35); }
 
+/* ────────── board card (photo + specs) ────────── */
+.board-card {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: start;
+  margin: 0 0 18px;
+  padding: 16px;
+  background: var(--card-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+}
+.board-photo {
+  width: 200px; height: 200px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: #ffffff;
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+.board-photo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.board-info { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.board-info .specs { margin: 0; }
+
 .status-line { margin: 0 0 14px; font-family: var(--mono); font-size: 12.5px; color: var(--dim); min-height: 1em; max-width: 560px; }
 .status-line.error { color: var(--err); }
 .status-line.warn  { color: var(--warn); }
@@ -643,6 +667,8 @@ a:hover { border-color: var(--green); color: var(--green); }
   .rail-links { flex-direction: row; gap: 16px; grid-column: 1 / -1; }
   .rail-links .rail-label { display: none; }
   .hero h1 { font-size: 31px; }
+  .board-card { grid-template-columns: 1fr; }
+  .board-photo { width: 100%; height: 220px; }
 }
 @media (max-width: 480px) {
   .spec-row, .creds-row { grid-template-columns: 82px 1fr; gap: 12px; }
