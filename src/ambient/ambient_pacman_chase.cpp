@@ -37,14 +37,15 @@
 #define SPEED_FRIGHT 24.0f
 #define SPEED_EYES 104.0f
 
-// Pac's danger sense: how many cells out a hostile ghost starts to scare him,
-// how hard he weights that fear against pellet-seeking, how hard he refuses to
-// step toward a ghost sharing his corridor, and a small cost for doubling back
-// so he does not dither in the clear.
-#define DANGER_RANGE 5
-#define DANGER_W 10.0f
-#define AHEAD_W 30.0f
-#define REVERSE_PEN 3.0f
+// Pac's brain. When the nearest hostile ghost is within SCARE_RANGE he drops
+// pellet-seeking and just maximizes distance from it (FLEE_W per cell), so he
+// never steps toward a chaser. A straight-course bonus and a stiff reverse cost
+// keep him committing to corridors instead of jittering back and forth between
+// two cells, and he detours to eat any frightened ghost within HUNT_RANGE.
+#define SCARE_RANGE 4
+#define FLEE_W 10.0f
+#define STRAIGHT_BONUS 2.0f
+#define REVERSE_PEN 5.0f
 #define HUNT_RANGE 8
 
 // Scatter/chase wave lengths (ms).
@@ -173,12 +174,16 @@ static int nearestDotDist(int c, int r) {
 
 static const int8_t DIRS[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
-// Pac scores each open move: chase the nearest pellet, but flee any hostile
-// ghost within DANGER_RANGE (cost grows sharply as it closes) and instead home
-// in on frightened ghosts to eat them. Reversing is allowed - a real player
-// doubles back to escape - but carries a small cost so he does not jitter when
-// the coast is clear.
 static void choosePacDir(Actor& a) {
+  // Distance to the nearest hostile (normal) ghost from where Pac stands now.
+  int threat = 999;
+  for (int g = 0; g < GHOST_COUNT; g++) {
+    if (ghMode[g] != G_NORMAL) continue;
+    int d = abs(gh[g].col - a.col) + abs(gh[g].row - a.row);
+    if (d < threat) threat = d;
+  }
+  bool scared = (threat <= SCARE_RANGE);
+
   int8_t bestDx = a.dx, bestDy = a.dy;
   float bestScore = 1e9f;
   bool found = false;
@@ -188,27 +193,32 @@ static void choosePacDir(Actor& a) {
     int8_t dx = DIRS[order[k]][0], dy = DIRS[order[k]][1];
     int nc = a.col + dx, nr = a.row + dy;
     if (isWall(nc, nr)) continue;
-    float score = (float)nearestDotDist(nc, nr);
-    for (int g = 0; g < GHOST_COUNT; g++) {
-      if (ghMode[g] == G_EYES) continue;
-      int gc = gh[g].col, gr = gh[g].row;
-      int gd = abs(gc - nc) + abs(gr - nr);
-      if (ghMode[g] == G_FRIGHT) {
-        if (gd < HUNT_RANGE) score -= (HUNT_RANGE - gd) * 2.0f;   // hunt the blues
-        continue;
+
+    float score;
+    if (scared) {
+      // Survival: get as far from the nearest hostile ghost as possible. Moving
+      // toward one shrinks the distance and scores worst, so Pac won't walk in.
+      int mind = 999;
+      for (int g = 0; g < GHOST_COUNT; g++) {
+        if (ghMode[g] != G_NORMAL) continue;
+        int d = abs(gh[g].col - nc) + abs(gh[g].row - nr);
+        if (d < mind) mind = d;
       }
-      if (gd <= DANGER_RANGE) {                                   // recoil from danger
-        int near = DANGER_RANGE - gd + 1;
-        score += near * near * DANGER_W;
-      }
-      // Never step toward a ghost sharing this corridor line - the move that
-      // walks straight into a chaser is exactly what got Pac killed before.
-      int ahead = (gc - a.col) * dx + (gr - a.row) * dy;
-      int lateral = abs((gc - a.col) * dy - (gr - a.row) * dx);
-      if (ahead > 0 && lateral == 0 && ahead <= DANGER_RANGE + 2)
-        score += (DANGER_RANGE + 3 - ahead) * AHEAD_W;
+      score = -mind * FLEE_W + nearestDotDist(nc, nr) * 0.2f;   // pellets break ties
+    } else {
+      score = (float)nearestDotDist(nc, nr);                    // free to feed
     }
-    if (dx == -a.dx && dy == -a.dy) score += REVERSE_PEN;
+    // Detour onto frightened ghosts to eat them, scared of the others or not.
+    for (int g = 0; g < GHOST_COUNT; g++) {
+      if (ghMode[g] != G_FRIGHT) continue;
+      int d = abs(gh[g].col - nc) + abs(gh[g].row - nr);
+      if (d < HUNT_RANGE) score -= (HUNT_RANGE - d) * 2.0f;
+    }
+    // Hold the corridor: reward staying straight, make a U-turn a last resort.
+    // This is what stops the few-pixel back-and-forth jitter.
+    if (dx == a.dx && dy == a.dy) score -= STRAIGHT_BONUS;
+    else if (dx == -a.dx && dy == -a.dy) score += REVERSE_PEN;
+
     if (score < bestScore) { bestScore = score; bestDx = dx; bestDy = dy; found = true; }
   }
   if (!found) { bestDx = -a.dx; bestDy = -a.dy; }   // fully boxed: turn around
@@ -260,21 +270,23 @@ static void ghostTarget(int i, int& tc, int& tr) {
   if (tr < 0) tr = 0; else if (tr >= MZ_ROWS) tr = MZ_ROWS - 1;
 }
 
-// Move an actor along its heading; return true when it reaches the next cell
-// center (a decision point). Heading is axis-aligned so the remaining distance
-// is along one axis.
-static bool advanceActor(Actor& a, float speed, float dt) {
+// Move an actor along its heading. Returns -1 while still travelling, or the
+// leftover distance (>= 0) on the frame it lands on the next cell center. The
+// caller picks a new heading and spends that leftover along it, so no travel is
+// dropped at a cell boundary - otherwise the arrival frame under-moves and the
+// crossings beat against the frame rate as a periodic stutter.
+static float advanceActor(Actor& a, float speed, float dt) {
   float tx = ccx(a.tcol), ty = ccy(a.trow);
   float remain = fabsf(tx - a.x) + fabsf(ty - a.y);
   float move = speed * dt;
   if (move >= remain) {
     a.x = tx; a.y = ty;
     a.col = a.tcol; a.row = a.trow;
-    return true;
+    return move - remain;
   }
   a.x += a.dx * move;
   a.y += a.dy * move;
-  return false;
+  return -1.0f;
 }
 
 static void drawGhost(int cx, int cy, uint8_t mode, uint16_t bodyCol, int faceDir) {
@@ -355,7 +367,8 @@ void ambientPacmanChaseFrame() {
     }
 
     // ---- Pac-Man ----
-    if (advanceActor(pac, SPEED_PAC, dt)) {
+    float over = advanceActor(pac, SPEED_PAC, dt);
+    if (over >= 0.0f) {
       if (power[pac.row][pac.col]) {
         power[pac.row][pac.col] = false;
         powerActive = true;
@@ -365,6 +378,7 @@ void ambientPacmanChaseFrame() {
       if (dot[pac.row][pac.col]) { dot[pac.row][pac.col] = false; dotsLeft--; }
       if (dotsLeft == 0) { layoutBoard(); dot[pac.row][pac.col] = false; }
       choosePacDir(pac);
+      pac.x += pac.dx * over; pac.y += pac.dy * over;   // spend the carry on the new heading
     }
     if (pac.dx || pac.dy) { pacLastDx = pac.dx; pacLastDy = pac.dy; }
 
@@ -372,13 +386,15 @@ void ambientPacmanChaseFrame() {
     for (int i = 0; i < GHOST_COUNT; i++) {
       float sp = (ghMode[i] == G_EYES) ? SPEED_EYES
                  : (ghMode[i] == G_FRIGHT) ? SPEED_FRIGHT : SPEED_GHOST;
-      if (advanceActor(gh[i], sp, dt)) {
+      float gover = advanceActor(gh[i], sp, dt);
+      if (gover >= 0.0f) {
         if (ghMode[i] == G_EYES && gh[i].col == PEN_COL && gh[i].row == PEN_ROW) {
           ghMode[i] = G_NORMAL;
         }
         int tc, tr;
         ghostTarget(i, tc, tr);
         chooseGhostDir(gh[i], ghMode[i], tc, tr);
+        gh[i].x += gh[i].dx * gover; gh[i].y += gh[i].dy * gover;
       }
     }
 
