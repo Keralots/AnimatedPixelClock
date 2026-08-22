@@ -28,9 +28,14 @@
 // ========== Optional Hardcoded WiFi Credentials ==========
 // Use this if your ESP32 module has a faulty WiFi AP mode
 // Set SSID and password to your home network, then upload
-// Leave as empty strings "" to use normal WiFiManager portal
+// Leave as empty strings "" to use normal WiFiManager portal.
+// Can be overridden at build time via -D flags (kept out of source).
+#ifndef HARDCODED_WIFI_SSID
 #define HARDCODED_WIFI_SSID ""
+#endif
+#ifndef HARDCODED_WIFI_PASSWORD
 #define HARDCODED_WIFI_PASSWORD ""
+#endif
 
 // WiFi reconnection timeout (ms) - restart if WiFi lost for this long
 #define WIFI_RECONNECT_TIMEOUT 60000
