@@ -429,16 +429,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                     </select>
                   </div>
                 </div>
-                <div class="field" style="margin-bottom:0">
-                  <label class="field-label" for="tetrisSmallClockPos">Small clock corner</label>
-                  <div class="select-wrap">
-                    <select name="tetrisSmallClockPos" id="tetrisSmallClockPos">
-                      <option value="0" %SEL_TETRISSMALLCLOCKPOS_0%>Top-left</option>
-                      <option value="1" %SEL_TETRISSMALLCLOCKPOS_1%>Top-right</option>
-                    </select>
-                  </div>
-                  <p class="field-hint">Corner for the small clock (Small corner clock mode).</p>
-                </div>
               </div>
               <label class="check-row standalone" style="margin-top:16px">
                 <input type="checkbox" name="tetrisIdleTumble" id="tetrisIdleTumble" %CHK_TETRISIDLETUMBLE%>
@@ -450,6 +440,16 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Small corner clock</strong><span class="ct-hint">Shrink the clock to a corner and give the block game the full panel, so the stack can pile much higher before it resets. Turns the Block game on. Default off.</span></span>
               </label>
+              <div class="field" id="tetrisSmallClockField" style="display:none;margin-top:12px;margin-bottom:0">
+                <label class="field-label" for="tetrisSmallClockPos">Small clock corner</label>
+                <div class="select-wrap">
+                  <select name="tetrisSmallClockPos" id="tetrisSmallClockPos">
+                    <option value="0" %SEL_TETRISSMALLCLOCKPOS_0%>Top-left</option>
+                    <option value="1" %SEL_TETRISSMALLCLOCKPOS_1%>Top-right</option>
+                  </select>
+                </div>
+                <p class="field-hint">Which corner the small clock sits in.</p>
+              </div>
               <label class="check-row standalone" style="margin-top:12px">
                 <input type="checkbox" name="tetrisSmoothGame" id="tetrisSmoothGame" %CHK_TETRISSMOOTHGAME%>
                 <span class="check-box" aria-hidden="true"></span>
@@ -1200,6 +1200,8 @@ var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); fs(); }
 var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
+var tetSmallClk = $('#tetrisSmallClock');
+if (tetSmallClk) { var ftsc = function () { toggle($('#tetrisSmallClockField'), tetSmallClk.checked); }; tetSmallClk.addEventListener('change', ftsc); ftsc(); }
 var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings' };
 var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','weatherSettings'];
 var clockStyle = $('#clockStyle');
