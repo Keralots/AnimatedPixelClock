@@ -187,6 +187,8 @@ struct Settings {
   uint8_t tetrisDotOrder;       // 0=Bottom-up, 1=Random
   bool tetrisDigitBounce;       // Bounce the new digit after it rebuilds
   bool tetrisSmoothGame;        // Block Game plays near-perfectly (smart piece pick, avoids holes)
+  bool tetrisSmallClock;        // Small corner clock; frees the panel for a taller block-game well (auto-enables Block game)
+  uint8_t tetrisSmallClockPos;  // 0=Top-left, 1=Top-right
 
   // Asteroids clock settings
   uint8_t asteroidsShipSpeed;   // Ship thrust/drift scale, tenths (12 = 1.2)

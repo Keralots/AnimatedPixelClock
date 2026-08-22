@@ -849,6 +849,9 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "CHK_TETRISSHOWDATE")) { out = String(settings.tetrisShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "SEL_TETRISDATEPOSITION_0")) { out = String(settings.tetrisDatePosition == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_TETRISDATEPOSITION_1")) { out = String(settings.tetrisDatePosition == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_TETRISSMALLCLOCK")) { out = String(settings.tetrisSmallClock ? "checked" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISSMALLCLOCKPOS_0")) { out = String(settings.tetrisSmallClockPos == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TETRISSMALLCLOCKPOS_1")) { out = String(settings.tetrisSmallClockPos == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_ASTEROIDSSHIPSPEED")) { out = String(settings.asteroidsShipSpeed); return true; }
   if (!strcmp(n, "F_ASTEROIDSSHIPSPEED")) { out = String(settings.asteroidsShipSpeed / 10.0, 1); return true; }
@@ -1416,6 +1419,10 @@ void handleSave() {
  settings.tetrisIdleTumble = server.hasArg("tetrisIdleTumble");
  settings.tetrisDigitBounce = server.hasArg("tetrisDigitBounce");
  settings.tetrisSmoothGame = server.hasArg("tetrisSmoothGame");
+ settings.tetrisSmallClock = server.hasArg("tetrisSmallClock");
+ if (server.hasArg("tetrisSmallClockPos")) {
+ settings.tetrisSmallClockPos = server.arg("tetrisSmallClockPos").toInt();
+ }
  if (server.hasArg("tetrisAnimStyle")) {
  settings.tetrisAnimStyle = server.arg("tetrisAnimStyle").toInt();
  }
@@ -1688,6 +1695,7 @@ void handleSave() {
  assertBounds(settings.tetrisDatePosition, 0, 1, "tetrisDatePosition");
  assertBounds(settings.tetrisDotSpeed, 5, 30, "tetrisDotSpeed");
  assertBounds(settings.tetrisDotOrder, 0, 1, "tetrisDotOrder");
+ assertBounds(settings.tetrisSmallClockPos, 0, 1, "tetrisSmallClockPos");
  assertBounds(settings.asteroidsShipSpeed, 5, 25, "asteroidsShipSpeed");
  assertBounds(settings.asteroidsRockCount, 1, 4, "asteroidsRockCount");
  assertBounds(settings.asteroidsRockSpeed, 3, 20, "asteroidsRockSpeed");

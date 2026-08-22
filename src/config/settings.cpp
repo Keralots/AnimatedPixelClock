@@ -456,6 +456,10 @@ void loadSettings() {
       preferences.getBool("tetBounce", true); // Default: bounce on
   settings.tetrisSmoothGame =
       preferences.getBool("tetSmooth", false); // Default: real-game (off)
+  settings.tetrisSmallClock =
+      preferences.getBool("tetSmallClk", false); // Default: off (centred clock)
+  settings.tetrisSmallClockPos =
+      preferences.getUChar("tetSmallPos", 1); // Default: top-right
   settings.asteroidsShipSpeed =
       preferences.getUChar("astShipSpd", 12); // Default: 1.2
   settings.asteroidsRockCount =
@@ -740,6 +744,8 @@ void saveSettings() {
   preferences.putUChar("tetDotOrd", settings.tetrisDotOrder);
   preferences.putBool("tetBounce", settings.tetrisDigitBounce);
   preferences.putBool("tetSmooth", settings.tetrisSmoothGame);
+  preferences.putBool("tetSmallClk", settings.tetrisSmallClock);
+  preferences.putUChar("tetSmallPos", settings.tetrisSmallClockPos);
   preferences.putUChar("astShipSpd", settings.asteroidsShipSpeed);
   preferences.putUChar("astRocks", settings.asteroidsRockCount);
   preferences.putUChar("astRockSpd", settings.asteroidsRockSpeed);

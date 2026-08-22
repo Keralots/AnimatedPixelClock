@@ -82,18 +82,24 @@ static int   dot_frame = 0;
 
 static TetFrag tet_frags[TET_MAX_FRAG];
 
-// ----- Idle Tetris game (auto-played in a well below the centred clock) -----
+// ----- Idle Tetris game (auto-played in a well below the clock) -----
+// Two well geometries: the normal 5-row strip under the centred clock, or - in
+// Small corner clock mode - a tall 13-row well filling nearly the whole panel,
+// so the stack piles much higher before it resets. tetWellRows()/tetWellTop()
+// return the live geometry; the arrays are always sized for the larger one.
 #define TET_WELL_COLS 32             // 128 / 4 (fixed: full-row mask is 32-bit)
-#define TET_WELL_ROWS 5              // ~20px strip under the centred clock
+#define TET_WELL_ROWS_NORMAL 5       // ~20px strip under the centred clock
+#define TET_WELL_ROWS_MAX 13         // small-clock well: y=12..63, 4px cells
 #define TET_WELL_CELL 4
 #define TET_FULLROW 0xFFFFFFFFu
-static const int TET_WELL_TOP = TET_TIME_Y_CENTER + TET_GRID_H * TET_PITCH + 1;  // 44
+#define TET_WELL_TOP_NORMAL (TET_TIME_Y_CENTER + TET_GRID_H * TET_PITCH + 1)  // 44
+#define TET_WELL_TOP_SMALL 12        // just below the top corner-clock band
 
 enum TetGamePhase { TG_DELAY, TG_MOVING, TG_CLEARING };
-static uint32_t tet_well[TET_WELL_ROWS];  // bit c set = filled; row 0 = top of well
+static uint32_t tet_well[TET_WELL_ROWS_MAX];  // bit c set = filled; row 0 = top of well
 // Piece index (0-6, I..L) that filled each settled cell - drives per-piece color.
 // Only meaningful where the matching tet_well bit is set.
-static uint8_t tet_well_col[TET_WELL_ROWS][TET_WELL_COLS];
+static uint8_t tet_well_col[TET_WELL_ROWS_MAX][TET_WELL_COLS];
 // The 7 piece colors are read as COL_TET_I + pieceIndex, so the slots must be
 // contiguous in I,O,T,S,Z,J,L order. Fail the build if a future enum edit breaks it.
 static_assert(COL_TET_L - COL_TET_I == 6,
@@ -107,7 +113,7 @@ static int tet_spin_left = 0;     // remaining tumbles (randomized, max 4)
 static float tet_pc_curCol = 0;   // animated column (cells)
 static float tet_pc_py = 0;       // animated top Y (screen pixels; falls from top)
 static unsigned long tet_game_timer = 0;
-static uint8_t tet_clear_mask = 0;        // which well rows are full and flashing
+static uint16_t tet_clear_mask = 0;       // which well rows are full and flashing (up to TET_WELL_ROWS_MAX bits)
 static int tet_clear_flash = 0;
 
 static int last_minute_tetris = -1;
@@ -148,14 +154,24 @@ static const uint8_t TET_PIECE_ROT[7][2] = {
 // ========== Helpers ==========
 static int tetBlockSize() { return settings.tetrisBlockStyle == 1 ? TET_PITCH : 2; }
 
+// Small corner clock mode: the clock shrinks to a top corner and the block game
+// takes the whole panel (a much taller well). It also implies the block game is on.
+static bool tetSmall() { return settings.tetrisSmallClock; }
+// The block game runs when the idle-tumble game is on, or Small corner clock mode
+// is on (which pushes the clock aside to make room for it).
+static bool tetGameOn() { return settings.tetrisIdleTumble || settings.tetrisSmallClock; }
+// Live well geometry (arrays are always sized for the larger, TET_WELL_ROWS_MAX).
+static int tetWellRows() { return tetSmall() ? TET_WELL_ROWS_MAX : TET_WELL_ROWS_NORMAL; }
+static int tetWellTop() { return tetSmall() ? TET_WELL_TOP_SMALL : TET_WELL_TOP_NORMAL; }
+
 static int tetDateY() {
   return settings.tetrisDatePosition == 1 ? TET_DATE_Y_BOTTOM : TET_DATE_Y_TOP;
 }
 
-// The idle game owns the bottom strip, so when it is on the clock is forced
-// centred and dateless regardless of the date settings.
+// The block game owns the panel, so when it is on the clock is forced centred
+// (or shrunk to a corner) and dateless regardless of the date settings.
 static bool tetDateShown() {
-  return settings.tetrisShowDate && !settings.tetrisIdleTumble;
+  return settings.tetrisShowDate && !tetGameOn();
 }
 
 static int tetTimeY() {
@@ -229,7 +245,7 @@ static void tetUpdateFrags() {
 
 // ----- Idle Tetris game logic -----
 static void tetGameReset() {
-  for (int r = 0; r < TET_WELL_ROWS; r++) tet_well[r] = 0;
+  memset(tet_well, 0, sizeof(tet_well));
   memset(tet_well_col, 0, sizeof(tet_well_col));
   tet_game_phase = TG_DELAY;
   tet_game_timer = millis() + 400;
@@ -238,22 +254,23 @@ static void tetGameReset() {
 }
 
 static int tetColTop(int c) {  // first filled row in column c, or ROWS if empty
-  for (int r = 0; r < TET_WELL_ROWS; r++) if (tet_well[r] & (1u << c)) return r;
-  return TET_WELL_ROWS;
+  int rows = tetWellRows();
+  for (int r = 0; r < rows; r++) if (tet_well[r] & (1u << c)) return r;
+  return rows;
 }
 
 // Resting top-row for a rotation dropped at leftCol; -100 if it cannot fit.
 static int tetDropOy(int rot, int leftCol) {
   const TetRot &p = TET_ROTS[rot];
   if (leftCol < 0 || leftCol + p.w > TET_WELL_COLS) return -100;
-  int oy = TET_WELL_ROWS;
+  int oy = tetWellRows();
   for (int k = 0; k < 4; k++) {
     int rest = tetColTop(leftCol + p.cx[k]) - 1 - p.cy[k];
     if (rest < oy) oy = rest;
   }
   for (int k = 0; k < 4; k++) {
     int rr = oy + p.cy[k];
-    if (rr < 0 || rr >= TET_WELL_ROWS) return -100;
+    if (rr < 0 || rr >= tetWellRows()) return -100;
   }
   return oy;
 }
@@ -272,27 +289,28 @@ static int tetDropOy(int rot, int leftCol) {
 // piece itself stays random, so the stack still looks natural, not like bars.
 static int tetScorePlacement(int rot, int leftCol, int oy, bool smooth, int *outHoles) {
   const TetRot &p = TET_ROTS[rot];
-  uint32_t tmp[TET_WELL_ROWS];
-  for (int r = 0; r < TET_WELL_ROWS; r++) tmp[r] = tet_well[r];
+  int rows = tetWellRows();
+  uint32_t tmp[TET_WELL_ROWS_MAX];
+  for (int r = 0; r < rows; r++) tmp[r] = tet_well[r];
   for (int k = 0; k < 4; k++) tmp[oy + p.cy[k]] |= (1u << (leftCol + p.cx[k]));
 
   int lines = 0;
-  for (int r = 0; r < TET_WELL_ROWS; r++) if (tmp[r] == TET_FULLROW) lines++;
+  for (int r = 0; r < rows; r++) if (tmp[r] == TET_FULLROW) lines++;
 
   int aggH = 0, holes = 0, maxH = 0, bumps = 0, prevH = -1;
   for (int c = 0; c < TET_WELL_COLS; c++) {
-    int top = TET_WELL_ROWS;
-    for (int r = 0; r < TET_WELL_ROWS; r++) if (tmp[r] & (1u << c)) { top = r; break; }
-    int h = TET_WELL_ROWS - top;
+    int top = rows;
+    for (int r = 0; r < rows; r++) if (tmp[r] & (1u << c)) { top = r; break; }
+    int h = rows - top;
     aggH += h;
     if (h > maxH) maxH = h;
     if (prevH >= 0) bumps += abs(h - prevH);
     prevH = h;
-    for (int r = top + 1; r < TET_WELL_ROWS; r++) if (!(tmp[r] & (1u << c))) holes++;
+    for (int r = top + 1; r < rows; r++) if (!(tmp[r] & (1u << c))) holes++;
   }
   if (outHoles) *outHoles = holes;
   if (smooth) {
-    // landDepth = screen row of the piece's lowest cell (TET_WELL_ROWS-1 = floor).
+    // landDepth = screen row of the piece's lowest cell (bottom well row = floor).
     // Higher = landed lower = better, so it always fills the floor first.
     int maxCy = 0;
     for (int k = 0; k < 4; k++) if (p.cy[k] > maxCy) maxCy = p.cy[k];
@@ -328,11 +346,12 @@ static bool tetGamePickPiece() {
   int rotCount = TET_PIECE_ROT[piece][1];
 
   // Holes already in the well: only forbid drops that ADD to them.
+  int rows = tetWellRows();
   int curHoles = 0;
   for (int c = 0; c < TET_WELL_COLS; c++) {
-    int top = TET_WELL_ROWS;
-    for (int r = 0; r < TET_WELL_ROWS; r++) if (tet_well[r] & (1u << c)) { top = r; break; }
-    for (int r = top + 1; r < TET_WELL_ROWS; r++) if (!(tet_well[r] & (1u << c))) curHoles++;
+    int top = rows;
+    for (int r = 0; r < rows; r++) if (tet_well[r] & (1u << c)) { top = r; break; }
+    for (int r = top + 1; r < rows; r++) if (!(tet_well[r] & (1u << c))) curHoles++;
   }
 
   int bestScore = -1000000, bestRot = -1, bestCol = 0, bestOy = 0, ties = 0;
@@ -374,8 +393,8 @@ static bool tetGamePickPiece() {
 }
 
 static void tetGameClearRows() {
-  int writeR = TET_WELL_ROWS - 1;
-  for (int r = TET_WELL_ROWS - 1; r >= 0; r--) {
+  int writeR = tetWellRows() - 1;
+  for (int r = tetWellRows() - 1; r >= 0; r--) {
     if (tet_clear_mask & (1 << r)) continue;
     int dst = writeR--;  // capture before decrement so the color copy matches
     tet_well[dst] = tet_well[r];
@@ -393,7 +412,7 @@ static void tetGameUpdate() {
   if (tet_game_phase == TG_DELAY) {
     if (millis() >= tet_game_timer) {
       if (!tetGamePickPiece()) {           // nothing fits -> clear the well
-        for (int r = 0; r < TET_WELL_ROWS; r++) tet_well[r] = 0;
+        memset(tet_well, 0, sizeof(tet_well));
         memset(tet_well_col, 0, sizeof(tet_well_col));
         tet_game_timer = millis() + 600;
       }
@@ -421,7 +440,7 @@ static void tetGameUpdate() {
   if (vstep < 0.24f) vstep = 0.24f;
   tet_pc_py += vstep;
 
-  float landingPy = TET_WELL_TOP + tet_pc_destOy * TET_WELL_CELL;
+  float landingPy = tetWellTop() + tet_pc_destOy * TET_WELL_CELL;
 
   // Cosmetic tumble: spin a few times (max 4) while high, the last tumble
   // settling into the chosen landing orientation.
@@ -451,7 +470,7 @@ static void tetGameUpdate() {
       tet_well_col[rr][cc] = tet_pc_piece;  // remember which piece for its color
     }
     tet_clear_mask = 0;
-    for (int r = 0; r < TET_WELL_ROWS; r++)
+    for (int r = 0; r < tetWellRows(); r++)
       if (tet_well[r] == TET_FULLROW) tet_clear_mask |= (1 << r);
     if (tet_clear_mask) { tet_game_phase = TG_CLEARING; tet_clear_flash = 15; }
     else { tet_game_phase = TG_DELAY; tet_game_timer = millis() + 450; }
@@ -573,6 +592,15 @@ static void updateTetrisAnimation(struct tm *timeinfo) {
     last_tetris_update += TET_ANIM_SPEED;
   }
 
+  // Small corner clock reads live time every frame, so it needs no digit-rebuild
+  // animation. If the well geometry just changed (mode toggled at runtime), start
+  // the block game clean so no stale rows linger in the resized well.
+  static int tet_geom_rows = -1;
+  if (tet_geom_rows != tetWellRows()) {
+    tet_geom_rows = tetWellRows();
+    tetGameReset();
+  }
+
   int seconds = timeinfo->tm_sec;
   int minute = timeinfo->tm_min;
   if (minute != last_minute_tetris) {
@@ -580,7 +608,7 @@ static void updateTetrisAnimation(struct tm *timeinfo) {
     tetris_triggered = false;
   }
 
-  if (seconds >= TET_TRIGGER_SECOND && !tetris_triggered && !tetris_transitioning) {
+  if (!tetSmall() && seconds >= TET_TRIGGER_SECOND && !tetris_triggered && !tetris_transitioning) {
     tetris_triggered = true;
     calculateTargetDigits(displayed_hour, displayed_min, displayed_is_pm);
 
@@ -614,8 +642,8 @@ static void updateTetrisAnimation(struct tm *timeinfo) {
     }
   }
 
-  // The idle game runs in the bottom well, independent of the clock change.
-  if (settings.tetrisIdleTumble) tetGameUpdate();
+  // The block game runs in the well, independent of the clock change.
+  if (tetGameOn()) tetGameUpdate();
 }
 
 void resetTetrisAnimation() {
@@ -637,18 +665,37 @@ void resetTetrisAnimation() {
 }
 
 bool tetrisIsAnimating() {
-  return tetris_transitioning || settings.tetrisIdleTumble;
+  return tetris_transitioning || tetGameOn();
+}
+
+// Small HH:MM clock tucked into a top corner (Small corner clock mode), on a
+// black backing so it stays readable over blocks that reach the top of the well.
+static void tetDrawSmallClock(struct tm *timeinfo) {
+  int displayHour, displayMin;
+  bool isPM;
+  formatTimeForDisplay(timeinfo->tm_hour, timeinfo->tm_min, displayHour, displayMin, isPM);
+  char timeStr[6];
+  sprintf(timeStr, "%02d%c%02d", displayHour, shouldShowColon() ? ':' : ' ', displayMin);
+
+  int bx = (settings.tetrisSmallClockPos == 0) ? 0 : (SCREEN_WIDTH - 34);
+  display.fillRect(bx, 0, 34, 10, DISPLAY_BLACK);
+  display.setTextSize(1);
+  display.setTextColor(digitColor());
+  display.setCursor(bx + 3, 1);
+  display.print(timeStr);
+  display.setTextColor(DISPLAY_WHITE);   // restore default text color
 }
 
 static void tetGameDraw() {
+  int rows = tetWellRows(), wellTop = tetWellTop();
   // Settled stack (full rows blink while clearing)
-  for (int r = 0; r < TET_WELL_ROWS; r++) {
+  for (int r = 0; r < rows; r++) {
     if ((tet_clear_mask & (1 << r)) && (tet_clear_flash / 5) % 2 == 0) continue;
     uint32_t row = tet_well[r];
     if (!row) continue;
     for (int c = 0; c < TET_WELL_COLS; c++)
       if (row & (1u << c))
-        display.fillRect(c * TET_WELL_CELL, TET_WELL_TOP + r * TET_WELL_CELL, 3, 3,
+        display.fillRect(c * TET_WELL_CELL, wellTop + r * TET_WELL_CELL, 3, 3,
                          SPRITE_COLOR(COL_TET_I + tet_well_col[r][c]));
   }
   // The piece currently falling in (absolute screen Y, so it shows while
@@ -707,6 +754,18 @@ void displayClockWithTetris() {
 
   if (!time_overridden) syncDisplayedTime(&timeinfo);
   maintainTimeOverride(&timeinfo, !tetris_transitioning);
+
+  // Small corner clock mode: hand the whole panel to the block game and tuck a
+  // tiny live clock into a top corner, so the stack can pile far higher.
+  if (tetSmall()) {
+    tetGameDraw();
+    tetDrawSmallClock(&timeinfo);
+    if (!wifiConnected) {
+      int ix = (settings.tetrisSmallClockPos == 0) ? (SCREEN_WIDTH - 10) : 0;
+      drawNoWiFiIcon(ix, 0);
+    }
+    return;
+  }
 
   // Date (optional; top or bottom) - hidden while the idle game is on
   if (tetDateShown()) {

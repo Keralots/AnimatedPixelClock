@@ -429,11 +429,26 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                     </select>
                   </div>
                 </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="tetrisSmallClockPos">Small clock corner</label>
+                  <div class="select-wrap">
+                    <select name="tetrisSmallClockPos" id="tetrisSmallClockPos">
+                      <option value="0" %SEL_TETRISSMALLCLOCKPOS_0%>Top-left</option>
+                      <option value="1" %SEL_TETRISSMALLCLOCKPOS_1%>Top-right</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">Corner for the small clock (Small corner clock mode).</p>
+                </div>
               </div>
               <label class="check-row standalone" style="margin-top:16px">
                 <input type="checkbox" name="tetrisIdleTumble" id="tetrisIdleTumble" %CHK_TETRISIDLETUMBLE%>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Block game</strong><span class="ct-hint">Auto-playing Tetris fills the bottom while idle (forces a centred, dateless clock). Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="tetrisSmallClock" id="tetrisSmallClock" %CHK_TETRISSMALLCLOCK%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Small corner clock</strong><span class="ct-hint">Shrink the clock to a corner and give the block game the full panel, so the stack can pile much higher before it resets. Turns the Block game on. Default off.</span></span>
               </label>
               <label class="check-row standalone" style="margin-top:12px">
                 <input type="checkbox" name="tetrisSmoothGame" id="tetrisSmoothGame" %CHK_TETRISSMOOTHGAME%>
