@@ -87,7 +87,7 @@
           <ul class="checklist">
             <li><strong>Desktop Chrome or Edge.</strong> Web Serial doesn't run on Firefox, Safari, or mobile.</li>
             <li><strong>A real data USB cable.</strong> Power-only cables are silent killers - the port simply won't show up.</li>
-            <li><strong>An ESP32-S3 board.</strong> Either the compact Super Mini (runs the whole thing off one USB-C charger) or the full-size WROOM devkit - pick yours in step 01. The firmware drives 2× 64×64 HUB75E panels chained into one 128×64 matrix - see the <a href="https://github.com/Keralots/AnimatedPixelClock/blob/main/docs/HUB75_WIRING.md" target="_blank" rel="noopener">wiring guide</a> for the pin map and power notes.</li>
+            <li><strong>An ESP32-S3 board.</strong> A compact 4MB board (Waveshare ESP32-S3-Zero or an ESP32-S3 Super Mini, run off one USB-C charger) or the full-size WROOM devkit - pick yours in step 01. The firmware drives 2× 64×64 HUB75E panels chained into one 128×64 matrix - see the <a href="https://github.com/Keralots/AnimatedPixelClock/blob/main/docs/HUB75_WIRING.md" target="_blank" rel="noopener">wiring guide</a> for the pin map and power notes.</li>
             <li><strong>Stuck in a connect / disconnect loop?</strong> Hold <code>BOOT</code>, plug in USB while holding, then release. Or hold <code>BOOT</code>, tap <code>RESET</code>, then let go of both.</li>
             <li><strong>Nothing else on the serial port.</strong> Close Arduino IDE, PlatformIO Monitor, and the serial monitor below before flashing.</li>
           </ul>

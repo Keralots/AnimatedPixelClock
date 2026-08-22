@@ -6,11 +6,11 @@
 
 const BOARDS = {
   supermini: {
-    label: 'ESP32-S3 Super Mini (4MB, USB-C)',
+    label: 'ESP32-S3-Zero / Super Mini (4MB, USB-C)',
     chipFamily: 'ESP32-S3',
-    firmware: 'supermini',              // AnimatedPixelClock-supermini-<ver>-Full.bin
-    board: 'ESP32-S3 Super Mini',
-    note: 'The compact build: one USB-C charger powers the board and both panels. Native USB - if the serial port does not appear, hold BOOT while plugging in.',
+    firmware: 'supermini',              // AnimatedPixelClock-supermini-<ver>-Full.bin (shared 4MB image)
+    board: 'ESP32-S3-Zero / Super Mini',
+    note: 'The compact 4MB build - the same image runs on the Waveshare ESP32-S3-Zero and an ESP32-S3 Super Mini. One USB-C charger powers the board and both panels. Native USB: if the serial port does not appear, hold BOOT while plugging in.',
   },
   wroom: {
     label: 'ESP32-S3-WROOM devkit (16MB)',

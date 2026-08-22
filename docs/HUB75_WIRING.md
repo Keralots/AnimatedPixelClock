@@ -1,8 +1,23 @@
 # HUB75 RGB Matrix - Wiring Guide (Phase 1 bring-up)
 
-Step-by-step bench wiring for the AnimatedPixelClock HUB75 port: a Waveshare
-ESP32-S3-Zero driving **2x Waveshare P2.5 64x64 HUB75E** panels chained into a
-single **128x64** RGB canvas.
+Step-by-step bench wiring for the AnimatedPixelClock HUB75 port: an ESP32-S3
+driving **2x Waveshare P2.5 64x64 HUB75E** panels chained into a single
+**128x64** RGB canvas.
+
+**The pin map is compiled into the firmware, so the same wiring applies to every
+supported board** - only the board's silkscreen labels and the flashing method
+differ (Section 7):
+
+| Board | Flash | Env | Powering | Verified |
+|-------|:-----:|-----|----------|:--------:|
+| Waveshare ESP32-S3-Zero | 4MB | `matrix-s3` | USB-C charger (whole build) | yes |
+| ESP32-S3 Super Mini | 4MB | `matrix-s3` | USB-C charger (whole build) | see note* |
+| ESP32-S3-WROOM-1 devkit (N16R8) | 16MB | `matrix-s3-wroom` | 5V bench PSU | yes |
+
+*The Zero and the Super Mini flash the **same 4MB image**. The Super Mini works
+with this exact wiring **only if that particular board breaks out GPIO 1-14 and
+GPIO 38** and does not repurpose them - clones vary, so check its pinout before
+soldering. The Zero and WROOM are hardware-verified.
 
 > Read the whole sheet once before connecting anything. Power-on **order** and
 > a common ground matter (Section 5). Keep brightness low for the first light.
@@ -14,8 +29,8 @@ single **128x64** RGB canvas.
 | Qty | Item | Notes |
 |----:|------|-------|
 | 2 | Waveshare P2.5 64x64 HUB75E panel | 1/32 scan, driver likely FM6126A (verify, Section 8) |
-| 1 | Waveshare ESP32-S3-Zero | ESP32-S3FH4R2, 4MB flash, native USB (no USB-UART chip) |
-| 1 | 5V / 10A PSU | powers both panels |
+| 1 | ESP32-S3 board | S3-Zero (ESP32-S3FH4R2, 4MB, native USB), an S3 Super Mini (4MB), or an S3-WROOM-1 devkit (16MB, USB-UART) |
+| 1 | 5V power | 10A bench PSU for the panels, **or** a single 5V USB-C charger for the whole compact build (Section 5) |
 | 3 | SN74AHCT125N (quad buffer) | OPTIONAL - only if ghosting appears (Section 6) |
 | - | Dupont / ribbon jumpers, 16-pin HUB75 ribbon (panel-to-panel) | |
 | - | Thick 5V + GND wire for power injection | per-panel, not through the ribbon |
@@ -46,11 +61,13 @@ this is a 64x64 / 1/32-scan panel (plain HUB75 would have GND there instead).
 
 ---
 
-## 3. ESP32-S3-Zero -> panel1 JIN wiring
+## 3. ESP32-S3 -> panel1 JIN wiring
 
-Connect each S3-Zero GPIO to the matching HUB75E pin on **panel 1's JIN**:
+Connect each ESP32-S3 GPIO to the matching HUB75E pin on **panel 1's JIN**. The
+GPIO numbers are the chip's, identical on every supported board - find them on
+your board's silkscreen:
 
-| Signal | S3-Zero GPIO | HUB75E pin |
+| Signal | ESP32-S3 GPIO | HUB75E pin |
 |--------|:-----------:|:----------:|
 | R1     | 1  | 1  |
 | G1     | 2  | 2  |
@@ -68,11 +85,17 @@ Connect each S3-Zero GPIO to the matching HUB75E pin on **panel 1's JIN**:
 | OE     | 38 | 15 |
 | GND    | GND | 4, 16 |
 
-This pin map avoids the S3-Zero strapping pins (0/3/45/46), USB (19/20),
-UART (43/44), the onboard WS2812 (GPIO21), and the PSRAM pins (33-37).
+This pin map avoids the ESP32-S3 strapping pins (0/3/45/46), USB (19/20),
+UART (43/44) and the PSRAM pins (33-37), so it is board-neutral. Per-board
+cautions:
+
+- **S3-Zero:** onboard WS2812 on GPIO21 (unused here) - fine.
+- **WROOM-1 N16R8:** octal PSRAM occupies 33-37 (avoided) - fine.
+- **Super Mini:** clones vary. Confirm GPIO 1-14 and GPIO 38 are broken out on
+  the header and not used by an onboard LED before wiring.
 
 > The HUB75 library README's S3 example uses GPIO33-37/45/21 - **those do NOT
-> fit the S3-Zero.** Use the table above. The same map is hard-coded in
+> fit these boards.** Use the table above. The same map is hard-coded in
 > `bringup/hello_matrix.cpp`; if you change wiring, change both.
 
 ---
@@ -80,8 +103,8 @@ UART (43/44), the onboard WS2812 (GPIO21), and the PSRAM pins (33-37).
 ## 4. Chaining the two panels
 
 ```
-  ESP32-S3-Zero ──16-pin──> [ Panel 1 ] JOUT ──16-pin ribbon──> JIN [ Panel 2 ]
-                              x = 0..63                              x = 64..127
+  ESP32-S3 ──16-pin──> [ Panel 1 ] JOUT ──16-pin ribbon──> JIN [ Panel 2 ]
+                         x = 0..63                              x = 64..127
 ```
 
 - ESP ribbon goes to **panel 1 JIN** (input).
@@ -95,13 +118,27 @@ UART (43/44), the onboard WS2812 (GPIO21), and the PSRAM pins (33-37).
 
 ## 5. Power (read the ORDER carefully)
 
+Two ways to power the build:
+
+**A. Bench PSU (recommended for bring-up and full brightness):**
+
 - Inject **5V to each panel's own power terminals separately** (screw terminals
   / power pads on the panel). ~4A peak per panel; the 10A PSU covers the pair
   for a mostly-dark clock.
 - **Do NOT power panel 2 through panel 1's ribbon** - the ribbon cannot carry
   panel current. Run dedicated 5V/GND wires from the PSU to each panel.
-- During bring-up, power the **S3-Zero from USB** (for flashing + serial); the
+- During bring-up, power the **ESP32-S3 from USB** (for flashing + serial); the
   **panels from the PSU**.
+
+**B. Single USB-C charger (compact Zero / Super Mini build):**
+
+- A 5V USB-C charger into the board can power **the board and both panels
+  together** - tap the board's 5V/GND to the panels' power terminals (still each
+  panel separately, still not through the ribbon). A typical phone/tablet
+  charger is plenty for everyday clock and animation content.
+- Only sustained full-white at max brightness pushes past what a small charger
+  delivers, so keep the brightness moderate on USB-C. For full brightness use
+  the bench PSU.
 
 **Power-on order:**
 1. **Bond all grounds FIRST** - PSU GND <-> panel 1 GND <-> panel 2 GND <->
@@ -118,7 +155,7 @@ still attached.
 
 ## 6. Level shifting (only if needed)
 
-Start with **direct 3.3V** from the S3-Zero (no buffers). With two panels and a
+Start with **direct 3.3V** from the ESP32-S3 (no buffers). With two panels and a
 short ribbon this is often clean - if so, the SN74AHCT125N chips are not needed.
 
 If you see **ghosting / flicker / dim or unstable pixels**, buffer the 12
@@ -136,16 +173,29 @@ register; 595/164 are the wrong device class.)
 
 ---
 
-## 7. Flashing the S3-Zero
+## 7. Flashing
 
-The S3-Zero has **no USB-UART chip** - flash over native USB:
+Match the env to the board's flash size (intro table). Wrong-size env will not
+fit or boot.
 
-1. **Hold BOOT (GPIO0)** while plugging in the USB cable -> enters download mode.
+**Compact 4MB boards (S3-Zero, Super Mini)** - native USB, env `matrix-s3`:
+
+1. **Hold BOOT (GPIO0)** while plugging in the USB cable -> download mode.
+   (Often auto-detected; only needed if the serial port does not appear.)
 2. Release BOOT.
 3. `platformio run -e matrix-s3 --target upload`
-4. Serial logs come back over native USB-CDC: `platformio device monitor -e matrix-s3`
-   (115200 baud). The sketch waits up to 2s for the USB-CDC host to attach so the
-   first diagnostic lines are not lost.
+4. Serial over native USB-CDC: `platformio device monitor -e matrix-s3` (115200
+   baud). The sketch waits up to 2s for the USB-CDC host so the first diagnostic
+   lines are not lost.
+
+**ESP32-S3-WROOM-1 devkit (16MB)** - CH343 USB-UART, env `matrix-s3-wroom`:
+
+1. Plug in USB; a COM / tty serial port appears (CH343 auto-reset, no BOOT hold).
+2. `platformio run -e matrix-s3-wroom --target upload`
+3. Serial: `platformio device monitor -e matrix-s3-wroom` (115200 baud).
+
+After the first flash, later updates go over WiFi (OTA) from the web interface -
+no cable needed, on any board.
 
 ---
 
