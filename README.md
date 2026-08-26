@@ -162,17 +162,17 @@ stats (CPU/GPU temps and loads, RAM, disks, fans, network throughput; up to 20
 metrics) and returns to the clock when the PC goes offline.
 
 **Companion app v4** (Windows + Linux) lives in
-[`PC-Companion-App-v4-beta/`](PC-Companion-App-v4-beta/): a tray app with a
+[`PC-Companion-App-v4/`](PC-Companion-App-v4/): a tray app with a
 web-style config window, live device preview, drag-and-drop layout editor and
 sensor picker.
 
 - **Windows**: run the prebuilt
-  [`win-companion/dist/pc_stats_monitor_v4.exe`](PC-Companion-App-v4-beta/win-companion/),
+  [`win-companion/dist/pc_stats_monitor_v4.exe`](PC-Companion-App-v4/win-companion/),
   no Python needed. Install
   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
   and run it as Administrator for temperature/fan/power sensors (on 0.9.5+ enable
   Options > Remote Web Server > Run).
-- **Linux**: `cd PC-Companion-App-v4-beta/linux-companion`, then
+- **Linux**: `cd PC-Companion-App-v4/linux-companion`, then
   `python3 -m pip install -r requirements.txt` and
   `python3 pc_stats_monitor_v4_linux.py`.
 

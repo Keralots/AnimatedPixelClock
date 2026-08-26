@@ -1,0 +1,26 @@
+# Runtime dependencies for pc_stats_monitor_v4.py (Windows)
+#
+#   python -m pip install -r requirements.txt
+#
+# To build the standalone .exe you ALSO need PyInstaller (build-time only):
+#   python -m pip install pyinstaller
+
+psutil          # CPU / RAM / disk metrics (always-available fallback)
+wmi             # LibreHardwareMonitor sensors on older LHM (0.9.4 and earlier)
+pywin32         # COM init for WMI + LHM version detection
+pystray         # System-tray icon for background / autostart mode
+pillow          # Tray icon image (used by pystray)
+pywebview       # Native window hosting the local web UI (Edge WebView2 backend)
+
+# Audio visualizer stream (the checkbox on the Connection page). Optional at
+# runtime from source (the app degrades gracefully without them), but REQUIRED to
+# build the .exe - build_exe.bat bundles them so the feature works out of the box:
+#   python -m pip install soundcard numpy
+soundcard       # WASAPI loopback capture of what the PC is playing
+numpy           # FFT for the 32-band spectrum
+
+# On Windows, pywebview uses the Edge WebView2 backend via pythonnet (clr); pip
+# installs pythonnet as a dependency of pywebview. The WebView2 runtime itself
+# ships with Windows 11; on Windows 10 install Microsoft's Evergreen runtime.
+#
+# No winshell needed: autostart uses the stdlib winreg module (HKCU Run key).
