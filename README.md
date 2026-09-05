@@ -5,16 +5,17 @@ information coming over the next weeks and months.
 
 An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3.
 
-![AnimatedPixelClock - Pac-Man clock on the bench](img/animatedpixelclock.jpg)
+![AnimatedPixelClock prototype displaying the Tetris clock on two RGB matrix panels](img/animatedpixelclock.jpg)
 
 [![AnimatedPixelClock example animation video](https://img.youtube.com/vi/dw6Jv9x7Knw/hqdefault.jpg)](https://youtu.be/dw6Jv9x7Knw)
 
 [![Watch on YouTube](https://img.shields.io/badge/YouTube-Watch%20example%20animation-FF0000?logo=youtube&logoColor=white)](https://youtu.be/dw6Jv9x7Knw)
 
-Thirteen clock styles (Mario, Space Invaders, Pac-Man, Snake, Tetris, Asteroids, Dino
-Runner, Matrix Rain, Weather and more), fully configurable from a built-in web
+Twelve clock styles plus a Cycle All mode (Mario, Space Invaders, Pac-Man, Snake,
+Tetris, Asteroids, Dino Runner, Matrix Rain, Weather and more), configurable from a built-in web
 interface: per-element sprite
-colors, brightness with scheduled night dimming, automatic timezone/DST, OTA updates.
+colors, brightness with scheduled night dimming, timezone selection with automatic
+DST, and OTA updates.
 It can also act as a PC performance monitor, showing live CPU/GPU/RAM/network stats
 sent by a desktop companion app.
 
@@ -25,23 +26,35 @@ sent by a desktop companion app.
 
 | Part | Notes |
 |------|-------|
-| ESP32-S3 board | Developed on an ESP32-S3-WROOM-1 (N16R8) devkit. A compact ESP32-S3 Super Mini also runs the firmware and drops into a much smaller build; the Waveshare ESP32-S3-Zero is supported too |
+| ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | 5V power | Two options - see below |
 
-The panels run fine from the ESP32's 3.3V logic directly, no level shifters needed.
-Full bench wiring, power-up order and first-light checklist:
-**[docs/HUB75_WIRING.md](docs/HUB75_WIRING.md)** (with [pinout diagram](docs/hub75_wiring.svg)).
+The tested build runs directly from the ESP32's 3.3V GPIO signals. Keep signal
+wires short; the [wiring guide](docs/HUB75_WIRING.md) covers optional buffers if
+your panels show flicker or ghosting, plus bench setup and first-light checks.
+
+### Connection diagram
+
+![ESP32-S3 wiring: separate USB-C power input, capacitor, two-panel chain and exact HUB75E GPIO connections](docs/img/hub75_connection_diagram.svg)
+
+[Download PNG](docs/img/hub75_connection_diagram.png) ·
+[Open scalable SVG](docs/img/hub75_connection_diagram.svg)
 
 ### Powering it
 
-- **Bench / full brightness:** a dedicated 5V PSU (~10A) into each panel's power terminals,
-  sharing a common ground with the ESP32. This is what you want for sustained full-white
-  content at maximum brightness.
-- **Compact USB-C build:** with the ESP32-S3 Super Mini, a single 5V USB-C charger powers
-  the whole thing - board and both panels together, no separate PSU. A typical phone/tablet
-  USB-C charger is plenty for everyday clock and animation content; only sustained full-white
-  at max brightness pushes past what a small charger delivers, so keep the brightness moderate.
+- **Prototype shown above:** a phone charger plugs into a **separate USB-C power
+  breakout**. Its 5V/GND rails feed the ESP32's 5V/GND pins and a two-pole panel
+  power connector. Each panel gets a dedicated power feed; panel current does
+  not pass through the ESP32 or HUB75 ribbon. A **2200µF, 25V capacitor** is
+  connected across the 5V/GND rails (positive to 5V). The supply remains **5V**.
+  Complete the wiring with power off, then connect the charger.
+- **Observed consumption:** the prototype works from a phone charger. The owner
+  estimates around **10W** in use and reports measurements staying **below 30W**;
+  this is not a measured maximum for sustained full-white content.
+- **Bench alternative:** the wiring guide describes a dedicated 5V supply
+  (10A example) feeding both panels separately, with the ESP32 powered by USB
+  and all grounds connected together.
 
 ### Pin map
 
@@ -53,8 +66,11 @@ Same pin map on every supported board:
 | Lower half RGB | R2 / G2 / B2 | 5 / 6 / 7 |
 | Row address | A / B / C / D / E | 8 / 9 / 10 / 11 / 12 |
 | Clock / Latch / Output-enable | CLK / LAT / OE | 13 / 14 / 38 |
+| Common ground | HUB75E pins 4 and 16 / power ground | GND |
 
-The **E** address line is required for 64x64 (1/32 scan) panels.
+The **E** address line is required for 64x64 (1/32 scan) panels:
+**HUB75E pin 8 → GPIO12**, not ground. The firmware mapping is defined in
+[`src/display/matrix_display.h`](src/display/matrix_display.h).
 
 ## Clock styles
 
@@ -63,19 +79,21 @@ The **E** address line is required for 64x64 (1/32 scan) panels.
 | 0 | Mario | Mario jumps to bounce changed digits; optional idle enemy encounters |
 | 1 | Standard | Traditional digital clock with date |
 | 2 | Large | Extra-large digits |
-| 3 | Space Invaders | Invader ship shoots lasers to change digits |
-| 4 | Space Ship | Reserved variant of style 3 |
+| 3 | Space Invaders | Shoots lasers to change digits; choose an invader or spaceship character |
 | 5 | Pong / Arkanoid | Breakout-style ball physics, digits shatter and reassemble |
 | 6 | Pac-Man | Pac-Man eats pellet-based digits |
 | 7 | Snake | Nokia-style snake hunts pellets left by changed digits |
 | 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors; optional small corner-clock mode hands the whole panel to an auto-played game with a much taller stack |
-| 9 | Cycle All Styles | Rotates through every style every 5 minutes |
+| 9 | Cycle All Styles | Advances at each five-minute clock boundary through 11 styles, plus Weather when configured |
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
 | 14 | Weather Clock | Time plus live local weather: animated condition icon, temperature, daily range, humidity, sunrise/sunset |
 
-Every style's sprite colors are individually editable in the web interface (digits,
+ID 4 is a legacy alias for the Space Invaders renderer and is not a separate
+choice in the web interface. ID 13 is retired; use the IDs listed above.
+
+Style colors are editable in the web interface (digits,
 characters, effects, backgrounds), so each clock can match your setup.
 
 ## Web interface
@@ -87,7 +105,7 @@ Once on WiFi, open the device's IP address or `http://pixelclock.local` in a bro
 - **Display**: brightness (live slider), colon blink mode/rate, adaptive refresh rate,
   scheduled night dimming (start/end time to the minute + dim level) and a scheduled
   power-off window that blanks the panel overnight to spare the LEDs
-- **Timezone**: ~76 regions with automatic DST transitions (POSIX TZ database, no
+- **Timezone**: built-in region list with automatic DST transitions (POSIX TZ rules, no
   manual toggles)
 - **Network**: DHCP or static IP, device name (mDNS), show IP at boot
 - **PC monitor layout**: which metrics are visible and where, 5-row / 6-row / large
@@ -141,7 +159,7 @@ python tools/gif2pca.py my.gif --upload http://pixelclock.local   # convert + up
 The converter fits the GIF to the 128x64 panel (`--fit crop|pad|stretch`, with
 `--anchor start|center|end` choosing which edge survives a crop - use `--anchor end`
 to keep a caption at the bottom), quantizes all frames to one 16-color palette and
-packs them into a compact `.pca` file (about 4KB per frame, 1.5MB max, up to 360
+packs them into a compact `.pca` file (4KiB of pixel data per frame, 1.5MiB max, up to 360
 frames; use `--frame-skip 2` for long GIFs).
 
 Upload either with `--upload`, with the file picker on the Display page (select the
@@ -152,7 +170,8 @@ curl -F "anim=@my.pca" "http://pixelclock.local/api/anim/upload"
 ```
 
 Then pick the animation in the dropdown, **Save**, and **Start now**. Uploaded
-animations survive reboots and firmware updates; manage them with
+animations survive reboots and normal firmware-only OTA updates; replacing or
+erasing the filesystem removes them. Manage them with
 `GET /api/anim/list` and `GET /api/anim/delete?name=<name>`.
 
 ## PC monitor mode (optional)
@@ -167,7 +186,7 @@ web-style config window, live device preview, drag-and-drop layout editor and
 sensor picker.
 
 - **Windows**: run the prebuilt
-  [`win-companion/dist/pc_stats_monitor_v4.exe`](PC-Companion-App-v4/win-companion/),
+  [`pc_stats_monitor_v4.exe`](PC-Companion-App-v4/win-companion/dist/pc_stats_monitor_v4.exe),
   no Python needed. Install
   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
   and run it as Administrator for temperature/fan/power sensors (on 0.9.5+ enable
@@ -176,7 +195,14 @@ sensor picker.
   `python3 -m pip install -r requirements.txt` and
   `python3 pc_stats_monitor_v4_linux.py`.
 
-Data is sent over local UDP (port 4210) as JSON, a few times per second at <1% CPU.
+The feature descriptions here follow the current source. The checked-in Windows
+executable has not been verified against that source; if a feature is missing,
+follow the [Windows companion instructions](PC-Companion-App-v4/win-companion/README.md)
+to run from source or rebuild it.
+
+Metrics are sent as JSON over local UDP (port 4210), at the companion's configured
+update interval. Both companions default to 3 seconds. CPU usage depends
+on the host, enabled sensors and update interval.
 
 ## Audio visualizer (optional)
 
@@ -186,16 +212,19 @@ falling peak dots, and an optional small clock in the corner.
 
 Setup:
 
-1. On the PC: `pip install soundcard numpy`, then tick **Audio visualizer stream**
-   on the companion's Connection page and save. It captures whatever the PC is
+1. On the PC: tick **Audio visualizer stream** on the companion's Connection
+   page and save. The Windows executable build bundles the audio dependencies;
+   when running from source, install `soundcard` and `numpy` if needed
+   (`python -m pip install soundcard numpy`). It captures whatever the PC is
    playing (WASAPI loopback on Windows, PulseAudio monitor on Linux) - no cables,
    no microphone.
 2. On the device: Display page -> **Audio visualizer** card -> **Start visualizer**
    (or `GET /api/mode/viz` from an automation).
 
 The visualizer stays on until you stop it; if the audio stream disappears for 10
-seconds the display falls back to the clock and returns automatically when the
-stream resumes.
+seconds the display falls back to automatic display selection: PC stats while
+the companion is online, otherwise the scheduled ambient effect or clock. The
+visualizer returns automatically when the stream resumes.
 
 ## Building and flashing
 
@@ -206,8 +235,12 @@ Built with [PlatformIO](https://platformio.org/).
 pio run -e matrix-s3-wroom -t upload
 
 # Compact 4MB boards (ESP32-S3 Super Mini, Waveshare ESP32-S3-Zero)
-pio run -e matrix-s3
+pio run -e matrix-s3 -t upload
 ```
+
+Omit `-t upload` to build only. The WROOM environment currently sets upload and
+monitor ports to `COM9`; change them in [`platformio.ini`](platformio.ini) or
+override the upload port with `--upload-port <port>` for your computer.
 
 The compact 4MB boards use native USB (no separate USB-UART chip): if the first
 flash isn't detected, hold BOOT while plugging in USB, then use OTA for later
@@ -217,7 +250,8 @@ patterns, useful for verifying wiring before flashing the full firmware.
 
 ### First-time WiFi setup
 
-On first boot the device opens an access point named **PixelClock-Setup**. Join it
+With no saved WiFi credentials, the device opens an access point named
+**PixelClock-Setup** (passwordless by default). Join it
 and a captive portal (or `192.168.4.1`) lets you enter your WiFi credentials.
 Improv-Serial provisioning over USB is also supported.
 
@@ -233,8 +267,9 @@ curl -F "firmware=@.pio/build/matrix-s3-wroom/firmware.bin" http://<device-ip>/u
 ## HTTP control API
 
 Simple GET endpoints for home automation (Home Assistant, Node-RED, cron + curl).
-All controls are runtime-only: they reset to the configured behavior after a reboot,
-which avoids flash wear from frequent automation toggles. No authentication, so keep
+These controls do not save settings themselves. Mode/display overrides reset on
+reboot; brightness and style changes update the in-memory settings and can be
+persisted by a later settings save. No authentication, so keep
 the device on a trusted LAN.
 
 | Endpoint | Description |
@@ -245,7 +280,7 @@ the device on a trusted LAN.
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
 | `/api/mode/ambient` | Force the ambient screensaver on now |
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
-| `/api/clock/style?id=0-14` | Switch the clock style (IDs in the table above) |
+| `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash
@@ -267,7 +302,8 @@ rest_command:
 ## Notifications API
 
 Push a message banner onto the display from anything that can send an HTTP request.
-The banner appears over whatever is on screen (clock or PC stats), scrolls if the
+The banner appears over the active screen (including ambient effects and the
+visualizer), scrolls if the
 text is too long, and disappears on its own.
 
 ```bash
@@ -278,7 +314,7 @@ curl -X POST http://pixelclock.local/api/notify \
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `text` | yes | Message, up to 200 characters |
+| `text` | yes | Message, up to 200 bytes (200 ASCII characters) |
 | `color` | no | Banner color as `#RRGGBB` (default white) |
 | `icon` | no | One of `bell`, `mail`, `alert`, `heart`, `check`, `cross`, `info`, `home`, `music`, `star` |
 | `duration` | no | Display time in ms, 1000-60000 (default 5000) |
@@ -306,4 +342,4 @@ rest_command:
 
 ## License
 
-Open source. Feel free to modify and share.
+Licensed under the [MIT License](LICENSE).

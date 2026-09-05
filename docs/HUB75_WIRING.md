@@ -4,6 +4,14 @@ Step-by-step bench wiring for the AnimatedPixelClock HUB75 port: an ESP32-S3
 driving **2x Waveshare P2.5 64x64 HUB75E** panels chained into a single
 **128x64** RGB canvas.
 
+![ESP32-S3 to two HUB75E panels: signal pinout, panel chain, and separate power feeds](img/hub75_connection_diagram.svg)
+
+[Download PNG](img/hub75_connection_diagram.png) ·
+[Open scalable SVG](img/hub75_connection_diagram.svg).
+The diagram shows the owner's prototype power arrangement from Section 5B:
+a phone charger feeds a separate USB-C breakout, which distributes 5V/GND to
+the ESP32 and both panels. Signal wiring follows Section 3.
+
 **The pin map is compiled into the firmware, so the same wiring applies to every
 supported board** - only the board's silkscreen labels and the flashing method
 differ (Section 7):
@@ -130,17 +138,24 @@ Two ways to power the build:
 - During bring-up, power the **ESP32-S3 from USB** (for flashing + serial); the
   **panels from the PSU**.
 
-**B. Single USB-C charger (compact Zero / Super Mini build):**
+**B. Single USB-C charger with separate power breakout (owner's prototype):**
 
-- A 5V USB-C charger into the board can power **the board and both panels
-  together** - tap the board's 5V/GND to the panels' power terminals (still each
-  panel separately, still not through the ribbon). A typical phone/tablet
-  charger is plenty for everyday clock and animation content.
-- Only sustained full-white at max brightness pushes past what a small charger
-  delivers, so keep the brightness moderate on USB-C. For full brightness use
-  the bench PSU.
+- A phone charger feeds a **separate USB-C power breakout** on the prototype
+  board. Its 5V/GND rails feed the ESP32's **5V and GND pins**, and a separate
+  two-pole output connector supplies the panels. Run dedicated power wires to
+  each panel; panel current does not pass through the ESP32 or HUB75 ribbon.
+- The prototype photos show a **2200µF, 25V electrolytic capacitor** across the
+  power rails: positive to 5V, negative to GND. The 25V marking is the capacitor
+  rating; the build's supply is 5V.
+- The owner reports successful phone-charger operation, estimates consumption
+  around **10W**, and reports observed use staying **below 30W**. These are
+  observations for their content and settings, not a full-white maximum test
+  or a specified minimum charger rating.
+- Complete all wiring with the charger disconnected, then plug it into the
+  separate USB-C input to power the controller and panels together. The ESP32's
+  onboard USB port is for programming in this arrangement.
 
-**Power-on order:**
+**Power-on order for the separate-supply bench arrangement (A):**
 1. **Bond all grounds FIRST** - PSU GND <-> panel 1 GND <-> panel 2 GND <->
    ESP32 GND - before any 5V is applied. One common ground point.
 2. Apply panel **5V** from the PSU.

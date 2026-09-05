@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1550" viewBox="0 0 1600 1550" role="img" aria-labelledby="title desc"><title id="title">AnimatedPixelClock connection diagram</title><desc id="desc">A phone charger feeds a separate USB-C breakout. Its 5V and ground rails power the ESP32-S3 and both HUB75E panels. A 2200 microfarad capacitor is across the rails; a two-pole output connector feeds the panels. All sixteen input connector pins are labeled with their GPIO connections.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#167b87"/></marker></defs>
+<rect x="0" y="0" width="1600" height="1550" rx="0" fill="#edf2f5" stroke="none"/>
+<rect x="0" y="0" width="1600" height="151" rx="0" fill="#142c3e" stroke="none"/>
+<text x="56" y="49" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#75d3cc" font-weight="700" text-anchor="start">ANIMATED PIXEL CLOCK</text>
+<text x="56" y="101" font-family="Segoe UI,Arial,sans-serif" font-size="42" fill="#fff" font-weight="700" text-anchor="start">Connection diagram</text>
+<text x="1544" y="65" font-family="Segoe UI,Arial,sans-serif" font-size="22" fill="#fff" font-weight="600" text-anchor="end">ESP32-S3  /  HUB75E</text>
+<text x="1544" y="103" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#c4d4de" font-weight="400" text-anchor="end">2 × 64 × 64 panels  •  128 × 64 canvas</text>
+<rect x="40" y="175" width="1520" height="585" rx="14" fill="#fff" stroke="none"/>
+<text x="64" y="213" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#1c3043" font-weight="700" text-anchor="start">01   PANEL CHAIN &amp; POWER</text>
+<text x="64" y="243" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="start">Your prototype • phone charger → separate USB-C breakout → shared 5V / GND distribution</text>
+<rect x="80" y="286" width="275" height="165" rx="14" fill="#e8f2f5" stroke="#bdd3df"/>
+<text x="217" y="323" font-family="Segoe UI,Arial,sans-serif" font-size="27" fill="#1c3043" font-weight="700" text-anchor="middle">ESP32-S3</text>
+<text x="217" y="355" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="middle">WROOM / Zero / compatible Mini</text>
+<text x="217" y="395" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="middle">Onboard USB: programming</text>
+<text x="220" y="436" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#cf3d43" font-weight="700" text-anchor="middle">5V</text>
+<text x="300" y="436" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#344255" font-weight="600" text-anchor="middle">GND</text>
+<rect x="580" y="286" width="390" height="165" rx="14" fill="#e8f4ef" stroke="#bddbce"/>
+<text x="775" y="324" font-family="Segoe UI,Arial,sans-serif" font-size="25" fill="#1c3043" font-weight="700" text-anchor="middle">PANEL 1</text>
+<text x="775" y="354" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="middle">Waveshare P2.5 • 64 × 64</text>
+<text x="775" y="384" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="400" text-anchor="middle">x = 0-63 • left half</text>
+<text x="595" y="419" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="700" text-anchor="start">JIN</text>
+<text x="910" y="419" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="700" text-anchor="start">JOUT</text>
+<text x="715" y="438" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#cf3d43" font-weight="700" text-anchor="middle">+5V</text>
+<text x="795" y="438" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#344255" font-weight="700" text-anchor="middle">GND</text>
+<rect x="1120" y="286" width="390" height="165" rx="14" fill="#e8f4ef" stroke="#bddbce"/>
+<text x="1315" y="324" font-family="Segoe UI,Arial,sans-serif" font-size="25" fill="#1c3043" font-weight="700" text-anchor="middle">PANEL 2</text>
+<text x="1315" y="354" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="middle">Waveshare P2.5 • 64 × 64</text>
+<text x="1315" y="384" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="400" text-anchor="middle">x = 64-127 • right half</text>
+<text x="1135" y="419" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="700" text-anchor="start">JIN</text>
+<text x="1450" y="419" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="700" text-anchor="start">JOUT</text>
+<text x="1255" y="438" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#cf3d43" font-weight="700" text-anchor="middle">+5V</text>
+<text x="1335" y="438" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#344255" font-weight="700" text-anchor="middle">GND</text>
+<path d="M355 411 H575" fill="none" stroke="#167b87" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<text x="466" y="361" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#167b87" font-weight="600" text-anchor="middle">GPIO signals</text>
+<text x="466" y="386" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="middle">see detail below</text>
+<path d="M970 411 H1115" fill="none" stroke="#167b87" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"/>
+<text x="1045" y="361" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="600" text-anchor="middle">16-pin ribbon</text>
+<text x="1045" y="386" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="middle">JOUT → JIN</text>
+<text x="1510" y="475" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#52677a" font-weight="400" text-anchor="end">Panel 2 JOUT: unused</text>
+<rect x="80" y="490" width="275" height="145" rx="14" fill="#fff2e9" stroke="#edcebb"/>
+<text x="102" y="521" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#1c3043" font-weight="700" text-anchor="start">USB-C BREAKOUT</text>
+<text x="102" y="551" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="400" text-anchor="start">Separate power input</text>
+<text x="102" y="583" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#1c3043" font-weight="600" text-anchor="start">↑ Phone charger • 5V</text>
+<text x="102" y="613" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="start">D+ / D− unused</text>
+<rect x="655" y="520" width="45" height="103" rx="6" fill="#ffe09a" stroke="#caa851"/>
+<path d="M355 535 H1235 V451" fill="none" stroke="#cf3d43" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M715 535 V451" fill="none" stroke="#cf3d43" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="715" cy="535" r="6" fill="#cf3d43"/>
+<path d="M220 451 V466 H370 V535" fill="none" stroke="#cf3d43" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="370" cy="535" r="6" fill="#cf3d43"/>
+<path d="M355 607 H1335 V451" fill="none" stroke="#344255" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M795 607 V451" fill="none" stroke="#344255" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="795" cy="607" r="6" fill="#344255"/>
+<path d="M795 527 V543" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M795 527 V543" fill="none" stroke="#344255" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M395 527 V543" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M362 477 H378" fill="none" stroke="#fff" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M300 451 V477 H395 V607" fill="none" stroke="#344255" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="395" cy="607" r="6" fill="#344255"/>
+<path d="M470 535 V565" fill="none" stroke="#cf3d43" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="470" cy="535" r="6" fill="#cf3d43"/>
+<path d="M450 565 H490" fill="none" stroke="#344255" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M450 579 H490" fill="none" stroke="#344255" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M470 579 V607" fill="none" stroke="#344255" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="470" cy="607" r="6" fill="#344255"/>
+<text x="443" y="559" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#cf3d43" font-weight="700" text-anchor="start">+</text>
+<text x="502" y="574" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#1c3043" font-weight="600" text-anchor="start">2200µF</text>
+<text x="502" y="596" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#52677a" font-weight="400" text-anchor="start">25V rated</text>
+<text x="678" y="654" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="600" text-anchor="middle">2-pole panel power output</text>
+<text x="678" y="678" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#52677a" font-weight="400" text-anchor="middle">Yellow connector on prototype</text>
+<text x="1050" y="654" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="600" text-anchor="middle">Dedicated power feed to each panel</text>
+<text x="1050" y="678" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#52677a" font-weight="400" text-anchor="middle">HUB75 ribbon carries signals, not panel power</text>
+<text x="80" y="729" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="start">Functional wiring layout • capacitor + to 5V, − to GND • connector contact positions are schematic</text>
+<g transform="translate(0 150)">
+<rect x="40" y="632" width="1520" height="590" rx="14" fill="#fff" stroke="none"/>
+<text x="64" y="673" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#1c3043" font-weight="700" text-anchor="start">02   EXACT PIN CONNECTIONS</text>
+<text x="64" y="703" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="start">GPIO numbers are chip numbers, not physical board-header positions. Both side columns belong to the same ESP32-S3.</text>
+<text x="290" y="750" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#52677a" font-weight="700" text-anchor="middle">ESP32-S3</text>
+<text x="1310" y="750" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#52677a" font-weight="700" text-anchor="middle">ESP32-S3</text>
+<text x="800" y="750" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#1c3043" font-weight="700" text-anchor="middle">PANEL 1 • JIN</text>
+<rect x="703" y="767" width="194" height="376" rx="10" fill="#142c3e" stroke="none"/>
+<rect x="180" y="773" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="799" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#d44252" font-weight="600" text-anchor="middle">GPIO 1</text>
+<path d="M405 792 H730" fill="none" stroke="#d44252" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="792" r="8" fill="#d44252"/>
+<text x="555" y="783" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#d44252" font-weight="700" text-anchor="middle">R1</text>
+<text x="752" y="798" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">1</text>
+<rect x="1195" y="773" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="799" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#15865c" font-weight="600" text-anchor="middle">GPIO 2</text>
+<path d="M870 792 H1195" fill="none" stroke="#15865c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="792" r="8" fill="#15865c"/>
+<text x="1045" y="783" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#15865c" font-weight="700" text-anchor="middle">G1</text>
+<text x="848" y="798" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">2</text>
+<rect x="180" y="819" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="845" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#3277cf" font-weight="600" text-anchor="middle">GPIO 4</text>
+<path d="M405 838 H730" fill="none" stroke="#3277cf" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="838" r="8" fill="#3277cf"/>
+<text x="555" y="829" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#3277cf" font-weight="700" text-anchor="middle">B1</text>
+<text x="752" y="844" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">3</text>
+<rect x="1195" y="819" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="845" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#344255" font-weight="600" text-anchor="middle">GND (common)</text>
+<path d="M870 838 H1195" fill="none" stroke="#344255" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="838" r="8" fill="#344255"/>
+<text x="1045" y="829" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#344255" font-weight="700" text-anchor="middle">GND</text>
+<text x="848" y="844" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">4</text>
+<rect x="180" y="865" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="891" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#d44252" font-weight="600" text-anchor="middle">GPIO 5</text>
+<path d="M405 884 H730" fill="none" stroke="#d44252" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="884" r="8" fill="#d44252"/>
+<text x="555" y="875" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#d44252" font-weight="700" text-anchor="middle">R2</text>
+<text x="752" y="890" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">5</text>
+<rect x="1195" y="865" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="891" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#15865c" font-weight="600" text-anchor="middle">GPIO 6</text>
+<path d="M870 884 H1195" fill="none" stroke="#15865c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="884" r="8" fill="#15865c"/>
+<text x="1045" y="875" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#15865c" font-weight="700" text-anchor="middle">G2</text>
+<text x="848" y="890" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">6</text>
+<rect x="180" y="911" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="937" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#3277cf" font-weight="600" text-anchor="middle">GPIO 7</text>
+<path d="M405 930 H730" fill="none" stroke="#3277cf" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="930" r="8" fill="#3277cf"/>
+<text x="555" y="921" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#3277cf" font-weight="700" text-anchor="middle">B2</text>
+<text x="752" y="936" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">7</text>
+<rect x="1195" y="911" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="937" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#a86912" font-weight="600" text-anchor="middle">GPIO 12</text>
+<path d="M870 930 H1195" fill="none" stroke="#a86912" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="930" r="8" fill="#a86912"/>
+<text x="1045" y="921" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#a86912" font-weight="700" text-anchor="middle">E</text>
+<text x="848" y="936" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">8</text>
+<rect x="180" y="957" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="983" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#a86912" font-weight="600" text-anchor="middle">GPIO 8</text>
+<path d="M405 976 H730" fill="none" stroke="#a86912" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="976" r="8" fill="#a86912"/>
+<text x="555" y="967" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#a86912" font-weight="700" text-anchor="middle">A</text>
+<text x="752" y="982" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">9</text>
+<rect x="1195" y="957" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="983" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#a86912" font-weight="600" text-anchor="middle">GPIO 9</text>
+<path d="M870 976 H1195" fill="none" stroke="#a86912" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="976" r="8" fill="#a86912"/>
+<text x="1045" y="967" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#a86912" font-weight="700" text-anchor="middle">B</text>
+<text x="848" y="982" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">10</text>
+<rect x="180" y="1003" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="1029" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#a86912" font-weight="600" text-anchor="middle">GPIO 10</text>
+<path d="M405 1022 H730" fill="none" stroke="#a86912" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="1022" r="8" fill="#a86912"/>
+<text x="555" y="1013" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#a86912" font-weight="700" text-anchor="middle">C</text>
+<text x="752" y="1028" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">11</text>
+<rect x="1195" y="1003" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="1029" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#a86912" font-weight="600" text-anchor="middle">GPIO 11</text>
+<path d="M870 1022 H1195" fill="none" stroke="#a86912" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="1022" r="8" fill="#a86912"/>
+<text x="1045" y="1013" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#a86912" font-weight="700" text-anchor="middle">D</text>
+<text x="848" y="1028" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">12</text>
+<rect x="180" y="1049" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="1075" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#7951b0" font-weight="600" text-anchor="middle">GPIO 13</text>
+<path d="M405 1068 H730" fill="none" stroke="#7951b0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="1068" r="8" fill="#7951b0"/>
+<text x="555" y="1059" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#7951b0" font-weight="700" text-anchor="middle">CLK</text>
+<text x="752" y="1074" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">13</text>
+<rect x="1195" y="1049" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="1075" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#7951b0" font-weight="600" text-anchor="middle">GPIO 14</text>
+<path d="M870 1068 H1195" fill="none" stroke="#7951b0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="1068" r="8" fill="#7951b0"/>
+<text x="1045" y="1059" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#7951b0" font-weight="700" text-anchor="middle">LAT / STB</text>
+<text x="848" y="1074" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">14</text>
+<rect x="180" y="1095" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="292" y="1121" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#7951b0" font-weight="600" text-anchor="middle">GPIO 38</text>
+<path d="M405 1114 H730" fill="none" stroke="#7951b0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="730" cy="1114" r="8" fill="#7951b0"/>
+<text x="555" y="1105" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#7951b0" font-weight="700" text-anchor="middle">OE</text>
+<text x="752" y="1120" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="start">15</text>
+<rect x="1195" y="1095" width="225" height="37" rx="8" fill="#f3f6f8" stroke="none"/>
+<text x="1307" y="1121" font-family="Segoe UI,Arial,sans-serif" font-size="21" fill="#344255" font-weight="600" text-anchor="middle">GND (common)</text>
+<path d="M870 1114 H1195" fill="none" stroke="#344255" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="870" cy="1114" r="8" fill="#344255"/>
+<text x="1045" y="1105" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#344255" font-weight="700" text-anchor="middle">GND</text>
+<text x="848" y="1120" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#fff" font-weight="600" text-anchor="end">16</text>
+<text x="695" y="781" font-family="Segoe UI,Arial,sans-serif" font-size="16" fill="#1c3043" font-weight="700" text-anchor="end">1 ▸</text>
+<text x="800" y="1198" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#52677a" font-weight="400" text-anchor="middle">Panel header view • locate the PCB pin-1 mark / notch before wiring; verify the panel silkscreen.</text>
+<rect x="70" y="1143" width="565" height="44" rx="9" fill="#fff3dc" stroke="none"/>
+<text x="88" y="1171" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#855c11" font-weight="700" text-anchor="start">HUB75E pin 8 is E → GPIO12, NOT ground.</text>
+<rect x="983" y="1143" width="537" height="44" rx="9" fill="#eaf0f5" stroke="none"/>
+<text x="1000" y="1171" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#344255" font-weight="600" text-anchor="start">Pins 4 + 16 → shared power / ESP ground.</text>
+<text x="64" y="1260" font-family="Segoe UI,Arial,sans-serif" font-size="17" fill="#167b87" font-weight="700" text-anchor="start">POWER ON</text>
+<text x="205" y="1260" font-family="Segoe UI,Arial,sans-serif" font-size="20" fill="#1c3043" font-weight="600" text-anchor="start">Complete wiring with power off → plug the charger into the separate USB-C input.</text>
+<text x="64" y="1296" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="start">Keep signal wires short. This is the direct 3.3V setup; optional buffers are described in the wiring guide, section 6.</text>
+<text x="64" y="1330" font-family="Segoe UI,Arial,sans-serif" font-size="18" fill="#52677a" font-weight="400" text-anchor="start">Owner-reported use: around 10W, observed below 30W; not a measured full-brightness maximum.</text>
+<text x="64" y="1373" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#52677a" font-weight="400" text-anchor="start">Sources: project wiring guide + firmware pin map + owner’s prototype photos and power observations</text>
+<text x="1536" y="1373" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#52677a" font-weight="400" text-anchor="end">AnimatedPixelClock  /  2026-09-05</text>
+</g></svg>
