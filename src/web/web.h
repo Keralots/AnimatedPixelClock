@@ -40,6 +40,7 @@ void handleNotifyDismiss();
 
 // Custom animation storage API (uploaded .pca files on LittleFS)
 void handleAnimList();
+void handleAnimPlay();
 void handleAnimDelete();
 void handleAnimUploadDone();
 void handleAnimUploadChunk();

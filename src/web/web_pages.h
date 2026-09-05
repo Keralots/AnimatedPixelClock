@@ -76,6 +76,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
     <div class="status-block">
       <div class="rail-label">Device status</div>
+      <details id="deviceDiagnostics" style="margin:12px 0">
+        <summary>Diagnostics</summary>
+        <pre id="diagnosticsText" style="white-space:pre-wrap;font-size:11px">Loading...</pre>
+        <a href="/api/diagnostics" download="pixelclock-diagnostics.json">Download diagnostics</a>
+      </details>
       <div class="status-readout" id="statusReadout">
         <div class="sr-head">
           <span class="sr-led online" id="srLed"></span>
@@ -125,11 +130,17 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
                   <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
                   <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
-                  <option value="9" %SEL_CLOCKSTYLE_9%>Cycle All Styles (each 5m)</option>
+                  <option value="9" %SEL_CLOCKSTYLE_9%>Custom rotation</option>
                 </select>
               </div>
             </div>
 
+            <div class="subcard" id="cycleSettings" style="display:none">
+              <h3>Clock rotation</h3>
+              <p class="field-hint">Enable clocks, move them into order, and set seconds per clock (5-3600). Weather is skipped until configured.</p>
+              <input type="hidden" id="cycleConfig" name="cycleConfig" value="%V_CYCLECONFIG%">
+              <div id="cycleRows"></div>
+            </div>
             <!-- Mario -->
             <div class="subcard" id="marioSettings" style="display:%DSP_CLOCKSTYLE_0%">
               <div class="grid-2">
@@ -759,7 +770,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <button type="button" class="btn" id="animUploadBtn">Upload</button>
                 <button type="button" class="btn" id="animDeleteBtn">Delete selected</button>
               </div>
-              <p class="field-hint" id="animStatus">Convert any GIF on your PC with tools/gif2pca.py, upload the .pca here, then select it and Save.</p>
+              <p class="field-hint" id="animStatus">Convert and preview a GIF on the companion Animations page, or use tools/gif2pca.py. This uploader accepts converted .pca files. Short clips work on 4MB boards.</p>
             </div>
             <label class="check-row standalone" style="margin-top:16px">
               <input type="checkbox" name="ambientShowClock" id="ambientShowClock" %CHK_AMBIENTSHOWCLOCK%>
@@ -1148,13 +1159,13 @@ var ambStop = $('#ambStopBtn');
 if (ambStop) ambStop.addEventListener('click', function () { ambCall('/api/mode/auto', 'Back to normal mode.'); });
 var animSel = $('#ambientCustomFile'), animField = $('#animCustomField'), ambStyleSel = $('#ambientStyle');
 var animUsable = false;
-function syncAnimField() { if (animField) animField.style.display = (animUsable && ambStyleSel && ambStyleSel.value === '6') ? '' : 'none'; }
+function syncAnimField() { if (animField) animField.style.display = (ambStyleSel && ambStyleSel.value === '6') ? '' : 'none'; }
 function animStatus(t) { var s = $('#animStatus'); if (s) s.textContent = t; }
 function animRefresh() {
 if (!animSel) return;
 fetch('/api/anim/list').then(function (r) { return r.json(); }).then(function (d) {
 animUsable = !!d.usable;
-if (!d.usable) { var o = ambStyleSel && ambStyleSel.querySelector('option[value="6"]'); if (o) o.remove(); syncAnimField(); return; }
+if (!d.usable) { animStatus(d.reason || 'Storage unavailable'); syncAnimField(); return; }
 var cur = animSel.dataset.cur || '';
 animSel.innerHTML = '';
 var none = document.createElement('option'); none.value = ''; none.textContent = '- none -'; animSel.appendChild(none);
@@ -1164,9 +1175,9 @@ o.textContent = a.name + ' (' + a.frames + ' frames, ' + Math.round(a.bytes / 10
 if (a.name === cur) o.selected = true;
 animSel.appendChild(o);
 });
-animStatus(Math.round(d.free / 1024) + ' KiB free of ' + Math.round(d.total / 1024) + ' KiB. Convert GIFs with tools/gif2pca.py.');
+animStatus(Math.round(d.free / 1024) + ' KiB free. Upload budget: ' + Math.floor(d.maxUploadBytes / 1024) + ' KiB, up to ' + Math.min(360, d.maxFrames) + ' frames. Use the companion Animations page to convert and preview GIFs.');
 syncAnimField();
-}).catch(function () {});
+}).catch(function () { animStatus('Cannot read animation storage. Retry after checking the connection.'); });
 }
 if (ambStyleSel) ambStyleSel.addEventListener('change', syncAnimField);
 animRefresh();
@@ -1676,8 +1687,39 @@ var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.
 function p2(n) { return (n < 10 ? '0' : '') + n; }
 return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
 }
+
+var cycleInput = $('#cycleConfig'), cycleRows = $('#cycleRows');
+var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather'};
+var cycleItems = cycleInput.value.split(',').map(function(v) { var p=v.split(':'); return {id:Number(p[0]),seconds:Number(p[1]),enabled:Number(p[1])>0}; });
+function saveCycle() { cycleInput.value=cycleItems.map(function(v){return v.id+':'+(v.enabled?v.seconds:0);}).join(','); cycleInput.dispatchEvent(new Event('change',{bubbles:true})); }
+function drawCycle() {
+ cycleRows.innerHTML='';
+ cycleItems.forEach(function(v,i) {
+  var row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap';
+  var check=document.createElement('input'); check.type='checkbox'; check.checked=v.enabled; check.setAttribute('aria-label','Include '+cycleNames[v.id]);
+  check.onchange=function(){v.enabled=check.checked;if(!v.seconds)v.seconds=300;saveCycle();}; row.appendChild(check);
+  var label=document.createElement('span');label.textContent=cycleNames[v.id];label.style.minWidth='125px';row.appendChild(label);
+  var duration=document.createElement('input');duration.type='number';duration.min=5;duration.max=3600;duration.value=v.seconds||300;duration.style.width='88px';duration.setAttribute('aria-label',cycleNames[v.id]+' seconds');
+  duration.onchange=function(){v.seconds=Math.max(5,Math.min(3600,Number(duration.value)||300));duration.value=v.seconds;saveCycle();};row.appendChild(duration);
+  var unit=document.createElement('span');unit.textContent='seconds';row.appendChild(unit);
+  [-1,1].forEach(function(direction){var b=document.createElement('button');b.type='button';b.className='btn';b.textContent=direction<0?'Up':'Down';b.disabled=i+direction<0||i+direction>=cycleItems.length;b.onclick=function(){var other=cycleItems[i+direction];cycleItems[i+direction]=v;cycleItems[i]=other;saveCycle();drawCycle();};row.appendChild(b);});
+  cycleRows.appendChild(row);
+ });
+}
+function showCycle(){ $('#cycleSettings').style.display=$('#clockStyle').value==='9'?'':'none'; }
+$('#clockStyle').addEventListener('change',showCycle);drawCycle();showCycle();
+function updateDiagnostics(d) {
+ var reset={1:'Power on',3:'Software restart',4:'Panic',5:'Interrupt watchdog',6:'Task watchdog',7:'Watchdog',9:'Brownout'};
+ var lines=['Firmware: '+d.version+' ('+d.build+')','Chip: '+d.chip,'Flash: '+(d.flashBytes/1048576).toFixed(0)+' MiB','Firmware size: '+Math.round(d.firmwareBytes/1024)+' KiB','Free heap: '+Math.round(d.freeHeap/1024)+' KiB','Lowest heap: '+Math.round(d.minFreeHeap/1024)+' KiB','Largest block: '+Math.round(d.largestHeapBlock/1024)+' KiB','Storage: '+Math.round(d.animationFreeBytes/1024)+' / '+Math.round(d.animationStorageBytes/1024)+' KiB free','Reset: '+(reset[d.resetReason]||d.resetReason),'Time synced: '+(d.ntpSynced?'yes':'no'),'Animation: '+(d.animationPlaying?'playing':'idle')];
+ if(d.animationFailureCode)lines.push('Playback error code: '+d.animationFailureCode);
+ if(d.lastAnimationError)lines.push('Last upload error: '+d.lastAnimationError);
+ if(d.weatherValid)lines.push('Weather age: '+d.weatherAgeSeconds+'s');
+ $('#diagnosticsText').textContent=lines.join('\n');
+}
+
 function refreshStatus() {
 fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
+updateDiagnostics(d);
 if (d.ip) { var e = $('#srIp'); if (e) e.textContent = d.ip; }
 if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname).replace(/\.local$/, ''); }
 if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }

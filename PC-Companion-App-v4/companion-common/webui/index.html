@@ -63,6 +63,7 @@
         <button class="nav-item active" data-nav="connection">Connection</button>
         <button class="nav-item" data-nav="sensors">Sensors</button>
         <button class="nav-item" data-nav="layout">Layout &amp; preview</button>
+        <button class="nav-item" data-nav="animations">Animations</button>
         <button class="nav-item" data-nav="backup">Backup &amp; restore</button>
       </nav>
       <div class="sidebar-spacer"></div>
@@ -237,6 +238,34 @@
         </section>
 
         <!-- BACKUP ---------------------------------------------------- -->
+        <section class="page" data-page="animations">
+          <div class="page-header"><h1 class="page-h1">Animations</h1><p class="page-lede">Convert a GIF, preview it at panel resolution, and upload it to your clock.</p></div>
+          <div class="card">
+            <h2 class="card-title">GIF to panel</h2>
+            <p class="field-hint">Uses the saved device address from Connection. Short clips work on 4MB boards; available storage determines the frame limit.</p>
+            <div class="field"><label class="field-label" for="gifInput">GIF file (up to 8MiB)</label><input type="file" id="gifInput" accept="image/gif,.gif"></div>
+            <div class="grid-2">
+              <div class="field"><label for="gifFit">Fit</label><select id="gifFit"><option value="crop">Crop to fill</option><option value="pad">Fit with black borders</option><option value="stretch">Stretch</option></select></div>
+              <div class="field"><label for="gifAnchor">Crop anchor</label><select id="gifAnchor"><option value="center">Center</option><option value="start">Top / left</option><option value="end">Bottom / right</option></select></div>
+              <div class="field"><label for="gifColors">Palette colors</label><input type="number" id="gifColors" value="16" min="2" max="16"></div>
+              <div class="field"><label for="gifSkip">Keep every Nth frame</label><input type="number" id="gifSkip" value="1" min="1" max="1000"></div>
+            </div>
+            <label><input type="checkbox" id="gifAuto" checked> Automatically reduce frames to fit device storage</label>
+            <p class="field-hint">Keeps the loop duration by merging frame delays. Reduced frame counts produce less smooth motion.</p>
+            <p id="gifBudget" class="field-hint">Refresh storage to see your device's capacity.</p>
+            <button type="button" class="btn" id="gifRefresh">Refresh storage</button>
+            <button type="button" class="btn btn-accent" id="gifConvert">Create preview</button>
+            <div style="margin:20px 0"><img id="gifPreview" alt="Converted animation preview" style="max-width:100%;width:512px;image-rendering:pixelated"></div>
+            <div class="field"><label class="field-label" for="gifName">Animation name</label><input type="text" id="gifName" maxlength="24" placeholder="my_animation"></div>
+            <button type="button" class="btn" id="gifUpload" disabled>Upload previewed animation</button>
+            <p id="gifMessage" role="status" class="field-hint">Choose a GIF to begin.</p>
+          </div>
+          <div class="card"><h2 class="card-title">On your clock</h2><select id="gifFiles" aria-label="Uploaded animation"></select>
+            <button type="button" class="btn" id="gifPlay">Play selected</button>
+            <button type="button" class="btn" id="gifDelete">Delete selected</button>
+            <p class="field-hint">Use Stop on the device portal's Ambient card to return to normal display.</p>
+          </div>
+        </section>
         <section class="page" data-page="backup">
           <div class="page-header">
             <h1 class="page-h1">Backup &amp; restore</h1>
@@ -266,6 +295,7 @@
   </div>
 </div>
 <script src="/portal.js"></script>
+<script src="/animations.js"></script>
 </body>
 
 </html>

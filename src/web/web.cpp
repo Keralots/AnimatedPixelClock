@@ -27,6 +27,9 @@
 #include <esp_task_wdt.h>
 #include <lwip/sockets.h>
 #include <errno.h>
+#include <esp_system.h>
+#include "../clocks/cycle_config.h"
+static String lastAnimationError;
 // ========== Web Server Object ==========
 WebServer server(80);
 
@@ -44,6 +47,8 @@ void setupWebServer() {
  server.on("/reset", handleReset);
  server.on("/metrics", handleMetricsAPI);
  server.on("/api/info", HTTP_GET, handleDeviceInfo);
+ server.on("/api/diagnostics", HTTP_GET, handleDeviceInfo);
+ server.on("/api/anim/play", HTTP_GET, handleAnimPlay);
  server.on("/api/export", HTTP_GET, handleExportConfig);
  server.on("/api/import", HTTP_POST, handleImportConfig);
  server.on("/api/rename", HTTP_POST, handleRename);
@@ -155,6 +160,27 @@ void handleDeviceInfo() {
  doc["uptime"] = millis() / 1000;
  doc["freeHeap"] = ESP.getFreeHeap();
  doc["model"] = "AnimatedPixelClock";
+ doc["build"] = __DATE__ " " __TIME__;
+ doc["chip"] = ESP.getChipModel();
+ doc["flashBytes"] = ESP.getFlashChipSize();
+ doc["firmwareBytes"] = ESP.getSketchSize();
+ doc["otaFreeBytes"] = ESP.getFreeSketchSpace();
+ doc["minFreeHeap"] = ESP.getMinFreeHeap();
+ doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+ doc["resetReason"] = (int)esp_reset_reason();
+ doc["animationStorageBytes"] = (uint32_t)animFsTotal();
+ doc["animationFreeBytes"] = (uint32_t)animFsFree();
+ doc["animationsUsable"] = animFsUsable();
+ doc["animationPlaying"] = ambientCustomPlaying();
+ doc["animationFailureCode"] = ambientCustomFailReason();
+ doc["lastAnimationError"] = lastAnimationError;
+ doc["pcOnline"] = metricData.online;
+ doc["ntpSynced"] = ntpSynced;
+ WeatherData weather = getWeather();
+ doc["weatherValid"] = weather.valid;
+ if (weather.valid) doc["weatherAgeSeconds"] = (millis() - weather.fetchedAt) / 1000;
+ if (server.uri() == "/api/diagnostics")
+   server.sendHeader("Content-Disposition", "attachment; filename=pixelclock-diagnostics.json");
 
  String json;
  serializeJson(doc, json);
@@ -415,6 +441,11 @@ void handleAnimList() {
  doc["maxAlloc"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
  doc["free"] = (uint32_t)animFsFree();
  doc["total"] = (uint32_t)animFsTotal();
+ size_t available = animFsFree() > ANIM_FS_FREE_MARGIN ? animFsFree() - ANIM_FS_FREE_MARGIN : 0;
+ uint32_t maxUpload = available < PCA_MAX_BYTES ? available : PCA_MAX_BYTES;
+ doc["maxUploadBytes"] = maxUpload;
+ doc["maxFrames"] = maxUpload > 44 ? (maxUpload - 44) / (PCA_FRAME_BYTES + 2) : 0;
+ doc["reason"] = animFsUsable() ? "" : "Animation filesystem is unavailable or too small";
  doc["current"] = settings.ambientCustomFile;
  JsonArray anims = doc["anims"].to<JsonArray>();
  if (animFsUsable()) {
@@ -434,6 +465,21 @@ void handleAnimList() {
  String json;
  serializeJson(doc, json);
  server.send(200, "application/json", json);
+}
+
+// Start an uploaded animation without changing unrelated saved settings.
+void handleAnimPlay() {
+ String name = server.arg("name");
+ if (!animFsUsable() || !animValidName(name.c_str())) {
+   server.send(400, "application/json", "{\"error\":\"invalid animation name or storage unavailable\"}"); return;
+ }
+ File f = LittleFS.open(animPath(name.c_str()), "r");
+ bool valid = animValidatePca(f, nullptr); if (f) f.close();
+ if (!valid) { server.send(404, "application/json", "{\"error\":\"animation not found or invalid\"}"); return; }
+ safeCopyString(settings.ambientCustomFile, name.c_str(), sizeof(settings.ambientCustomFile));
+ settings.ambientStyle = 6; ambientCustomInvalidate();
+ httpForceAmbient = true; httpForceClock = false; httpForceViz = false;
+ server.send(200, "application/json", "{\"success\":true}");
 }
 
 // GET /api/anim/delete?name=<basename>
@@ -463,6 +509,7 @@ static void animUploadAbort(const char* why) {
  if (animUpFile) animUpFile.close();
  if (LittleFS.exists(ANIM_TMP)) LittleFS.remove(ANIM_TMP);
  if (!animUpError) animUpError = why;
+ lastAnimationError = why;
 }
 
 void handleAnimUploadChunk() {
@@ -484,12 +531,6 @@ void handleAnimUploadChunk() {
    }
    if (!animValidName(animUpName.c_str())) { animUpError = "bad name (use 1-24 of A-z 0-9 _ -)"; return; }
    size_t freeBytes = animFsFree();
-   // Replacing an existing animation frees its space on rename.
-   String target = animPath(animUpName.c_str());
-   if (LittleFS.exists(target)) {
-     File old = LittleFS.open(target, "r");
-     if (old) { freeBytes += old.size(); old.close(); }
-   }
    uint32_t cap = freeBytes > ANIM_FS_FREE_MARGIN ? freeBytes - ANIM_FS_FREE_MARGIN : 0;
    animUpCap = cap < PCA_MAX_BYTES ? cap : PCA_MAX_BYTES;
    if (animUpCap < PCA_HEADER_BYTES + PCA_FRAME_BYTES) { animUpError = "not enough free space"; return; }
@@ -518,7 +559,7 @@ void handleAnimUploadChunk() {
      return;
    }
    String target = animPath(animUpName.c_str());
-   if (LittleFS.exists(target)) LittleFS.remove(target);
+   // LittleFS rename replaces atomically; keep the old file if replacement fails.
    if (!LittleFS.rename(ANIM_TMP, target)) animUploadAbort("rename failed");
  } else if (upload.status == UPLOAD_FILE_ABORTED) {
    animUploadAbort("upload aborted");
@@ -528,9 +569,11 @@ void handleAnimUploadChunk() {
 void handleAnimUploadDone() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (animUpError) {
+   lastAnimationError = animUpError;
    String msg = String("{\"success\":false,\"error\":\"") + animUpError + "\"}";
    server.send(400, "application/json", msg);
  } else {
+   lastAnimationError = "";
    String msg = String("{\"success\":true,\"name\":\"") + animUpName + "\"}";
    server.send(200, "application/json", msg);
  }
@@ -697,6 +740,7 @@ static String buildPcMetricsColorCard() {
 }
 
 static bool resolvePlaceholder(const char* n, String& out) {
+  if (!strcmp(n, "V_CYCLECONFIG")) { out = settings.cycleConfig; return true; }
   // --- Header / identity ---
   if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
   if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
@@ -1124,6 +1168,13 @@ static bool parseHHMM(const String &v, uint8_t &hour, uint8_t &minute) {
 }
 
 void handleSave() {
+ if (server.hasArg("cycleConfig")) {
+   String cycle = server.arg("cycleConfig"); CycleEntry checked[CYCLE_COUNT];
+   if (cycle.length() >= sizeof(settings.cycleConfig) || !parseCycleConfig(cycle.c_str(), checked)) {
+     server.send(400, "application/json", "{\"success\":false,\"message\":\"Invalid rotation: enable a clock and use 5-3600 seconds\"}"); return;
+   }
+   strcpy(settings.cycleConfig, cycle.c_str());
+ }
  if (server.hasArg("clockStyle")) {
  settings.clockStyle = server.arg("clockStyle").toInt();
  }
@@ -1773,6 +1824,7 @@ void handleExportConfig() {
  String json = "{";
 
  // Clock settings
+ json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
  json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
@@ -1911,6 +1963,13 @@ void handleImportConfig() {
  return;
  }
 
+ if (!doc["cycleConfig"].isNull()) {
+   const char* cycle = doc["cycleConfig"]; CycleEntry checked[CYCLE_COUNT];
+   if (!cycle || strlen(cycle) >= sizeof(settings.cycleConfig) || !parseCycleConfig(cycle, checked)) {
+     server.send(400, "application/json", "{\"success\":false,\"message\":\"Invalid rotation\"}"); return;
+   }
+   strcpy(settings.cycleConfig, cycle);
+ }
  // Import clock settings
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {

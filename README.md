@@ -85,7 +85,7 @@ The **E** address line is required for 64x64 (1/32 scan) panels:
 | 6 | Pac-Man | Pac-Man eats pellet-based digits |
 | 7 | Snake | Nokia-style snake hunts pellets left by changed digits |
 | 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors; optional small corner-clock mode hands the whole panel to an auto-played game with a much taller stack |
-| 9 | Cycle All Styles | Advances at each five-minute clock boundary through 11 styles, plus Weather when configured |
+| 9 | Cycle All Styles | Choose enabled styles, their order and duration in Clock settings; Weather is skipped until configured |
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
 | 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
@@ -147,8 +147,18 @@ on automatically during set hours (e.g. 20:00-23:00). `GET /api/mode/ambient` /
 ### Custom animations (upload your own GIFs)
 
 The **Custom animation** ambient effect plays animations you upload to the device
-(16MB boards only - the 4MB variant's filesystem is too small, so the option hides
-itself there). Convert any animated GIF on your PC with the bundled tool:
+on both 4MB and 16MB boards. The 4MB layout has 128KiB of animation storage,
+so short clips fit best: an empty tested device allows about 23 frames. The UI
+reports the current upload budget, including space needed for a temporary file.
+
+In the desktop companion, save `pixelclock.local` (or your clock's IP) on
+**Connection**, then open **Animations**. Refresh storage, select a GIF, choose
+crop/pad/stretch and its anchor, and create a preview. Automatic frame skipping
+fits the clip to available space while preserving its duration. Upload the result
+and use **Play** to try it. To keep it as the ambient effect, select it on the
+clock's Display page and save. GIF input is limited to 8MiB; trim large clips first.
+
+Alternatively, convert a GIF with the command-line tool:
 
 ```bash
 pip install pillow
@@ -174,6 +184,21 @@ Then pick the animation in the dropdown, **Save**, and **Start now**. Uploaded
 animations survive reboots and normal firmware-only OTA updates; replacing or
 erasing the filesystem removes them. Manage them with
 `GET /api/anim/list` and `GET /api/anim/delete?name=<name>`.
+
+### Custom clock rotation
+
+Select **Custom rotation** (style 9) in Clock settings. Enable the desired styles,
+move them with **Up/Down**, and set each duration from 5 to 3600 seconds, then
+save. At least one non-weather style must remain enabled. Rotation resumes from
+the first available style after another display mode interrupts it. Settings are
+included in configuration export/import.
+
+### Device diagnostics
+
+Expand **Diagnostics** under **Device status** in the web portal for firmware,
+flash/storage capacity, heap usage, reset reason, time/weather state and animation
+errors. **Download diagnostics** saves the same information as JSON, without WiFi
+credentials. It is also available at `GET /api/diagnostics`.
 
 ## PC monitor mode (optional)
 
@@ -242,7 +267,7 @@ Board choices on that page:
 - **ESP32-S3-Zero / Super Mini (4MB)** - the compact build. Native USB: if the serial
   port never appears, hold BOOT while plugging the board in.
 - **ESP32-S3-WROOM devkit (16MB)** - the full-size devkit; its larger flash also
-  enables the custom-GIF ambient effect.
+  provides more space for custom animations.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 

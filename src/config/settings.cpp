@@ -92,7 +92,10 @@ void sanitizeBrightnessSettings() {
   settings.dimBrightness = sanitizeBrightnessValue(settings.dimBrightness);
 }
 
+#include "../clocks/cycle_config.h"
+
 void loadSettings() {
+  strcpy(settings.cycleConfig, CYCLE_DEFAULT);
   // Try to open preferences namespace (create if doesn't exist)
   if (!preferences.begin("pcmonitor",
                          false)) { // Read-write mode to create if needed
@@ -233,6 +236,10 @@ void loadSettings() {
     Serial.println("Default settings written to NVS");
   }
 
+  String cycle = preferences.getString("cycleConfig", CYCLE_DEFAULT);
+  CycleEntry checked[CYCLE_COUNT];
+  if (cycle.length() < sizeof(settings.cycleConfig) && parseCycleConfig(cycle.c_str(), checked))
+    strcpy(settings.cycleConfig, cycle.c_str());
   settings.clockStyle = preferences.getInt("clockStyle", 0); // Default: Mario
   if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
 
@@ -662,6 +669,7 @@ void loadSettings() {
 void saveSettings() {
   sanitizeBrightnessSettings();
   preferences.begin("pcmonitor", false); // Read-write
+  preferences.putString("cycleConfig", settings.cycleConfig);
   preferences.putInt("clockStyle", settings.clockStyle);
   preferences.putInt("gmtOffset", settings.gmtOffset); // Keep for backward compatibility
   preferences.putBool("dst", settings.daylightSaving);  // Keep for backward compatibility

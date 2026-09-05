@@ -61,6 +61,8 @@ if exist dist  rmdir /s /q dist
   --hidden-import app_window ^
   --hidden-import app_state ^
   --hidden-import audio_spectrum ^
+  --hidden-import animation_service ^
+  --hidden-import gif_converter ^
   --hidden-import layout_engine ^
   --collect-all webview ^
   --collect-all pythonnet ^

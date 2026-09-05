@@ -117,3 +117,17 @@ the config-file/product version is **4.0**.
   connection*.
 - **Autostart didn't trigger:** check `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PCStatsMonitor`
   and read `%APPDATA%\PCStatsMonitor\monitor.log`.
+
+
+## GIF animations
+
+Use the **Animations** tab after saving your clock address on **Connection**.
+Refresh storage, select a GIF, choose framing and palette, then create a preview
+and upload. Automatic frame skipping fits short clips to the clock's free space.
+**Play** tests the clip immediately; select it and save in the device's ambient
+settings to keep that choice. Raw GIFs are converted locally to the PCA format.
+
+For an independent configuration alongside another monitor application, set
+`PIXELCLOCK_CONFIG_DIR` to an absolute directory before starting the executable.
+The directory holds `monitor_config.json` and logs. Without this override,
+existing configuration locations remain unchanged.

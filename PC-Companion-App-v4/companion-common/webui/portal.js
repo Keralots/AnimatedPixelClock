@@ -16,6 +16,7 @@ var navItems = $$('.nav-item');
 var pages = $$('.page');
 var crumb = $('#crumb');
 function showPage(key) {
+var saveBar = $('.save-bar'); if (saveBar) saveBar.style.display = key === 'animations' ? 'none' : '';
 pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === key); });
 navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.nav === key); });
 var active = navItems.filter(function (n) { return n.dataset.nav === key; })[0];

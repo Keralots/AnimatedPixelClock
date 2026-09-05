@@ -3,9 +3,8 @@
  *
  * LittleFS-backed storage for user-uploaded .pca animations (PCA1 format,
  * produced by tools/gif2pca.py) played by the "Custom animation" ambient
- * style. The feature is only enabled when the filesystem partition is big
- * enough to be useful (the 4MB min_spiffs table has just 128KiB, below a
- * single typical animation, so the feature hides itself there).
+ * style. The 128KiB partition on 4MB boards supports short clips; upload
+ * capacity is calculated from current free space with a filesystem margin.
  */
 
 #ifndef ANIM_STORE_H
@@ -24,7 +23,7 @@
 
 #define ANIM_DIR "/anim"
 #define ANIM_TMP "/anim/upload.tmp"
-#define ANIM_FS_MIN_TOTAL (256UL * 1024UL)  // below this the feature is disabled
+#define ANIM_FS_MIN_TOTAL (64UL * 1024UL)  // small partitions support short clips
 #define ANIM_FS_FREE_MARGIN (16UL * 1024UL)
 
 struct PcaHeader {

@@ -10,7 +10,7 @@ pywebview       # native config window (falls back to the browser if GTK libs ab
 # Optional:
 pynvml          # NVIDIA GPU sensors (AMD uses sysfs, no package needed)
 pystray         # system-tray icon (needs AppIndicator/GTK on some desktops)
-pillow          # tray icon image (used by pystray)
+pillow          # GIF conversion and tray icon image
 
 # Optional - audio visualizer stream (the checkbox on the Connection page):
 #   python3 -m pip install soundcard numpy

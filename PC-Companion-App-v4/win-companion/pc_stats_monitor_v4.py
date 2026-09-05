@@ -81,7 +81,9 @@ def get_data_dir():
     living in a read-only spot (Program Files) and survives the .exe being
     moved. Plain script -> next to the .py, matching the original behavior.
     """
-    if IS_FROZEN:
+    if os.environ.get("PIXELCLOCK_CONFIG_DIR"):
+        data_dir = os.path.abspath(os.environ["PIXELCLOCK_CONFIG_DIR"])
+    elif IS_FROZEN:
         base = os.environ.get("APPDATA") or APP_DIR
         data_dir = os.path.join(base, "PCStatsMonitor")
     else:

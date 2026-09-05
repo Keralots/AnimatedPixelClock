@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 import audio_spectrum
+import animation_service
 from constants import MAX_METRICS
 from layout_engine import (
     auto_layout,
@@ -497,6 +498,12 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._asset("portal.css")
             if path == "/portal.js":
                 return self._asset("portal.js")
+            if path == "/animations.js":
+                return self._asset("animations.js")
+            if path == "/api/animations/storage":
+                result = animation_service.device_json(state.get_config(), '/api/anim/list')
+                result['device'] = animation_service.device_url(state.get_config())
+                return self._json(result)
             if path == "/metrics":
                 return self._json(metrics_payload(core, state))
             if path == "/api/status":
@@ -529,6 +536,30 @@ class _Handler(BaseHTTPRequestHandler):
         core, state = self.CORE, self.STATE
         path = urlparse(self.path).path
         try:
+            if path.startswith('/api/animations/'):
+                origin = self.headers.get('Origin')
+                if origin and urlparse(origin).netloc != self.headers.get('Host'):
+                    return self._json({'error': 'Origin mismatch'}, 403)
+                if not self.headers.get('Content-Type', '').startswith('application/json'):
+                    return self._json({'error': 'JSON required'}, 415)
+                length = int(self.headers.get('Content-Length', 0))
+                if not 0 < length <= 12 * 1024 * 1024:
+                    self.close_connection = True
+                    return self._json({'error': 'Request too large or empty'}, 413)
+                options = self._jsonbody()
+                if not isinstance(options, dict):
+                    return self._json({'error': 'Invalid JSON'}, 400)
+                try:
+                    if path == '/api/animations/convert':
+                        return self._json(animation_service.convert_gif(options))
+                    if path == '/api/animations/upload':
+                        return self._json(animation_service.upload_animation(state.get_config(), options))
+                    if path in ('/api/animations/play', '/api/animations/delete'):
+                        name = animation_service.animation_name(options.get('name'))
+                        action = path.rsplit('/', 1)[1]
+                        return self._json(animation_service.device_json(state.get_config(), '/api/anim/' + action + '?name=' + name))
+                except (ValueError, OSError) as error:
+                    return self._json({'error': str(error)}, 400)
             if path == "/save":
                 return self._json(apply_save(core, state, self._form()))
             if path == "/api/select":
@@ -569,6 +600,7 @@ def make_server(core, state, host="127.0.0.1", port=8736):
         httpd = ThreadingHTTPServer((host, 0), _Handler)
         port = httpd.server_address[1]
     httpd.daemon_threads = True
+    port = httpd.server_address[1]
     return httpd, port
 
 

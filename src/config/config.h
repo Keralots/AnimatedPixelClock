@@ -13,7 +13,7 @@
 #include "color_slots.h"
 
 // ========== Version ==========
-#define FIRMWARE_VERSION "2.0.0"
+#define FIRMWARE_VERSION "2.1.0"
 
 // ========== Constants ==========
 #define MAX_METRICS 20
@@ -63,6 +63,7 @@ struct MetricData {
 
 // ========== Settings Structure ========== 
 struct Settings {
+  char cycleConfig[128];       // Ordered style:seconds pairs; 0 seconds disables
   // Clock settings
   uint8_t clockStyle;       // 0=Mario, 1=Standard, 2=Large, 3=Space Invader, 4=Space Ship, 5=Pong, 6=Pac-Man, 7=Snake, 8=Tetris, 9=Cycle All, 10=Asteroids, 11=Dino Runner, 12=Matrix Rain, 14=Weather (13 retired: Missile Command)
   int16_t gmtOffset;        // GMT offset in minutes (deprecated, kept for migration)

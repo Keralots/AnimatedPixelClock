@@ -144,52 +144,45 @@ int getOptimalRefreshRate() {
   }
 }
 
-// --- Clock screen cycle state ---
-int lastMinuteBlock = -1;
-int currentScreen = 0;
-bool firstTimeSynced = false;
-
+// Rotation uses elapsed time, independent of wall-clock adjustments.
+#include "clocks/cycle_config.h"
 void cycleClockScreens() {
-    struct tm timeinfo;
-
-    // Advance the cycle only when we have valid time. When time is not yet
-    // available the per-screen draw functions below render their own
-    // "Syncing time..." message, so the display is never left blank.
-    if (getTimeWithTimeout(&timeinfo)) {
-        // Determine which 5-minute block we are in
-        int minuteBlock = timeinfo.tm_min / 5;
-
-        // First valid time -> initialize block WITHOUT advancing screen
-        if (!firstTimeSynced) {
-            lastMinuteBlock = minuteBlock;
-            firstTimeSynced = true;
-        }
-
-        // After that, normal cycling. The weather screen (index 11) joins the
-        // rotation only when weather is enabled and configured.
-        if (minuteBlock != lastMinuteBlock) {
-            lastMinuteBlock = minuteBlock;
-            int screenCount = weatherConfigured() ? 12 : 11;
-            currentScreen = (currentScreen + 1) % screenCount;
-            resetClockAnimationState(); // Reset animation state when changing screens
-        }
-    }
-
-    // Draw the current screen (each draw function handles the no-time case)
-    switch (currentScreen) {
-        case 0: displayStandardClock(); break;
-        case 1: displayClockWithMario(); break;
-        case 2: displayClockWithSpaceInvader(); break;
-        case 3: displayLargeClock(); break;
-        case 4: displayClockWithPong(); break;
-        case 5: displayClockWithPacman(); break;
-        case 6: displayClockWithSnake(); break;
-        case 7: displayClockWithTetris(); break;
-        case 8: displayClockWithAsteroids(); break;
-        case 9: displayClockWithDino(); break;
-        case 10: displayClockWithMatrixRain(); break;
-        case 11: displayClockWithWeather(); break;
-    }
+  static char previous[128] = "";
+  static CycleEntry entries[CYCLE_COUNT];
+  static unsigned index = 0;
+  static uint32_t started = 0, lastRendered = 0;
+  uint32_t now = millis();
+  if (strcmp(previous, settings.cycleConfig) || now - lastRendered > 2000) {
+    if (!parseCycleConfig(settings.cycleConfig, entries)) parseCycleConfig(CYCLE_DEFAULT, entries);
+    strcpy(previous, settings.cycleConfig);
+    index = 0; started = now;
+  }
+  lastRendered = now;
+  if (entries[index].seconds && now - started >= entries[index].seconds * 1000UL) {
+    index = (index + 1) % CYCLE_COUNT; started = now;
+  }
+  for (unsigned n = 0; n < CYCLE_COUNT; ++n) {
+    if (entries[index].seconds && (entries[index].style != 14 || weatherConfigured())) break;
+    index = (index + 1) % CYCLE_COUNT; started = now;
+  }
+  static int lastStyle = -1;
+  if (lastStyle != entries[index].style) {
+    resetClockAnimationState(); lastStyle = entries[index].style;
+  }
+  switch (entries[index].style) {
+    case 0: displayClockWithMario(); break;
+    case 1: displayStandardClock(); break;
+    case 2: displayLargeClock(); break;
+    case 3: displayClockWithSpaceInvader(); break;
+    case 5: displayClockWithPong(); break;
+    case 6: displayClockWithPacman(); break;
+    case 7: displayClockWithSnake(); break;
+    case 8: displayClockWithTetris(); break;
+    case 10: displayClockWithAsteroids(); break;
+    case 11: displayClockWithDino(); break;
+    case 12: displayClockWithMatrixRain(); break;
+    case 14: displayClockWithWeather(); break;
+  }
 }
 
 // ========== setup() ==========
