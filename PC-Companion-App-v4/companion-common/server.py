@@ -310,24 +310,39 @@ def apply_connection(core, state, form):
     try:
         port = int(f("udp_port", "4210"))
         interval = float(f("update_interval", "3"))
+        threshold = float(f("audio_viz_threshold", audio_spectrum.AUTO_THRESHOLD_DB))
+        start_delay = float(f("audio_viz_start_delay", audio_spectrum.AUTO_START_DELAY))
+        stop_delay = float(f("audio_viz_stop_delay", audio_spectrum.AUTO_STOP_DELAY))
         if not ip:
             raise ValueError("Device IP cannot be empty.")
         if port < 1 or port > 65535:
             raise ValueError("Port must be 1-65535.")
         if interval < 0.5:
             raise ValueError("Update interval must be at least 0.5 seconds.")
+        if not -80.0 <= threshold <= -10.0:
+            raise ValueError("Sound threshold must be -80 to -10 dB.")
+        if not 0.0 <= start_delay <= 60.0:
+            raise ValueError("Start delay must be 0-60 seconds.")
+        if not 1.0 <= stop_delay <= 3600.0:
+            raise ValueError("Stop delay must be 1-3600 seconds.")
     except ValueError as e:
         return {"success": False, "message": str(e)}
     config = state.get_config()
     config["esp32_ip"] = ip
     config["udp_port"] = port
     config["update_interval"] = interval
+    config["send_pc_stats"] = f("send_pc_stats", "1") == "1"
     config["audio_viz"] = f("audio_viz", "0") == "1"
+    config["audio_viz_auto"] = f("audio_viz_auto", "0") == "1"
+    config["audio_viz_threshold"] = threshold
+    config["audio_viz_start_delay"] = start_delay
+    config["audio_viz_stop_delay"] = stop_delay
     core.save_config(config)
     state.set_config(config)
     audio_spectrum.ensure(config)
     return {"success": True, "esp32_ip": ip, "udp_port": port, "update_interval": interval,
-            "audio_viz": config["audio_viz"]}
+            "audio_viz": config["audio_viz"], "audio_viz_auto": config["audio_viz_auto"],
+            "send_pc_stats": config["send_pc_stats"]}
 
 
 def do_test(core, state, form):
@@ -422,7 +437,15 @@ def apply_import(core, state, cfg):
         "esp32_ip": cfg.get("esp32_ip", config.get("esp32_ip", "")),
         "udp_port": int(cfg.get("udp_port", config.get("udp_port", 4210))),
         "update_interval": float(cfg.get("update_interval", config.get("update_interval", 3))),
+        "send_pc_stats": bool(cfg.get("send_pc_stats", config.get("send_pc_stats", True))),
         "audio_viz": bool(cfg.get("audio_viz", config.get("audio_viz", False))),
+        "audio_viz_auto": bool(cfg.get("audio_viz_auto", config.get("audio_viz_auto", False))),
+        "audio_viz_threshold": float(cfg.get("audio_viz_threshold",
+                                             config.get("audio_viz_threshold", audio_spectrum.AUTO_THRESHOLD_DB))),
+        "audio_viz_start_delay": float(cfg.get("audio_viz_start_delay",
+                                               config.get("audio_viz_start_delay", audio_spectrum.AUTO_START_DELAY))),
+        "audio_viz_stop_delay": float(cfg.get("audio_viz_stop_delay",
+                                              config.get("audio_viz_stop_delay", audio_spectrum.AUTO_STOP_DELAY))),
         "metrics": cfg.get("metrics", []),
     }
     # Re-number ids 1..N so the layout binds cleanly.
@@ -512,9 +535,16 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._json(st)
             if path == "/api/info":
                 c = state.get_config()
+                auto, threshold, start_delay, stop_delay = audio_spectrum.auto_settings(c)
                 return self._json({"version": "4.0", "ip": c.get("esp32_ip", ""),
                                    "udp_port": c.get("udp_port", 4210),
-                                   "update_interval": c.get("update_interval", 3)})
+                                   "update_interval": c.get("update_interval", 3),
+                                   "send_pc_stats": bool(c.get("send_pc_stats", True)),
+                                   "audio_viz": bool(c.get("audio_viz", False)),
+                                   "audio_viz_auto": auto,
+                                   "audio_viz_threshold": threshold,
+                                   "audio_viz_start_delay": start_delay,
+                                   "audio_viz_stop_delay": stop_delay})
             if path == "/api/sensors":
                 ensure_discovered(core, rescan=("rescan" in qs))
                 state.set_source_text(source_text(core))

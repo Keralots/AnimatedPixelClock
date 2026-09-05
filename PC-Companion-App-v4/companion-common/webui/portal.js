@@ -606,6 +606,15 @@ if (!d.audioVizAvailable) avState.textContent = 'Not available: install the audi
 else if (d.audioVizEnabled) avState.textContent = d.audioVizSending ? 'Streaming the sound spectrum to the display.' : 'Enabled - waiting for audio playback...';
 else avState.textContent = '';
 }
+var aaState = $('#audioVizAutoState');
+if (aaState && d.audioVizAvailable !== undefined) {
+if (!d.audioVizAvailable) aaState.textContent = '';
+else if (!d.audioVizEnabled) aaState.textContent = 'Turn on the stream above to use auto-start.';
+else if (!d.audioVizAuto) aaState.textContent = 'Auto-start off - switch the display from its Display page.';
+else aaState.textContent = (d.audioVizForced ? 'Visualizer running (started by playback). ' : 'Waiting for playback. ')
++ 'Current level: ' + (d.audioVizLevel != null ? d.audioVizLevel : '?') + ' dB.'
++ (d.audioVizAutoError ? ' Last switch failed: ' + d.audioVizAutoError : '');
+}
 }).catch(function () {});
 }
 var avHydrated = false;
@@ -618,6 +627,12 @@ fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
 var ip = $('#esp32_ip'); if (ip && d.ip) ip.value = d.ip;
 var port = $('#udp_port'); if (port && d.udp_port != null) port.value = d.udp_port;
 var iv = $('#update_interval'); if (iv && d.update_interval != null) iv.value = d.update_interval;
+var sp = $('#send_pc_stats'); if (sp && d.send_pc_stats != null) sp.checked = !!d.send_pc_stats;
+var av = $('#audio_viz'); if (av && d.audio_viz != null) { av.checked = !!d.audio_viz; avHydrated = true; }
+var aa = $('#audio_viz_auto'); if (aa && d.audio_viz_auto != null) aa.checked = !!d.audio_viz_auto;
+var th = $('#audio_viz_threshold'); if (th && d.audio_viz_threshold != null) th.value = d.audio_viz_threshold;
+var sd = $('#audio_viz_start_delay'); if (sd && d.audio_viz_start_delay != null) sd.value = d.audio_viz_start_delay;
+var qd = $('#audio_viz_stop_delay'); if (qd && d.audio_viz_stop_delay != null) qd.value = d.audio_viz_stop_delay;
 }).catch(function () {});
 }
 var connResult = $('#connResult');
@@ -633,7 +648,12 @@ var body = new URLSearchParams();
 body.set('esp32_ip', ($('#esp32_ip') || {}).value || '');
 body.set('udp_port', ($('#udp_port') || {}).value || '');
 body.set('update_interval', ($('#update_interval') || {}).value || '');
+body.set('send_pc_stats', ($('#send_pc_stats') || {}).checked ? '1' : '0');
 body.set('audio_viz', ($('#audio_viz') || {}).checked ? '1' : '0');
+body.set('audio_viz_auto', ($('#audio_viz_auto') || {}).checked ? '1' : '0');
+body.set('audio_viz_threshold', ($('#audio_viz_threshold') || {}).value || '-45');
+body.set('audio_viz_start_delay', ($('#audio_viz_start_delay') || {}).value || '3');
+body.set('audio_viz_stop_delay', ($('#audio_viz_stop_delay') || {}).value || '20');
 saveConnBtn.disabled = true;
 fetch('/api/connection', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
 .then(function (r) { return r.json(); }).then(function (d) {

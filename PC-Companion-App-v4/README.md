@@ -26,6 +26,16 @@ autostart, packaging); everything else is shared from `companion-common/`.
 The UDP wire-protocol version stays `2.2` (the contract the firmware speaks); the
 product/config-file version is `4.0`.
 
+## Turning the stats stream off
+
+**Send PC stats to the display** (Connection page, saved as `send_pc_stats`,
+default on) gates the metric packets. With it off the monitor loop skips the
+sensor sweep and the UDP send entirely, so the device sees no PC and shows its
+clock or scheduled ambient screen; the reachability probe still runs, and the
+sensor preview in this app freezes because nothing is read. The visualizer
+stream is independent, so "equalizer while music plays, clock otherwise" is
+this checkbox off plus auto-start on.
+
 ## Audio visualizer stream (optional)
 
 The Connection page has an **Audio visualizer stream** checkbox: when enabled, the
@@ -37,3 +47,14 @@ stats JSON on the same port. The display shows it in its visualizer mode
 
 It needs two extra packages: `pip install soundcard numpy`. Without them the
 checkbox explains what to install and the rest of the app is unaffected.
+
+**Start the visualizer when music plays** (same card) removes the manual step:
+the streamer measures each 40ms block in dBFS and, once sound stays above the
+**sound threshold** (default -45 dB) for the **start delay** (default 3s), calls
+`GET /api/mode/viz` on the device. After the **stop delay** of quiet (default
+20s) it calls `/api/mode/auto`. The start delay is what keeps notification pops
+and other short sounds from switching the display; gaps shorter than a second do
+not restart it, and the companion only releases the display if it was the one
+that took it. Settings live in the config file as `audio_viz_auto`,
+`audio_viz_threshold`, `audio_viz_start_delay` and `audio_viz_stop_delay`; the
+live sound level is shown on the Connection page for setting the threshold.

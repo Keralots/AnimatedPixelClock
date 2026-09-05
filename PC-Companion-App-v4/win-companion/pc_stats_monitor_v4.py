@@ -184,7 +184,12 @@ DEFAULT_CONFIG = {
     "esp32_ip": "192.168.0.163",
     "udp_port": 4210,
     "update_interval": 3,
+    "send_pc_stats": True,
     "audio_viz": False,
+    "audio_viz_auto": False,
+    "audio_viz_threshold": -45.0,
+    "audio_viz_start_delay": 3.0,
+    "audio_viz_stop_delay": 20.0,
     "metrics": []
 }
 
@@ -3371,6 +3376,8 @@ def send_metrics(sock, config, last_good_values=None, status_code=STATUS_OK):
     Thin wrapper over build_snapshot() + collect_metrics().
     Returns (success, last_good_values, has_fresh_data).
     """
+    if not config.get("send_pc_stats", True):
+        return False, last_good_values, False
     snapshot = build_snapshot(config)
     payload, _values, has_fresh_data, last_good_values, stale_count = collect_metrics(
         config, snapshot, last_good_values, status_code)

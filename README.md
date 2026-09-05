@@ -230,6 +230,12 @@ Metrics are sent as JSON over local UDP (port 4210), at the companion's configur
 update interval. Both companions default to 3 seconds. CPU usage depends
 on the host, enabled sensors and update interval.
 
+Do not want the stats screen? Untick **Send PC stats to the display** on the
+Connection page. The companion stops reading sensors and stops sending packets,
+so the device falls back to its clock or scheduled ambient screen. Combined with
+the audio visualizer below, that gives a display that is either the equalizer
+while music plays or the clock the rest of the time.
+
 ## Audio visualizer (optional)
 
 With the companion app streaming your PC's sound, the display becomes a 32-band
@@ -251,6 +257,23 @@ The visualizer stays on until you stop it; if the audio stream disappears for 10
 seconds the display falls back to automatic display selection: PC stats while
 the companion is online, otherwise the scheduled ambient effect or clock. The
 visualizer returns automatically when the stream resumes.
+
+### Start it automatically when music plays
+
+Step 2 can be automatic. Under the stream checkbox, tick **Start the visualizer
+when music plays** and save. The companion then watches how loud the captured
+audio is and switches the display for you:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Start delay | 3 s | Sound must keep playing this long before the companion calls `/api/mode/viz`. Short sounds (Windows pops, chat notifications) never reach it. |
+| Stop delay | 20 s | Quiet for this long calls `/api/mode/auto`, handing the display back to PC stats, ambient or the clock. |
+| Sound threshold | -45 dB | Anything quieter counts as silence. Lower it (-55) if quiet music is missed, raise it (-35) if background sounds trigger it. |
+
+Quiet gaps shorter than a second (between tracks, pauses in a song) do not
+restart the start delay, and the companion only releases the display if it was
+the one that switched it. The Connection page shows the current sound level in
+dB, so you can read it while music plays and set the threshold below it.
 
 ## Flashing
 

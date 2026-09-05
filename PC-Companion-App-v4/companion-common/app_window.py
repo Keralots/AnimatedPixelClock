@@ -153,6 +153,20 @@ def _monitor_loop():
             _state.set_monitoring(False)
             _stop.wait(1.0)
             continue
+        # Stats sending off: no sensor sweep, no packets, so the device drops to
+        # its clock/ambient screen (the visualizer stream is unaffected). Keep
+        # probing reachability so the status readout stays honest.
+        if not cfg.get("send_pc_stats", True):
+            _state.set_monitoring(False)
+            if time.time() - last_reach_check >= 10:
+                last_reach_check = time.time()
+                try:
+                    with socket.create_connection((cfg["esp32_ip"], 80), timeout=0.5):
+                        _state.set_reachable(True)
+                except OSError:
+                    _state.set_reachable(False)
+            _stop.wait(1.0)
+            continue
         _state.set_monitoring(True)
         now = time.time()
 
