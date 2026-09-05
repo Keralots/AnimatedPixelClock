@@ -26,6 +26,15 @@ autostart, packaging); everything else is shared from `companion-common/`.
 The UDP wire-protocol version stays `2.2` (the contract the firmware speaks); the
 product/config-file version is `4.0`.
 
+## Reachability probe
+
+The status readout's "device online" check issues a real `GET /api/status`
+every 10s. It must not be a bare TCP connect: the firmware serves HTTP from the
+same single-threaded loop that renders frames, and a socket that opens without
+sending a request leaves that loop waiting ~150ms - measured on the device as a
+visible stutter in the clock animation, roughly one connect in four. A complete
+request costs about 7ms instead.
+
 ## Turning the stats stream off
 
 **Send PC stats to the display** (Connection page, saved as `send_pc_stats`,
@@ -47,6 +56,22 @@ stats JSON on the same port. The display shows it in its visualizer mode
 
 It needs two extra packages: `pip install soundcard numpy`. Without them the
 checkbox explains what to install and the rest of the app is unaffected.
+
+Packets go out from the capture thread, so the audio device sets the cadence:
+one block per 40ms, measured at 40.0ms mean and 41ms p95. Do not pace this on a
+timer instead - Windows waits round up to the ~15.6ms scheduler tick, giving
+~46ms periods that fall behind capture and drop frames (visible as stuttering
+bars). A watchdog thread only fills gaps: with no packet for 120ms it repeats
+the last frame, fades it after half a second, and gives up after six, so a
+starved capture thread costs smoothness rather than blanking the display to
+"No audio". `/api/status` counts those gaps as `audioVizStalls`.
+
+The capture and watchdog threads register with MMCSS ("Pro Audio"), run at
+highest thread priority, and the process goes to ABOVE_NORMAL while streaming.
+Without that, a busy PC pushed p95 to 50ms and gaps to 64ms; with it, 28 pegged
+cores leave the stream indistinguishable from idle. Note that the Windows API
+handles here need explicit ctypes `argtypes`/`restype`: with the defaults the
+64-bit pseudo-handles overflow and the calls silently do nothing.
 
 **Start the visualizer when music plays** (same card) removes the manual step:
 the streamer measures each 40ms block in dBFS and, once sound stays above the

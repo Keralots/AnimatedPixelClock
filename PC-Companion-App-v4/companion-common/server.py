@@ -18,7 +18,9 @@ import sys
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, parse_qs
+from urllib.request import urlopen
 
 import audio_spectrum
 import animation_service
@@ -345,6 +347,25 @@ def apply_connection(core, state, form):
             "send_pc_stats": config["send_pc_stats"]}
 
 
+def device_reachable(ip, timeout=1.5):
+    """Is the device answering? Returns (reachable, detail).
+
+    Must be a real request: a bare TCP connect that sends nothing leaves the
+    device's web server waiting on the socket, blocking its single-threaded
+    render loop for ~150ms - a visible stutter in whatever it is animating.
+    """
+    if not ip:
+        return False, "no address"
+    try:
+        with urlopen("http://%s/api/status" % ip, timeout=timeout) as response:
+            response.read(2048)
+        return True, ""
+    except HTTPError:
+        return True, ""  # it answered, even if it disliked the request
+    except (URLError, OSError, ValueError) as error:
+        return False, str(error)
+
+
 def do_test(core, state, form):
     def f(name, default=""):
         v = form.get(name)
@@ -356,12 +377,7 @@ def do_test(core, state, form):
         port = 4210
     if not ip:
         return {"reachable": False, "message": "Enter the device IP first."}
-    reachable, detail = False, ""
-    try:
-        with socket.create_connection((ip, 80), timeout=2):
-            reachable = True
-    except OSError as e:
-        detail = str(e)
+    reachable, detail = device_reachable(ip, timeout=2)
     try:
         us = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         us.sendto(b'{"ping":1}', (ip, port))
@@ -370,7 +386,7 @@ def do_test(core, state, form):
         pass
     state.set_reachable(reachable)
     if reachable:
-        return {"reachable": True, "message": "Reachable at %s (web port 80 responded; UDP probe sent to %d)." % (ip, port)}
+        return {"reachable": True, "message": "Reachable at %s (the device answered; UDP probe sent to %d)." % (ip, port)}
     return {"reachable": False, "message": "Could not reach %s on port 80. %s Check power, network/subnet, and the IP." % (ip, detail)}
 
 

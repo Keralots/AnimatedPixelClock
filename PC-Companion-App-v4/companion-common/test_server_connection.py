@@ -56,5 +56,34 @@ class ConnectionTests(unittest.TestCase):
             self.assertIsNone(saved, bad)
 
 
+class ReachabilityTests(unittest.TestCase):
+    """The probe must issue a real request: a bare connect stalls the device's
+    render loop for ~150ms while its web server waits for a request line."""
+
+    def test_probe_requests_a_page(self):
+        with patch.object(server, "urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value.read.return_value = b"{}"
+            reachable, detail = server.device_reachable("192.168.0.153")
+        self.assertTrue(reachable)
+        self.assertEqual(detail, "")
+        self.assertIn("http://192.168.0.153/api/status", urlopen.call_args[0][0])
+
+    def test_http_error_still_counts_as_reachable(self):
+        with patch.object(server, "urlopen", side_effect=server.HTTPError(
+                "u", 404, "nf", {}, None)):
+            self.assertEqual(server.device_reachable("192.168.0.153")[0], True)
+
+    def test_unreachable_reports_detail(self):
+        with patch.object(server, "urlopen", side_effect=OSError("no route")):
+            reachable, detail = server.device_reachable("192.168.0.153")
+        self.assertFalse(reachable)
+        self.assertIn("no route", detail)
+
+    def test_empty_address_is_not_probed(self):
+        with patch.object(server, "urlopen") as urlopen:
+            self.assertFalse(server.device_reachable("")[0])
+        urlopen.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -160,11 +160,7 @@ def _monitor_loop():
             _state.set_monitoring(False)
             if time.time() - last_reach_check >= 10:
                 last_reach_check = time.time()
-                try:
-                    with socket.create_connection((cfg["esp32_ip"], 80), timeout=0.5):
-                        _state.set_reachable(True)
-                except OSError:
-                    _state.set_reachable(False)
+                _state.set_reachable(srv.device_reachable(cfg["esp32_ip"])[0])
             _stop.wait(1.0)
             continue
         _state.set_monitoring(True)
@@ -192,11 +188,7 @@ def _monitor_loop():
         # Light reachability probe for the status readout (every ~10s).
         if now - last_reach_check >= 10:
             last_reach_check = now
-            try:
-                with socket.create_connection((cfg["esp32_ip"], 80), timeout=0.5):
-                    _state.set_reachable(True)
-            except OSError:
-                _state.set_reachable(False)
+            _state.set_reachable(srv.device_reachable(cfg["esp32_ip"])[0])
 
         # Pace on a deadline, not a fixed sleep: sleeping the full interval after
         # the work made the real period `work + interval` (a 1s setting sent every

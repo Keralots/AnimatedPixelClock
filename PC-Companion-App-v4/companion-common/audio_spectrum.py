@@ -53,6 +53,70 @@ AUTO_STOP_DELAY = 20.0
 AUTO_GAP_S = 1.0         # quiet gaps shorter than this do not re-arm
 SILENT_DB = -120.0
 
+# Packets go out from the capture thread, so the audio device sets the cadence
+# (exactly one block per 40ms). Timer-paced sending is NOT usable here: Windows
+# waits round up to the ~15.6ms tick, giving ~46ms periods that fall behind
+# capture and drop frames. A watchdog thread only fills gaps - it repeats, then
+# fades, the last frame when capture stalls, so a busy CPU costs smoothness
+# rather than blanking the display to "No audio" (the device's timeout is 10s).
+GAP_S = 0.12             # no packet for this long: the watchdog steps in
+HOLD_S = 0.5             # repeat the last frame this long before fading it
+STALL_DECAY = 0.85       # per watchdog packet once fading
+GIVE_UP_S = 6.0          # capture dead this long: stop sending, let the device say so
+RETRY_WAITS = (0.25, 0.5, 1.0, 3.0)
+
+
+def frame_action(age_s):
+    """What the pacer does when no new frame is queued, by age of the last one."""
+    if age_s <= HOLD_S:
+        return "hold"
+    if age_s < GIVE_UP_S:
+        return "decay"
+    return "stop"
+
+
+def boost_thread_priority():
+    """Windows: put this thread on MMCSS "Pro Audio" scheduling and lift its
+    priority, the same treatment media players give their audio threads, so a
+    busy CPU (a compile, a game loading) cannot starve capture into dropped
+    blocks. Returns the MMCSS handle: keep it alive for the thread's lifetime,
+    dropping it reverts the scheduling. No-op elsewhere and on failure."""
+    handle = None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        avrt = ctypes.WinDLL("avrt")
+        avrt.AvSetMmThreadCharacteristicsW.restype = wintypes.HANDLE
+        avrt.AvSetMmThreadCharacteristicsW.argtypes = [wintypes.LPCWSTR,
+                                                       ctypes.POINTER(wintypes.DWORD)]
+        task_index = wintypes.DWORD(0)
+        handle = avrt.AvSetMmThreadCharacteristicsW("Pro Audio",
+                                                    ctypes.byref(task_index)) or None
+        kernel32 = ctypes.windll.kernel32
+        # Declare the handle types: left to ctypes' defaults the 64-bit
+        # pseudo-handle overflows an int and the call never happens.
+        kernel32.GetCurrentThread.restype = wintypes.HANDLE
+        kernel32.SetThreadPriority.argtypes = [wintypes.HANDLE, ctypes.c_int]
+        kernel32.SetThreadPriority(kernel32.GetCurrentThread(), 2)  # HIGHEST
+    except Exception:
+        pass
+    return handle
+
+
+def boost_process_priority():
+    """Windows: ABOVE_NORMAL for the app while it is streaming. It is idle
+    between 40ms blocks, so this costs nothing and keeps the audio path ahead
+    of ordinary background work."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel32.SetPriorityClass(kernel32.GetCurrentProcess(), 0x00008000)
+    except Exception:
+        pass
+
 
 def clamp_auto(threshold_db, start_delay, stop_delay):
     """Clamp auto-start settings to the ranges the UI offers."""
@@ -127,6 +191,11 @@ class SpectrumStreamer(threading.Thread):
         self.last_level_db = SILENT_DB
         self.auto = VizAutoTrigger()
         self.auto_error = ""
+        self.stalls = 0
+        self._capture_mmcss = None   # MMCSS handles: kept alive, not inspected
+        self._watchdog_mmcss = None
+        self._last_bands = None   # newest frame, reused by the watchdog
+        self._last_frame_at = 0.0
 
         # Precompute the window and the FFT-bin span of each log band.
         self._window = np.hanning(FRAMES).astype(np.float32)
@@ -197,7 +266,48 @@ class SpectrumStreamer(threading.Thread):
             return SILENT_DB
         return max(SILENT_DB, 20.0 * np.log10(rms))
 
+    def _send_bands(self, bands):
+        with self._lock:
+            target = (self._ip, self._port)
+        if not target[0]:
+            return
+        try:
+            self._sock.sendto(b"FFT1" + bands.astype(np.uint8).tobytes(), target)
+            self.last_sent = time.time()
+        except OSError:
+            pass
+
+    def _watchdog(self):
+        """Cover gaps the capture thread cannot fill. Silent while capture keeps
+        up, because then a packet has always just gone out."""
+        self._watchdog_mmcss = boost_thread_priority()
+        holding = False
+        while not self._stop.is_set():
+            self._stop.wait(GAP_S / 2.0)
+            now = time.time()
+            with self._lock:
+                bands = self._last_bands
+                last_frame_at = self._last_frame_at
+            if bands is None or now - self.last_sent < GAP_S:
+                holding = False
+                continue
+            action = frame_action(now - last_frame_at)
+            if action == "stop":
+                continue
+            if not holding:
+                holding = True
+                self.stalls += 1
+            if action == "decay":
+                bands = bands * STALL_DECAY
+                with self._lock:
+                    self._last_bands = bands
+            self._send_bands(bands)
+
     def run(self):
+        self._capture_mmcss = boost_thread_priority()
+        threading.Thread(target=self._watchdog, daemon=True,
+                         name="audio-watchdog").start()
+        attempt = 0
         while not self._stop.is_set():
             try:
                 # Re-resolve the default output each (re)open, so switching
@@ -206,23 +316,21 @@ class SpectrumStreamer(threading.Thread):
                 mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
                 blocks_since_check = 0
                 with mic.recorder(samplerate=RATE, blocksize=FRAMES) as rec:
+                    attempt = 0
                     while not self._stop.is_set():
                         data = rec.record(numframes=FRAMES)
                         mono = data.mean(axis=1) if data.ndim > 1 else data
                         mono = mono.astype(np.float32)
                         bands = self._process_block(mono)
-                        self.last_level_db = self._block_level_db(mono)
+                        level = self._block_level_db(mono)
+                        self.last_level_db = level
                         with self._lock:
-                            target = (self._ip, self._port)
-                            action = self.auto.feed(self.last_level_db,
-                                                    time.time())
+                            self._last_bands = bands.astype(np.float32)
+                            self._last_frame_at = time.time()
+                            action = self.auto.feed(level, self._last_frame_at)
+                        self._send_bands(bands)
                         if action:
                             self._send_mode(action)
-                        try:
-                            self._sock.sendto(b"FFT1" + bands.tobytes(), target)
-                            self.last_sent = time.time()
-                        except OSError:
-                            pass
                         # Every ~10s, check whether the default output moved.
                         blocks_since_check += 1
                         if blocks_since_check >= 250:
@@ -234,8 +342,9 @@ class SpectrumStreamer(threading.Thread):
                                 break
             except Exception as e:
                 self.last_error = str(e)
-                # Capture device busy/missing - retry without spinning.
-                self._stop.wait(3.0)
+                # Capture device busy/missing: retry fast first, back off after.
+                self._stop.wait(RETRY_WAITS[min(attempt, len(RETRY_WAITS) - 1)])
+                attempt += 1
         with self._lock:
             release = self.auto.release()
         if release:
@@ -274,6 +383,7 @@ def ensure(config):
         if _streamer is not None and not _streamer.is_alive():
             _streamer = None
         if want and _streamer is None:
+            boost_process_priority()
             _streamer = SpectrumStreamer(ip, port)
             _streamer.set_auto(*auto)
             _streamer.start()
@@ -299,6 +409,7 @@ def status():
         running = _streamer is not None and _streamer.is_alive()
         sending = running and (time.time() - _streamer.last_sent) < 2.0
         err = _streamer.last_error if _streamer is not None else ""
+        stalls = _streamer.stalls if _streamer is not None else 0
         auto_on = running and _streamer.auto.enabled
         forced = running and _streamer.auto.forced
         level = _streamer.last_level_db if running else SILENT_DB
@@ -313,4 +424,5 @@ def status():
         "audioVizForced": forced,
         "audioVizLevel": round(float(level), 1),
         "audioVizAutoError": auto_err,
+        "audioVizStalls": stalls,
     }

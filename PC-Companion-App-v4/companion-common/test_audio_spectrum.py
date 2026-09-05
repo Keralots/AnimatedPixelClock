@@ -93,5 +93,26 @@ class AutoTriggerTests(unittest.TestCase):
             (True, -55.0, 5.0, 90.0))
 
 
+class PacerTests(unittest.TestCase):
+    def test_short_gaps_hold_the_last_frame(self):
+        self.assertEqual(audio.frame_action(0.0), "hold")
+        self.assertEqual(audio.frame_action(audio.HOLD_S), "hold")
+
+    def test_longer_gaps_fade_the_last_frame(self):
+        self.assertEqual(audio.frame_action(audio.HOLD_S + 0.01), "decay")
+        self.assertEqual(audio.frame_action(audio.GIVE_UP_S - 0.01), "decay")
+
+    def test_dead_capture_stops_sending(self):
+        self.assertEqual(audio.frame_action(audio.GIVE_UP_S), "stop")
+        self.assertEqual(audio.frame_action(60.0), "stop")
+
+    def test_decay_reaches_silence_before_giving_up(self):
+        level = 255.0
+        ticks = int((audio.GIVE_UP_S - audio.HOLD_S) / audio.GAP_S)
+        for _ in range(ticks):
+            level *= audio.STALL_DECAY
+        self.assertLess(level, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()
