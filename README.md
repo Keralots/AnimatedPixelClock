@@ -29,6 +29,7 @@ sent by a desktop companion app.
 | ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | 5V power | Two options - see below |
+| Panel joiner (optional) | 3D-printable bracket that locks the two panels into one flat 128x64 frame: [MakerWorld model 3264534](https://makerworld.com/en/models/3264534) |
 
 The tested build runs directly from the ESP32's 3.3V GPIO signals. Keep signal
 wires short; the [wiring guide](docs/HUB75_WIRING.md) covers optional buffers if
@@ -226,7 +227,26 @@ seconds the display falls back to automatic display selection: PC stats while
 the companion is online, otherwise the scheduled ambient effect or clock. The
 visualizer returns automatically when the stream resumes.
 
-## Building and flashing
+## Flashing
+
+### Web flasher (recommended)
+
+Open **[pixelclock.stolaris.dev](https://pixelclock.stolaris.dev)** in Chrome or Edge
+on a desktop, pick your board, plug it in over USB and press Install. It flashes a
+prebuilt firmware image straight from the browser, then walks you through joining
+WiFi and connecting the PC companion. Nothing to install, no PlatformIO, no drivers
+beyond the ones your OS already ships.
+
+Board choices on that page:
+
+- **ESP32-S3-Zero / Super Mini (4MB)** - the compact build. Native USB: if the serial
+  port never appears, hold BOOT while plugging the board in.
+- **ESP32-S3-WROOM devkit (16MB)** - the full-size devkit; its larger flash also
+  enables the custom-GIF ambient effect.
+
+The same page has a serial log viewer, useful if the display stays dark after a flash.
+
+### Building from source
 
 Built with [PlatformIO](https://platformio.org/).
 
@@ -253,7 +273,8 @@ patterns, useful for verifying wiring before flashing the full firmware.
 With no saved WiFi credentials, the device opens an access point named
 **PixelClock-Setup** (passwordless by default). Join it
 and a captive portal (or `192.168.4.1`) lets you enter your WiFi credentials.
-Improv-Serial provisioning over USB is also supported.
+Improv-Serial provisioning over USB is also supported, which is what the web
+flasher uses to hand over your network right after installing.
 
 ### OTA updates
 
