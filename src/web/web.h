@@ -26,6 +26,7 @@ void setupWebServer();
 void handleRoot();
 void handlePortalCss();
 void handlePortalJs();
+void handleFavicon();
 void handleSave();
 void handleReset();
 void handleMetricsAPI();

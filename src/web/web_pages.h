@@ -1,15 +1,23 @@
 // AUTO-GENERATED page template. See src/web/web.cpp (handleRoot/streamTemplate).
 // Redesigned "paper docs" config portal (master-detail layout).
 //
-// Three PROGMEM blobs:
+// Four PROGMEM blobs:
 //   PAGE_HTML  - markup + %TOKEN% placeholders, streamed/substituted by handleRoot().
 //   PORTAL_CSS - styles, served verbatim from /portal.css (no tokens, long cache).
 //   PORTAL_JS  - interactions, served verbatim from /portal.js (no tokens, long cache).
+//   FAVICON_SVG - brand mark, served from /favicon.svg and /favicon.ico.
 //
 // Keeping CSS/JS on their own cacheable routes leaves PAGE_HTML small so peak
 // heap during the token-substituted render stays low on the ESP32-C3.
 #pragma once
 #include <Arduino.h>
+
+// ============================================================================
+//  FAVICON_SVG - the topbar brand mark (.brand-mark) as a standalone icon.
+// ============================================================================
+static const char FAVICON_SVG[] PROGMEM =
+    R"ICO(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#1f8a5b"/><g fill="#fff"><rect x="7.5" y="7.5" width="5.5" height="5.5"/><rect x="15" y="15" width="5.5" height="5.5"/><rect x="15" y="7.5" width="5.5" height="5.5" opacity=".55"/><rect x="7.5" y="15" width="5.5" height="5.5" opacity=".55"/></g></svg>)ICO";
+
 
 // ============================================================================
 //  PAGE_HTML - the only document with %TOKEN% placeholders (resolvePlaceholder).
@@ -22,6 +30,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 <title>AnimatedPixelClock - Config Portal v%VER%</title>
 <meta name="theme-color" content="#f4f0e7">
 <script>(function(){try{var a=localStorage.getItem('soled_accent');if(a)document.documentElement.setAttribute('data-accent',a);var m=localStorage.getItem('soled_mode');if(m){document.documentElement.setAttribute('data-mode',m);var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute('content',m==='dark'?'#161512':'#f4f0e7');}}catch(e){}})();</script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/portal.css?v=%ASSETVER%">
 </head>
 <body>

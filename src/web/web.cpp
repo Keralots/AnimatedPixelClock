@@ -51,6 +51,8 @@ void setupWebServer() {
  server.on("/", handleRoot);
  server.on("/portal.css", HTTP_GET, handlePortalCss);
  server.on("/portal.js", HTTP_GET, handlePortalJs);
+ server.on("/favicon.svg", HTTP_GET, handleFavicon);
+ server.on("/favicon.ico", HTTP_GET, handleFavicon);
  server.on("/save", HTTP_POST, handleSave);
  server.on("/reset", handleReset);
  server.on("/metrics", handleMetricsAPI);
@@ -1202,6 +1204,10 @@ void handlePortalCss() {
 
 void handlePortalJs() {
   streamStatic(PORTAL_JS, sizeof(PORTAL_JS) - 1, "application/javascript");
+}
+
+void handleFavicon() {
+  streamStatic(FAVICON_SVG, sizeof(FAVICON_SVG) - 1, "image/svg+xml");
 }
 
 // Parse an "HH:MM" time-input value into hour (0-23) + minute (0-59). Returns
