@@ -1,0 +1,9 @@
+# Release manifests must stay LF in the working tree as well as in the repo:
+# sha256sum -c cannot open a filename that carries a trailing CR, and these
+# files are uploaded as release assets straight from a checkout.
+SHA256SUMS.txt text eol=lf
+docs/firmware/latest/VERSION text eol=lf
+
+# Release payloads are binary; never convert line endings inside them.
+*.bin -text
+*.exe -text
