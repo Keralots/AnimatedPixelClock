@@ -130,6 +130,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="11" %SEL_CLOCKSTYLE_11%>Dino Runner</option>
                   <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
                   <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
+                  <option value="15" %SEL_CLOCKSTYLE_15%>Bomberman</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Custom rotation</option>
                 </select>
               </div>
@@ -1695,8 +1696,9 @@ return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
 }
 
 var cycleInput = $('#cycleConfig'), cycleRows = $('#cycleRows');
-var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather'};
+var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather',15:'Bomberman'};
 var cycleItems = cycleInput.value.split(',').map(function(v) { var p=v.split(':'); return {id:Number(p[0]),seconds:Number(p[1]),enabled:Number(p[1])>0}; });
+if (!cycleItems.some(function(v){return v.id===15;})) cycleItems.push({id:15,seconds:300,enabled:false});
 function saveCycle() { cycleInput.value=cycleItems.map(function(v){return v.id+':'+(v.enabled?v.seconds:0);}).join(','); cycleInput.dispatchEvent(new Event('change',{bubbles:true})); }
 function drawCycle() {
  cycleRows.innerHTML='';

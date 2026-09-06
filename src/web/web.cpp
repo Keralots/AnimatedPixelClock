@@ -291,16 +291,16 @@ void handleModeViz() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"viz\"}");
 }
 
-// GET /api/clock/style?id=0-14 - switch the active clock animation
+// GET /api/clock/style?id=0-15 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
-   server.send(400, "application/json", "{\"error\":\"Missing id (0-14)\"}");
+   server.send(400, "application/json", "{\"error\":\"Missing id (0-15)\"}");
    return;
  }
  int id = server.arg("id").toInt();
- if (id < 0 || id > 14) {
-   server.send(400, "application/json", "{\"error\":\"id must be 0-14\"}");
+ if (id < 0 || id > 15) {
+   server.send(400, "application/json", "{\"error\":\"id must be 0-15\"}");
    return;
  }
  settings.clockStyle = (uint8_t)id;
@@ -686,7 +686,7 @@ static String buildColorRows(int style) {
 
 // The per-style time-digit + colon color row (slot COL_DIGITS_S0 + style).
 static String buildDigitRow(int style) {
-  return colorInputRow((uint8_t)(COL_DIGITS_S0 + style), "Time digits + colon");
+  return colorInputRow((uint8_t)(style == 15 ? COL_DIGITS_S15 : COL_DIGITS_S0 + style), "Time digits + colon");
 }
 
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
@@ -704,7 +704,7 @@ static const StyleCard STYLE_CARDS[] = {
 // Clock styles that appear in the style selector, each shown a per-style digit
 // color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
 // has no picker; its digit slot still exists and defaults to white.)
-static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
 // The single per-page "Colors" card on the Clock page: the selected style's sprite
 // rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
@@ -838,6 +838,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_15")) { out = String(settings.clockStyle == 15 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
   if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
@@ -1734,7 +1735,7 @@ void handleSave() {
  }
 
  // Validate settings bounds before saving
- assertBounds(settings.clockStyle, 0, 14, "clockStyle");
+ assertBounds(settings.clockStyle, 0, 15, "clockStyle");
  assertBounds(settings.gmtOffset, -720, 840, "gmtOffset"); // -12h to +14h in minutes
  assertBounds(settings.clockPosition, 0, 2, "clockPosition");
  assertBounds(settings.displayRowMode, 0, 3, "displayRowMode");
