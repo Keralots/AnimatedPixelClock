@@ -15,6 +15,8 @@
 #include <WiFiClientSecure.h>
 
 #include "../config/config.h"
+#include "../clocks/cycle_config.h"
+#include "../network/network.h"
 
 #define WEATHER_FETCH_INTERVAL_MS (10UL * 60UL * 1000UL)
 #define WEATHER_RETRY_INTERVAL_MS (60UL * 1000UL)
@@ -28,6 +30,18 @@ bool weatherConfigured() {
   // 0,0 (middle of the Atlantic) doubles as the "unset" marker.
   return settings.weatherEnabled &&
          !(settings.weatherLat == 0 && settings.weatherLon == 0);
+}
+
+// The TLS handshake is the largest allocation this firmware makes, so it only
+// runs when a screen can actually show the result.
+static bool weatherOnScreen() {
+  if (settings.clockStyle == 14) return true;
+  if (settings.clockStyle != 9) return false;
+  CycleEntry entries[CYCLE_COUNT];
+  if (!parseCycleConfig(settings.cycleConfig, entries)) return true;
+  for (unsigned i = 0; i < CYCLE_COUNT; ++i)
+    if (entries[i].style == 14 && entries[i].seconds) return true;
+  return false;
 }
 
 WeatherData getWeather() {
@@ -87,7 +101,7 @@ static bool fetchWeather() {
   }
 
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, http.getString());
+  DeserializationError err = deserializeJson(doc, http.getStream());
   http.end();
   if (err) {
     Serial.printf("Weather JSON error: %s\n", err.c_str());
@@ -113,6 +127,7 @@ static bool fetchWeather() {
   portENTER_CRITICAL(&weatherMux);
   published = fresh;
   portEXIT_CRITICAL(&weatherMux);
+  netMarkOutboundOk();
 
   Serial.printf("Weather: %.1fC code %d (RH %d%%)\n", fresh.tempC,
                 fresh.weatherCode, fresh.humidity);
@@ -121,7 +136,8 @@ static bool fetchWeather() {
 
 static void weatherTask(void*) {
   for (;;) {
-    if (!weatherConfigured() || WiFi.status() != WL_CONNECTED) {
+    if (!weatherConfigured() || !weatherOnScreen() ||
+        WiFi.status() != WL_CONNECTED) {
       ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(WEATHER_IDLE_POLL_MS));
       continue;
     }

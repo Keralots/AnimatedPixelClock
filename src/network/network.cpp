@@ -11,6 +11,8 @@
 #include "../viz/visualizer.h"
 #include "improv_setup.h"
 #include <Preferences.h>
+#include <esp_wifi.h>
+#include "ping/ping_sock.h"
 
 #if QR_SETUP_ENABLED
 #include "qrcode.h"
@@ -288,6 +290,152 @@ void initNTP() {
   }
 }
 
+// ========== Link Health ==========
+// WiFi.status() stays WL_CONNECTED even when the stack moves no traffic at all,
+// so the association record and a gateway ping decide instead.
+
+#define NET_IDLE_BEFORE_PROBE_MS 120000UL
+#define NET_PROBE_RETRY_MS 60000UL
+#define NET_PROBE_FAILS_BEFORE_RECOVERY 2
+#define NET_REBOOT_AFTER_MS 360000UL
+
+static uint32_t netLastHttpMs = 0;
+static uint32_t netLastTrafficMs = 0;
+static uint32_t netBadSinceMs = 0;
+static uint32_t netLastRecoverMs = 0;
+static uint32_t netNextProbeMs = 0;
+static uint32_t netHttpCount = 0;
+static uint32_t netRecoverCount = 0;
+static uint8_t netProbeFails = 0;
+static const char* netRecoverReason = "";
+static esp_ping_handle_t netPing = nullptr;
+static volatile bool netPingReplied = false;
+static volatile bool netPingDone = false;
+
+static void netMarkAlive() {
+  netLastTrafficMs = millis();
+  netBadSinceMs = 0;
+  netProbeFails = 0;
+}
+
+void netMarkHttp() {
+  netHttpCount++;
+  netLastHttpMs = millis();
+  netMarkAlive();
+}
+
+void netMarkInbound() { netMarkAlive(); }
+void netMarkOutboundOk() { netMarkAlive(); }
+
+uint32_t netHttpServed() { return netHttpCount; }
+uint32_t netSecsSinceHttp() { return netLastHttpMs ? (millis() - netLastHttpMs) / 1000 : 0; }
+uint32_t netSecsSinceTraffic() { return (millis() - netLastTrafficMs) / 1000; }
+uint32_t netRecoveryCount() { return netRecoverCount; }
+const char* netLastRecoveryReason() { return netRecoverReason; }
+
+static void netPingSuccess(esp_ping_handle_t, void*) { netPingReplied = true; }
+static void netPingEnd(esp_ping_handle_t, void*) { netPingDone = true; }
+
+static void netPingRelease() {
+  if (!netPing) return;
+  esp_ping_stop(netPing);
+  esp_ping_delete_session(netPing);
+  netPing = nullptr;
+}
+
+static bool netStartProbe() {
+  if (netPing) return false;
+  uint32_t gw = (uint32_t)WiFi.gatewayIP();
+  if (!gw) return false;
+
+  esp_ping_config_t cfg;
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.count = 3;
+  cfg.interval_ms = 300;
+  cfg.timeout_ms = 1000;
+  cfg.data_size = 16;
+  cfg.ttl = 64;
+  cfg.task_stack_size = 3072;
+  cfg.task_prio = 2;
+  cfg.target_addr.type = IPADDR_TYPE_V4;
+  cfg.target_addr.u_addr.ip4.addr = gw;
+
+  esp_ping_callbacks_t cb;
+  memset(&cb, 0, sizeof(cb));
+  cb.on_ping_success = netPingSuccess;
+  cb.on_ping_end = netPingEnd;
+
+  netPingReplied = false;
+  netPingDone = false;
+  if (esp_ping_new_session(&cfg, &cb, &netPing) != ESP_OK) {
+    netPing = nullptr;
+    return false;
+  }
+  esp_ping_start(netPing);
+  return true;
+}
+
+// Full radio restart. WiFi.reconnect() alone does not recover this state.
+static void netRecover(const char* why) {
+  uint32_t now = millis();
+  if (!netBadSinceMs) netBadSinceMs = now;
+  if (now - netBadSinceMs > NET_REBOOT_AFTER_MS) {
+    Serial.printf("Link dead (%s) despite recovery, restarting\n", why);
+    Serial.flush();
+    delay(100);
+    ESP.restart();
+  }
+
+  netPingRelease();
+  netRecoverReason = why;
+  netRecoverCount++;
+  netProbeFails = 0;
+  netLastRecoverMs = now;
+  netNextProbeMs = now + NET_PROBE_RETRY_MS;
+  netLastTrafficMs = now;
+
+  Serial.printf("Link recovery (%s): restarting WiFi\n", why);
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  delay(200);
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.begin();
+
+  wifiConnected = false;
+  wifiDisconnectTime = now;  // makes the reconnect branch re-init UDP and mDNS
+}
+
+static void netHealthTick() {
+  uint32_t now = millis();
+  if (!netLastTrafficMs) netLastTrafficMs = now;
+  bool cooling = (now - netLastRecoverMs) < NET_PROBE_RETRY_MS;
+
+  wifi_ap_record_t ap;
+  if (esp_wifi_sta_get_ap_info(&ap) != ESP_OK) {
+    if (!cooling) netRecover("no AP association");
+    return;
+  }
+
+  if (netPing) {
+    if (!netPingDone) return;
+    bool replied = netPingReplied;
+    netPingRelease();
+    netNextProbeMs = now + NET_PROBE_RETRY_MS;
+    if (replied) {
+      netMarkAlive();
+    } else if (++netProbeFails >= NET_PROBE_FAILS_BEFORE_RECOVERY && !cooling) {
+      netRecover("gateway unreachable");
+    }
+    return;
+  }
+
+  if (now - netLastTrafficMs < NET_IDLE_BEFORE_PROBE_MS) return;
+  if ((int32_t)(now - netNextProbeMs) < 0) return;
+  netNextProbeMs = now + NET_PROBE_RETRY_MS;
+  netStartProbe();
+}
+
 // ========== WiFi Reconnection Handling ==========
 // Reconnection interval in milliseconds (try every 30 seconds)
 #define WIFI_RECONNECT_INTERVAL 30000
@@ -329,7 +477,10 @@ void handleWiFiReconnection() {
       udp.stop();         // Re-initialize UDP socket (old fd is stale)
       udp.begin(UDP_PORT);
       initMDNS();         // Re-register mDNS after reconnection
+      netMarkOutboundOk();
     }
+
+    netHealthTick();
   }
 }
 
@@ -337,6 +488,7 @@ void handleWiFiReconnection() {
 void handleUDP() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
+    netMarkInbound();
     static char buffer[2048];
 
     // Check size BEFORE reading to avoid processing truncated data

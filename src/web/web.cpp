@@ -30,6 +30,9 @@
 #include <esp_system.h>
 #include "../clocks/cycle_config.h"
 static String lastAnimationError;
+static bool writeAllGuarded(int sock, const char* data, size_t len, uint32_t totalDeadline);
+static void sendJsonGuarded(int code, const String& json);
+
 // ========== Web Server Object ==========
 WebServer server(80);
 
@@ -95,6 +98,7 @@ void setupWebServer() {
  ESP.restart();
  }, []() {
  HTTPUpload& upload = server.upload();
+ esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
  if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
@@ -149,8 +153,7 @@ void handleMetricsAPI() {
 
  String json;
  serializeJson(doc, json);
- server.sendHeader("Access-Control-Allow-Origin", "*");
- server.send(200, "application/json", json);
+ sendJsonGuarded(200, json);
 }
 
 // API endpoint to return device info for app discovery
@@ -171,7 +174,10 @@ void handleDeviceInfo() {
  doc["firmwareBytes"] = runningFirmwareBytes;
  doc["otaFreeBytes"] = ESP.getFreeSketchSpace();
  doc["minFreeHeap"] = ESP.getMinFreeHeap();
- doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+ // Internal only: with PSRAM on, MALLOC_CAP_8BIT would report the 2MB block and
+ // hide internal-SRAM pressure, which is what actually breaks WiFi and lwip.
+ doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+ doc["freeInternalHeap"] = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
  doc["resetReason"] = (int)esp_reset_reason();
  doc["animationStorageBytes"] = (uint32_t)animFsTotal();
  doc["animationFreeBytes"] = (uint32_t)animFsFree();
@@ -181,6 +187,14 @@ void handleDeviceInfo() {
  doc["lastAnimationError"] = lastAnimationError;
  doc["pcOnline"] = metricData.online;
  doc["ntpSynced"] = ntpSynced;
+ doc["psramBytes"] = (uint32_t)ESP.getPsramSize();
+ doc["psramFreeBytes"] = (uint32_t)ESP.getFreePsram();
+ doc["wifiStatus"] = (int)WiFi.status();
+ doc["httpServed"] = netHttpServed();
+ doc["secsSinceHttp"] = netSecsSinceHttp();
+ doc["secsSinceTraffic"] = netSecsSinceTraffic();
+ doc["linkRecoveries"] = netRecoveryCount();
+ doc["lastLinkRecovery"] = netLastRecoveryReason();
  WeatherData weather = getWeather();
  doc["weatherValid"] = weather.valid;
  if (weather.valid) doc["weatherAgeSeconds"] = (millis() - weather.fetchedAt) / 1000;
@@ -189,8 +203,7 @@ void handleDeviceInfo() {
 
  String json;
  serializeJson(doc, json);
- server.sendHeader("Access-Control-Allow-Origin", "*");
- server.send(200, "application/json", json);
+ sendJsonGuarded(200, json);
 }
 
 // ========== Runtime Control API ==========
@@ -220,8 +233,7 @@ void handleStatus() {
 
  String json;
  serializeJson(doc, json);
- server.sendHeader("Access-Control-Allow-Origin", "*");
- server.send(200, "application/json", json);
+ sendJsonGuarded(200, json);
 }
 
 // GET /api/display/on - turn the panel back on (restore normal/scheduled brightness)
@@ -470,7 +482,7 @@ void handleAnimList() {
  }
  String json;
  serializeJson(doc, json);
- server.send(200, "application/json", json);
+ sendJsonGuarded(200, json);
 }
 
 // Start an uploaded animation without changing unrelated saved settings.
@@ -1043,6 +1055,22 @@ static bool writeAllGuarded(int sock, const char* data, size_t len, uint32_t tot
   return true;
 }
 
+// Same guarantees as the page stream: bounded blocking, watchdog fed, stalled
+// client dropped. server.send() with a body does none of that.
+static void sendJsonGuarded(int code, const String& json) {
+  netMarkHttp();
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.setContentLength(json.length());
+  server.send(code, "application/json", "");
+  WiFiClient client = server.client();
+  int sock = client.fd();
+  if (sock < 0 ||
+      !writeAllGuarded(sock, json.c_str(), json.length(),
+                       millis() + STREAM_TOTAL_LIMIT_MS)) {
+    client.stop();
+  }
+}
+
 // sendContent() stand-in for the chunked template stream: same chunk framing,
 // bounded blocking. The whole chunk (size line + payload + trailer) goes out
 // as ONE send so the wire sees full segments - writing the tiny framing
@@ -1066,6 +1094,7 @@ static bool sendChunkGuarded(char* frame, size_t payloadLen, uint32_t totalDeadl
 // Literal HTML and resolved values flow through one fixed buffer that is
 // flushed to the client only when full (HTTP chunked transfer).
 static void streamTemplate(const char* tmpl, size_t tmplLen) {
+  netMarkHttp();
   static const size_t BUF_SIZE = 4096;
   // Chunk frame layout: [6B size line][payload, up to BUF_SIZE][2B trailer].
   // sendChunkGuarded() fills the framing in place around the payload.
@@ -1154,6 +1183,7 @@ void handleRoot() {
 // Stream a static PROGMEM asset (CSS/JS) in chunks. These contain no %TOKEN%s,
 // so they are emitted verbatim and cached hard by the browser (fetched once).
 static void streamStatic(const char* data, size_t len, const char* contentType) {
+  netMarkHttp();
   server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
   server.setContentLength(len);
   server.send(200, contentType, "");
@@ -1813,7 +1843,7 @@ void handleSave() {
 
  // Return JSON response for AJAX
  String json = "{\"success\":true,\"networkChanged\":" + String(networkChanged ? "true" : "false") + "}";
- server.send(200, "application/json", json);
+ sendJsonGuarded(200, json);
 
  // If network settings changed, restart after a delay
  if (networkChanged) {
@@ -1845,6 +1875,7 @@ void handleReset() {
 
 // Export configuration as JSON
 void handleExportConfig() {
+ netMarkHttp();
  String json = "{";
 
  // Clock settings

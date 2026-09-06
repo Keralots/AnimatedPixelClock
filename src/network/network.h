@@ -45,6 +45,17 @@ void parseStatsV2(JsonDocument& doc);
 // WiFi reconnection handling
 void handleWiFiReconnection();
 
+// Link health. WiFi.status() can report WL_CONNECTED while the stack moves no
+// traffic at all, so real traffic is tracked and idle links are probed.
+void netMarkHttp();
+void netMarkInbound();
+void netMarkOutboundOk();
+uint32_t netHttpServed();
+uint32_t netSecsSinceHttp();
+uint32_t netSecsSinceTraffic();
+uint32_t netRecoveryCount();
+const char* netLastRecoveryReason();
+
 // Display connection status screens
 void displaySetupInstructions();
 void displayConnecting();
