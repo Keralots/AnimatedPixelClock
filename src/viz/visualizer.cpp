@@ -13,6 +13,7 @@
 #include "../clocks/clocks.h"
 #include "../config/config.h"
 #include "../display/display.h"
+#include <math.h>
 
 #define VIZ_BAR_W 3          // lit pixels per bar (1px gap -> 32 * 4 = 128)
 #define VIZ_MAX_H 56.0f      // px, leaves headroom for the corner clock
@@ -27,6 +28,77 @@ static float barH[VIZ_BANDS];
 static float peakY[VIZ_BANDS];
 static float peakVel[VIZ_BANDS];
 static unsigned long lastVizFrame = 0;
+
+// Fixed-size history: no allocations or filesystem work in the render loop.
+static const int WATERFALL_ROWS = 26;
+static uint8_t waterfall[WATERFALL_ROWS][VIZ_BANDS];
+static int waterfallHead = 0;
+static unsigned long lastWaterfallRow = 0;
+static uint8_t lastStyle = 255;
+
+static uint16_t vizRgb(int r, int g, int b) {
+  return ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+}
+
+static void drawNeonMirror() {
+  const int horizon = settings.vizShowClock ? 36 : 32;
+  if (settings.vizShowClock)
+    display.drawFastHLine(0, horizon, SCREEN_WIDTH, vizRgb(45, 12, 70));
+  for (int i = 0; i < VIZ_BANDS; i++) {
+    int h = (int)(barH[i] * (24.0f / VIZ_MAX_H));
+    int peak = (int)(peakY[i] * (24.0f / VIZ_MAX_H));
+    int x = i * 4;
+    for (int y = 1; y <= h; y++) {
+      if (y % 3 == 0) continue; // Two lit rows, one dark: discrete LED segments.
+      int mix = y * 255 / 24;
+      uint16_t upper = vizRgb(40 + mix * 215 / 255, 235 - mix * 185 / 255, 255);
+      uint16_t lower = vizRgb(100 + mix * 100 / 255, 20 + mix * 30 / 255, 160);
+      display.drawFastHLine(x, horizon - y, VIZ_BAR_W, upper);
+      display.drawFastHLine(x, horizon + y, VIZ_BAR_W, lower);
+    }
+    if (peak > 1) {
+      display.drawFastHLine(x, horizon - peak, VIZ_BAR_W, vizRgb(210, 255, 255));
+      display.drawFastHLine(x, horizon + peak, VIZ_BAR_W, vizRgb(255, 100, 210));
+    }
+  }
+}
+
+static void drawPhosphorWaterfall(unsigned long now, bool stale) {
+  // Wall-clock cadence keeps the trail speed independent of render rate.
+  unsigned long steps = (now - lastWaterfallRow) / 40;
+  if (steps > 0) {
+    lastWaterfallRow = now - (now - lastWaterfallRow) % 40;
+    if (steps > WATERFALL_ROWS) steps = WATERFALL_ROWS;
+    for (unsigned long s = 0; s < steps; s++) {
+      waterfallHead = (waterfallHead + WATERFALL_ROWS - 1) % WATERFALL_ROWS;
+      for (int i = 0; i < VIZ_BANDS; i++) {
+        waterfall[waterfallHead][i] = stale ? 0 : (uint8_t)(barH[i] * (255.0f / VIZ_MAX_H));
+      }
+    }
+  }
+  if (settings.vizShowClock)
+    display.drawFastHLine(0, 10, SCREEN_WIDTH, vizRgb(0, 65, 34));
+  for (int row = 0; row < WATERFALL_ROWS; row++) {
+    int fade = 255 - row * 7;
+    for (int i = 0; i < VIZ_BANDS; i++) {
+      int level = waterfall[(waterfallHead + row) % WATERFALL_ROWS][i];
+      if (level < 5) continue;
+      int r, g, b;
+      if (level < 128) {
+        r = 0; g = level * 2; b = level / 2;
+      } else if (level < 208) {
+        r = (level - 128) * 2; g = 255; b = 64 + (level - 128);
+      } else {
+        r = 255; g = 225 - (level - 208); b = 80 - (level - 208);
+      }
+      uint16_t color = vizRgb(r * fade / 255, g * fade / 255, b * fade / 255);
+      int top = settings.vizShowClock ? 12 : 0;
+      int y = top + row * (SCREEN_HEIGHT - top) / WATERFALL_ROWS;
+      int nextY = top + (row + 1) * (SCREEN_HEIGHT - top) / WATERFALL_ROWS;
+      display.fillRect(i * 4, y, VIZ_BAR_W, nextY - y, color);
+    }
+  }
+}
 
 bool vizIngest(const uint8_t* buf, int len) {
   if (len < VIZ_PACKET_LEN || memcmp(buf, "FFT1", 4) != 0) return false;
@@ -68,6 +140,12 @@ static void drawVizClock() {
 
 void displayVisualizer() {
   unsigned long now = millis();
+  if (settings.vizStyle != lastStyle || now - lastVizFrame > 250) {
+    memset(waterfall, 0, sizeof(waterfall));
+    waterfallHead = 0;
+    lastWaterfallRow = now - 40;
+    lastStyle = settings.vizStyle;
+  }
   float dt = (now - lastVizFrame) / 1000.0f;
   if (dt > 0.1f) dt = 0.1f;
   lastVizFrame = now;
@@ -82,10 +160,12 @@ void displayVisualizer() {
   // the bars sweep through it - the classic EQ look.
   const int lowZone = 28;
   const int midZone = 45;
+  // Preserve the original EQ response; new styles use time-scaled smoothing.
+  float smooth = settings.vizStyle == 0 ? VIZ_SMOOTH : 1.0f - expf(-26.0f * dt);
 
   for (int i = 0; i < VIZ_BANDS; i++) {
     float target = stale ? 0.0f : vizBands[i] * (VIZ_MAX_H / 255.0f);
-    barH[i] += (target - barH[i]) * VIZ_SMOOTH;
+    barH[i] += (target - barH[i]) * smooth;
 
     if (barH[i] >= peakY[i]) {
       peakY[i] = barH[i];
@@ -95,6 +175,8 @@ void displayVisualizer() {
       peakY[i] -= peakVel[i] * dt;
       if (peakY[i] < 0) peakY[i] = 0;
     }
+
+    if (settings.vizStyle == 1 || settings.vizStyle == 2) continue;
 
     int h = (int)barH[i];
     int x = i * 4;
@@ -114,6 +196,9 @@ void displayVisualizer() {
       display.drawFastHLine(x, py, VIZ_BAR_W, cPeak);
     }
   }
+
+  if (settings.vizStyle == 1) drawNeonMirror();
+  if (settings.vizStyle == 2) drawPhosphorWaterfall(now, stale);
 
   if (stale) {
     display.setTextSize(1);

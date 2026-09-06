@@ -803,17 +803,23 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
           <div class="card">
             <h2 class="card-title">Audio visualizer</h2>
-            <p class="field-hint" style="margin-top:0">32-band spectrum bars driven by your PC's sound. Needs the companion app running with its <strong>Audio visualizer</strong> option enabled.</p>
+            <p class="field-hint" style="margin-top:0">Retro effects driven by your PC's sound. Needs the companion app running with its <strong>Audio visualizer</strong> option enabled.</p>
+            <div class="field">
+              <label class="field-label" for="vizStyle">Visualizer style</label>
+              <div class="select-wrap"><select name="vizStyle" id="vizStyle">%OPT_VIZSTYLE%</select></div>
+              <p class="field-hint">Classic EQ: original bars. Neon Mirror: cyan and magenta pulses. Phosphor Waterfall: scrolling green and amber trails. Save settings to apply.</p>
+            </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
               <button type="button" class="btn" id="vizStartBtn">Start visualizer</button>
               <button type="button" class="btn" id="vizStopBtn">Stop / back to normal</button>
             </div>
-            <p class="field-hint" id="vizRunStatus">Shows the bars until you stop it; falls back to the clock if the audio stream stops for 10s (and returns when it resumes).</p>
+            <p class="field-hint" id="vizRunStatus">Runs until you stop it; returns to normal mode if the audio stream stops for 10s (and resumes when the stream returns).</p>
             <label class="check-row standalone" style="margin-top:12px">
               <input type="checkbox" name="vizShowClock" id="vizShowClock" %CHK_VIZSHOWCLOCK%>
               <span class="check-box" aria-hidden="true"></span>
               <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner over the bars.</span></span>
             </label>
+            <p class="field-hint">Colors below apply to Classic EQ. The retro styles use their own palettes.</p>
             <div style="margin-top:8px">%COLOR_VIZ%</div>
           </div>
 

@@ -41,6 +41,8 @@ bool animFsUsable();
 
 size_t animFsFree();
 size_t animFsTotal();
+// Refresh after storage mutations only; status/render paths use cached values.
+void animFsRefresh();
 
 // Strict basename check: [A-Za-z0-9_-]{1,24}, no path parts, no extension.
 bool animValidName(const char* name);

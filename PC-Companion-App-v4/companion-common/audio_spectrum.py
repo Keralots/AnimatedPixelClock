@@ -18,7 +18,10 @@ install them). Everything is managed through ensure(config), which the
 server calls after any config change and app_window calls at startup.
 """
 
+import json
 import socket
+import sys
+from contextlib import contextmanager
 import threading
 import time
 from urllib.request import urlopen
@@ -118,6 +121,42 @@ def boost_process_priority():
         pass
 
 
+@contextmanager
+def audio_thread_com():
+    """COM belongs to the calling thread, not the SoundCard import thread."""
+    ole32 = None
+    initialized = False
+    if sys.platform == "win32":
+        import ctypes
+        ole32 = ctypes.OleDLL("ole32")
+        ole32.CoInitializeEx.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        ole32.CoInitializeEx.restype = ctypes.c_long
+        ole32.CoUninitialize.argtypes = []
+        ole32.CoUninitialize.restype = None
+        try:
+            result = ole32.CoInitializeEx(None, 0)  # COINIT_MULTITHREADED
+            initialized = result in (0, 1)  # S_OK and S_FALSE both need balancing
+        except OSError as error:
+            if (error.winerror & 0xffffffff) != 0x80010106:
+                raise
+            # Already initialized in a different apartment by the host.
+    try:
+        yield
+    finally:
+        if initialized:
+            ole32.CoUninitialize()
+
+
+def release_thread_priority(handle):
+    if handle:
+        import ctypes
+        from ctypes import wintypes
+        avrt = ctypes.WinDLL("avrt")
+        avrt.AvRevertMmThreadCharacteristics.argtypes = [wintypes.HANDLE]
+        avrt.AvRevertMmThreadCharacteristics.restype = wintypes.BOOL
+        avrt.AvRevertMmThreadCharacteristics(handle)
+
+
 def clamp_auto(threshold_db, start_delay, stop_delay):
     """Clamp auto-start settings to the ranges the UI offers."""
     return (min(-10.0, max(-80.0, float(threshold_db))),
@@ -184,13 +223,21 @@ class SpectrumStreamer(threading.Thread):
         self._lock = threading.Lock()
         self._ip = ip
         self._port = int(port)
-        self._stop = threading.Event()
+        self._target = None  # Only numeric addresses may reach the capture thread.
+        self._default_device_id = None
+        self._maintenance_wake = threading.Event()
+        self._stop_event = threading.Event()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.last_sent = 0.0
         self.last_error = ""
         self.last_level_db = SILENT_DB
         self.auto = VizAutoTrigger()
         self.auto_error = ""
+        self._mode_pending = None
+        self._mode_revision = 0
+        self._mode_retry_at = 0.0
+        self._device_boot_at = None
+        self._device_viz = False
         self.stalls = 0
         self._capture_mmcss = None   # MMCSS handles: kept alive, not inspected
         self._watchdog_mmcss = None
@@ -210,8 +257,18 @@ class SpectrumStreamer(threading.Thread):
 
     def set_target(self, ip, port):
         with self._lock:
+            if (ip, int(port)) == (self._ip, self._port):
+                return
             self._ip = ip
             self._port = int(port)
+            self._target = None
+            self._mode_revision += 1
+            self._mode_pending = "viz" if self.auto.forced else None
+            self._mode_retry_at = 0.0
+            self.auto_error = ""
+            self._device_boot_at = None
+            self._device_viz = False
+        self._maintenance_wake.set()
 
     def set_auto(self, enabled, threshold_db, start_delay, stop_delay):
         with self._lock:
@@ -221,28 +278,70 @@ class SpectrumStreamer(threading.Thread):
             self._send_mode("auto")
 
     def stop(self):
-        self._stop.set()
+        self._stop_event.set()
+        self._maintenance_wake.set()
 
     def _send_mode(self, mode, blocking=False):
-        """Switch the device's display mode without blocking the capture loop."""
+        """Queue the latest intent; transient wake/network failures are retried."""
         with self._lock:
-            ip = self._ip
-        if not ip:
-            return
-
-        def call():
-            try:
-                with urlopen("http://%s/api/mode/%s" % (ip, mode), timeout=4) as r:
-                    r.read(256)
-                self.auto_error = ""
-            except Exception as err:
-                self.auto_error = "%s: %s" % (mode, err)
-
+            self._mode_revision += 1
+            self._mode_pending = mode
+            self._mode_retry_at = 0.0
         if blocking:
-            call()
+            self._flush_mode()
         else:
-            threading.Thread(target=call, daemon=True,
-                             name="viz-mode-%s" % mode).start()
+            self._maintenance_wake.set()
+
+    def _flush_mode(self):
+        """Only the control worker performs HTTP, serially and outside the lock."""
+        with self._lock:
+            mode = self._mode_pending
+            revision = self._mode_revision
+            ip = self._target[0] if self._target else self._ip
+            if not mode or not ip or time.monotonic() < self._mode_retry_at:
+                return
+        error = ""
+        try:
+            with urlopen("http://%s/api/mode/%s" % (ip, mode), timeout=4) as r:
+                r.read(256)
+        except Exception as err:
+            error = "%s: %s" % (mode, err)
+        with self._lock:
+            if revision != self._mode_revision:
+                return  # A newer intent must not be cleared by this response.
+            self.auto_error = error
+            if error:
+                self._mode_retry_at = time.monotonic() + 2.0
+            else:
+                self._mode_pending = None
+                self._device_viz = mode == "viz"
+
+    def _check_device_restart(self):
+        with self._lock:
+            target = self._target
+            revision = self._mode_revision
+            enabled = self.auto.enabled
+        if not target or not enabled:
+            return
+        try:
+            with urlopen("http://%s/api/status" % target[0], timeout=1.5) as r:
+                state = json.loads(r.read(4096))
+            uptime = state.get("uptime")
+            boot_at = time.monotonic() - uptime if isinstance(uptime, (int, float)) else None
+        except Exception:
+            return  # A network outage alone must not override a manual mode change.
+        with self._lock:
+            if target != self._target or revision != self._mode_revision:
+                return
+            restarted = (boot_at is not None and self._device_boot_at is not None
+                         and boot_at - self._device_boot_at > 3.0)
+            if boot_at is not None:
+                self._device_boot_at = boot_at
+            self._device_viz = bool(state.get("forcedViz"))
+            if restarted and self.auto.forced:
+                self._mode_revision += 1
+                self._mode_pending = "viz"
+                self._mode_retry_at = 0.0
 
     def _process_block(self, mono):
         spec = np.abs(np.fft.rfft(mono * self._window, n=FFT_N))
@@ -268,12 +367,12 @@ class SpectrumStreamer(threading.Thread):
 
     def _send_bands(self, bands):
         with self._lock:
-            target = (self._ip, self._port)
-        if not target[0]:
+            target = self._target
+        if target is None or self._stop_event.is_set():
             return
         try:
             self._sock.sendto(b"FFT1" + bands.astype(np.uint8).tobytes(), target)
-            self.last_sent = time.time()
+            self.last_sent = time.monotonic()
         except OSError:
             pass
 
@@ -281,78 +380,132 @@ class SpectrumStreamer(threading.Thread):
         """Cover gaps the capture thread cannot fill. Silent while capture keeps
         up, because then a packet has always just gone out."""
         self._watchdog_mmcss = boost_thread_priority()
-        holding = False
-        while not self._stop.is_set():
-            self._stop.wait(GAP_S / 2.0)
-            now = time.time()
-            with self._lock:
-                bands = self._last_bands
-                last_frame_at = self._last_frame_at
-            if bands is None or now - self.last_sent < GAP_S:
-                holding = False
-                continue
-            action = frame_action(now - last_frame_at)
-            if action == "stop":
-                continue
-            if not holding:
-                holding = True
-                self.stalls += 1
-            if action == "decay":
-                bands = bands * STALL_DECAY
+        try:
+            holding = False
+            while not self._stop_event.is_set():
+                self._stop_event.wait(GAP_S / 2.0)
+                now = time.monotonic()
                 with self._lock:
-                    self._last_bands = bands
-            self._send_bands(bands)
+                    bands = self._last_bands
+                    last_frame_at = self._last_frame_at
+                if bands is None or not self.last_sent or now - self.last_sent < GAP_S:
+                    holding = False
+                    continue
+                action = frame_action(now - last_frame_at)
+                if action == "stop":
+                    continue
+                if not holding:
+                    holding = True
+                    self.stalls += 1
+                if action == "decay":
+                    bands = bands * STALL_DECAY
+                    with self._lock:
+                        self._last_bands = bands
+                self._send_bands(bands)
+        finally:
+            release_thread_priority(self._watchdog_mmcss)
+
+    def _maintenance(self):
+        """Slow DNS and device enumeration never run between captured blocks."""
+        resolved_for = None
+        resolve_at = check_at = status_at = 0.0
+        with audio_thread_com():
+            while not self._stop_event.is_set():
+                now = time.monotonic()
+                with self._lock:
+                    requested = (self._ip, self._port)
+                if requested != resolved_for or now >= resolve_at:
+                    try:
+                        address = socket.getaddrinfo(*requested, socket.AF_INET,
+                                                     socket.SOCK_DGRAM)[0][4]
+                        with self._lock:
+                            if requested == (self._ip, self._port):
+                                self._target = address
+                        resolved_for = requested
+                        resolve_at = now + 30.0
+                    except OSError:
+                        # Keep the last good address through a transient DNS failure.
+                        resolved_for = requested
+                        resolve_at = now + 2.0
+                if now >= check_at:
+                    try:
+                        device_id = sc.default_speaker().id
+                        with self._lock:
+                            self._default_device_id = device_id
+                    except Exception:
+                        pass  # Keep capture alive if a control-plane query fails.
+                    check_at = now + 10.0
+                if self._stop_event.is_set():
+                    break
+                if now >= status_at:
+                    self._check_device_restart()
+                    status_at = now + 10.0
+                self._flush_mode()
+                self._maintenance_wake.wait(1.0)
+                self._maintenance_wake.clear()
 
     def run(self):
         self._capture_mmcss = boost_thread_priority()
-        threading.Thread(target=self._watchdog, daemon=True,
-                         name="audio-watchdog").start()
+        watchdog = threading.Thread(target=self._watchdog, daemon=True,
+                                    name="audio-watchdog")
+        maintenance = threading.Thread(target=self._maintenance, daemon=True,
+                                       name="audio-device-control")
+        try:
+            with audio_thread_com():
+                watchdog.start()
+                maintenance.start()
+                self._capture_loop()
+        except Exception as error:
+            self.last_error = str(error)
+        finally:
+            self.stop()
+            if watchdog.ident is not None:
+                watchdog.join(timeout=1.0)
+            if maintenance.ident is not None:
+                maintenance.join(timeout=5.0)
+            with self._lock:
+                release = self.auto.release()
+            if release:
+                self._send_mode("auto", blocking=True)
+            self._sock.close()
+            release_thread_priority(self._capture_mmcss)
+
+    def _capture_loop(self):
         attempt = 0
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             try:
                 # Re-resolve the default output each (re)open, so switching
                 # headphones/speakers is picked up on the next reconnect.
                 spk = sc.default_speaker()
-                mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
-                blocks_since_check = 0
+                with self._lock:
+                    self._default_device_id = spk.id
+                mic = sc.get_microphone(id=spk.id, include_loopback=True)
                 with mic.recorder(samplerate=RATE, blocksize=FRAMES) as rec:
                     attempt = 0
-                    while not self._stop.is_set():
+                    while not self._stop_event.is_set():
                         data = rec.record(numframes=FRAMES)
                         mono = data.mean(axis=1) if data.ndim > 1 else data
                         mono = mono.astype(np.float32)
                         bands = self._process_block(mono)
                         level = self._block_level_db(mono)
                         self.last_level_db = level
+                        self.last_error = ""
                         with self._lock:
                             self._last_bands = bands.astype(np.float32)
-                            self._last_frame_at = time.time()
+                            self._last_frame_at = time.monotonic()
                             action = self.auto.feed(level, self._last_frame_at)
                         self._send_bands(bands)
                         if action:
                             self._send_mode(action)
-                        # Every ~10s, check whether the default output moved.
-                        blocks_since_check += 1
-                        if blocks_since_check >= 250:
-                            blocks_since_check = 0
-                            try:
-                                if str(sc.default_speaker().name) != str(spk.name):
-                                    break  # reopen on the new device
-                            except Exception:
-                                break
+                        with self._lock:
+                            default_id = self._default_device_id
+                        if default_id is not None and default_id != spk.id:
+                            break  # Reopen on the new output, without querying here.
             except Exception as e:
                 self.last_error = str(e)
                 # Capture device busy/missing: retry fast first, back off after.
-                self._stop.wait(RETRY_WAITS[min(attempt, len(RETRY_WAITS) - 1)])
+                self._stop_event.wait(RETRY_WAITS[min(attempt, len(RETRY_WAITS) - 1)])
                 attempt += 1
-        with self._lock:
-            release = self.auto.release()
-        if release:
-            self._send_mode("auto", blocking=True)  # hand the display back
-        try:
-            self._sock.close()
-        except Exception:
-            pass
 
 
 _lock = threading.Lock()
@@ -380,6 +533,10 @@ def ensure(config):
     want = bool(config.get("audio_viz")) and bool(ip)
     auto = auto_settings(config)
     with _lock:
+        if _streamer is not None and _streamer._stop_event.is_set():
+            _streamer.join(timeout=2.0)
+            if _streamer.is_alive():
+                return
         if _streamer is not None and not _streamer.is_alive():
             _streamer = None
         if want and _streamer is None:
@@ -392,7 +549,9 @@ def ensure(config):
             _streamer.set_auto(*auto)
         elif not want and _streamer is not None:
             _streamer.stop()
-            _streamer = None
+            _streamer.join(timeout=2.0)
+            if not _streamer.is_alive():
+                _streamer = None
 
 
 def stop_all():
@@ -400,18 +559,20 @@ def stop_all():
     with _lock:
         if _streamer is not None:
             _streamer.stop()
-            _streamer = None
+            _streamer.join(timeout=2.0)
+            if not _streamer.is_alive():
+                _streamer = None
 
 
 def status():
     """Fields merged into /api/status for the web UI."""
     with _lock:
         running = _streamer is not None and _streamer.is_alive()
-        sending = running and (time.time() - _streamer.last_sent) < 2.0
+        sending = running and (time.monotonic() - _streamer.last_sent) < 2.0
         err = _streamer.last_error if _streamer is not None else ""
         stalls = _streamer.stalls if _streamer is not None else 0
         auto_on = running and _streamer.auto.enabled
-        forced = running and _streamer.auto.forced
+        forced = running and _streamer.auto.forced and _streamer._device_viz
         level = _streamer.last_level_db if running else SILENT_DB
         auto_err = _streamer.auto_error if _streamer is not None else ""
     return {

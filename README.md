@@ -242,6 +242,24 @@ With the companion app streaming your PC's sound, the display becomes a 32-band
 spectrum analyzer: smooth bars with a green/yellow/red gradient (colors editable),
 falling peak dots, and an optional small clock in the corner.
 
+Choose **Visualizer style** in the device web UI's **Display -> Audio visualizer**
+card, then **Save settings**:
+
+- **Classic EQ**: the original 32 bars, editable colors and falling peak dots (default).
+- **Neon Mirror**: segmented cyan and magenta bars pulse outward from a central
+  horizon, with bright peak markers for a synthwave look.
+- **Phosphor Waterfall**: a scrolling spectrum history in green, mint and amber,
+  inspired by vintage computer displays. Bass is on the left, treble on the right;
+  new sound enters at the top and fades downward.
+
+The two new styles use fixed retro palettes. All three support the small clock
+and the same companion audio stream. Style selection survives restarts and is
+included in settings export/import; older settings keep Classic EQ by default
+on a fresh device.
+
+Turning **Show small clock** off also hides the fixed guide lines in Neon Mirror
+and Phosphor Waterfall. Waterfall then uses the full display height.
+
 Setup:
 
 1. On the PC: tick **Audio visualizer stream** on the companion's Connection
@@ -274,6 +292,12 @@ Quiet gaps shorter than a second (between tracks, pauses in a song) do not
 restart the start delay, and the companion only releases the display if it was
 the one that switched it. The Connection page shows the current sound level in
 dB, so you can read it while music plays and set the threshold below it.
+
+After a temporary network failure (for example, waking the PC), failed automatic
+mode changes are retried until they succeed or a newer mode replaces them. The
+stream keeps its last resolved device IP through temporary `.local` lookup failures.
+If the clock restarts during playback, automatic mode restores the visualizer
+after detecting its new uptime (checked every 10 seconds).
 
 ## Flashing
 

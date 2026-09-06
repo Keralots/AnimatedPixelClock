@@ -124,6 +124,7 @@ struct Settings {
 
   // Audio spectrum visualizer (forced mode fed by the companion)
   bool vizShowClock;            // Small HH:MM overlay over the bars
+  uint8_t vizStyle;             // 0=Classic EQ, 1=Neon Mirror, 2=Phosphor Waterfall
 
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)

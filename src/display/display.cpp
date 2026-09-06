@@ -60,7 +60,7 @@ static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
   }
 
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
+  if (!getLocalTime(&timeinfo, 0)) {
     return false;
   }
 
@@ -91,7 +91,7 @@ bool isDisplayScheduledOff() {
     return false;
   }
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
+  if (!getLocalTime(&timeinfo, 0)) {
     return false;
   }
   return minuteInWindow(minuteOfDay(timeinfo.tm_hour, timeinfo.tm_min),

@@ -146,6 +146,7 @@ void loadSettings() {
     settings.ambientShowClock = true;
     settings.ambientCustomFile[0] = '\0';
     settings.vizShowClock = true;
+    settings.vizStyle = 0;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -387,6 +388,8 @@ void loadSettings() {
   settings.ambientCustomFile[27] = '\0';
   settings.vizShowClock =
       preferences.getBool("vizClock", true); // Default: Show time
+  settings.vizStyle = preferences.getUChar("vizStyle", 0);
+  if (settings.vizStyle > 2) settings.vizStyle = 0;
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -714,6 +717,7 @@ void saveSettings() {
   preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putString("ambCustom", settings.ambientCustomFile);
   preferences.putBool("vizClock", settings.vizShowClock);
+  preferences.putUChar("vizStyle", settings.vizStyle);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

@@ -11,6 +11,8 @@
 #include <LittleFS.h>
 
 static bool fsMounted = false;
+static size_t fsTotal = 0;
+static size_t fsFree = 0;
 
 void animStoreInit() {
   // format-on-fail: the partition ships unformatted after a plain OTA.
@@ -22,23 +24,27 @@ void animStoreInit() {
   if (!LittleFS.exists(ANIM_DIR)) LittleFS.mkdir(ANIM_DIR);
   // A crashed upload may have left a temp file behind.
   if (LittleFS.exists(ANIM_TMP)) LittleFS.remove(ANIM_TMP);
+  animFsRefresh();
   Serial.printf("AnimStore: %u/%u KiB used%s\n",
-                (unsigned)(LittleFS.usedBytes() / 1024),
-                (unsigned)(LittleFS.totalBytes() / 1024),
+                (unsigned)((fsTotal - fsFree) / 1024),
+                (unsigned)(fsTotal / 1024),
                 animFsUsable() ? "" : " (too small, feature disabled)");
 }
 
 bool animFsUsable() {
-  return fsMounted && LittleFS.totalBytes() >= ANIM_FS_MIN_TOTAL;
+  return fsMounted && fsTotal >= ANIM_FS_MIN_TOTAL;
 }
 
-size_t animFsFree() {
-  if (!fsMounted) return 0;
-  size_t total = LittleFS.totalBytes(), used = LittleFS.usedBytes();
-  return total > used ? total - used : 0;
+void animFsRefresh() {
+  // Both LittleFS queries walk storage on ESP32. Never do this in a status
+  // poll or a playback check: it stalls the shared HTTP/render loop.
+  fsTotal = fsMounted ? LittleFS.totalBytes() : 0;
+  size_t used = fsMounted ? LittleFS.usedBytes() : 0;
+  fsFree = fsTotal > used ? fsTotal - used : 0;
 }
 
-size_t animFsTotal() { return fsMounted ? LittleFS.totalBytes() : 0; }
+size_t animFsFree() { return fsFree; }
+size_t animFsTotal() { return fsTotal; }
 
 bool animValidName(const char* name) {
   if (!name || !name[0]) return false;

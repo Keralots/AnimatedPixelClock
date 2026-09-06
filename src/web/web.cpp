@@ -39,7 +39,12 @@ extern bool httpForceAmbient;
 extern bool httpForceViz;
 
 // ========== Web Server Setup ==========
+static uint32_t runningFirmwareBytes = 0;
+
 void setupWebServer() {
+ // Arduino's getSketchSize verifies the entire flash image. Cache it before
+ // rendering starts, never repeat it in the five-second /api/info poll.
+ runningFirmwareBytes = ESP.getSketchSize();
  server.on("/", handleRoot);
  server.on("/portal.css", HTTP_GET, handlePortalCss);
  server.on("/portal.js", HTTP_GET, handlePortalJs);
@@ -163,7 +168,7 @@ void handleDeviceInfo() {
  doc["build"] = __DATE__ " " __TIME__;
  doc["chip"] = ESP.getChipModel();
  doc["flashBytes"] = ESP.getFlashChipSize();
- doc["firmwareBytes"] = ESP.getSketchSize();
+ doc["firmwareBytes"] = runningFirmwareBytes;
  doc["otaFreeBytes"] = ESP.getFreeSketchSpace();
  doc["minFreeHeap"] = ESP.getMinFreeHeap();
  doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -211,6 +216,7 @@ void handleStatus() {
  doc["brightness"] = (settings.displayBrightness * 100) / 255; // percent
  doc["clockStyle"] = settings.clockStyle;
  doc["pcOnline"] = pcOnline;
+ doc["uptime"] = millis() / 1000;
 
  String json;
  serializeJson(doc, json);
@@ -493,6 +499,7 @@ void handleAnimDelete() {
  }
  ambientCustomInvalidate(); // the player may hold this file open
  LittleFS.remove(animPath(name.c_str()));
+ animFsRefresh();
  server.send(200, "application/json", "{\"success\":true}");
 }
 
@@ -508,6 +515,7 @@ static const char* animUpError = nullptr;
 static void animUploadAbort(const char* why) {
  if (animUpFile) animUpFile.close();
  if (LittleFS.exists(ANIM_TMP)) LittleFS.remove(ANIM_TMP);
+ animFsRefresh();
  if (!animUpError) animUpError = why;
  lastAnimationError = why;
 }
@@ -561,6 +569,7 @@ void handleAnimUploadChunk() {
    String target = animPath(animUpName.c_str());
    // LittleFS rename replaces atomically; keep the old file if replacement fails.
    if (!LittleFS.rename(ANIM_TMP, target)) animUploadAbort("rename failed");
+   else animFsRefresh();
  } else if (upload.status == UPLOAD_FILE_ABORTED) {
    animUploadAbort("upload aborted");
  }
@@ -760,6 +769,13 @@ static bool resolvePlaceholder(const char* n, String& out) {
   // Visualizer bar colors (rows only; the card lives in web_pages.h).
   if (!strcmp(n, "COLOR_VIZ")) { out = buildVizColorRows(); return true; }
   if (!strcmp(n, "CHK_VIZSHOWCLOCK")) { out = String(settings.vizShowClock ? "checked" : ""); return true; }
+  if (!strcmp(n, "OPT_VIZSTYLE")) {
+    const char* names[] = {"Classic EQ", "Neon Mirror", "Phosphor Waterfall"};
+    for (int i = 0; i < 3; i++) {
+      out += "<option value=\"" + String(i) + "\"" + (settings.vizStyle == i ? " selected" : "") + ">" + names[i] + "</option>";
+    }
+    return true;
+  }
 
   // --- Brightness help text and minimum ---
   if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
@@ -1377,6 +1393,10 @@ void handleSave() {
  }
  settings.ambientShowClock = server.hasArg("ambientShowClock");
  settings.vizShowClock = server.hasArg("vizShowClock");
+ if (server.hasArg("vizStyle")) {
+   int style = server.arg("vizStyle").toInt();
+   settings.vizStyle = (style >= 0 && style <= 2) ? style : 0;
+ }
  }
 
  // Save Mario bounce settings
@@ -1853,6 +1873,7 @@ void handleExportConfig() {
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
+ json += "\"vizStyle\":" + String(settings.vizStyle) + ",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -2024,6 +2045,10 @@ void handleImportConfig() {
  }
  }
  if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
+ if (!doc["vizStyle"].isNull()) {
+   int style = doc["vizStyle"].as<int>();
+   settings.vizStyle = (style >= 0 && style <= 2) ? style : 0;
+ }
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];
    if (name && strlen(name) > 0 && strlen(name) <= 31) {

@@ -1,5 +1,8 @@
 """Auto-start decisions: arming delay, short-sound rejection, quiet release."""
 import unittest
+import threading
+from contextlib import contextmanager
+from unittest.mock import Mock, patch
 
 import audio_spectrum as audio
 
@@ -112,6 +115,184 @@ class PacerTests(unittest.TestCase):
         for _ in range(ticks):
             level *= audio.STALL_DECAY
         self.assertLess(level, 1.0)
+
+
+@unittest.skipUnless(audio.AVAILABLE, "Audio dependencies unavailable")
+class StreamTimingTests(unittest.TestCase):
+    def setUp(self):
+        self.stream = audio.SpectrumStreamer("pixelclock.local", 4210)
+        self.stream._sock.close()
+        self.stream._sock = Mock()
+        self.bands = audio.np.zeros(audio.BANDS, dtype=audio.np.uint8)
+
+    def test_capture_sends_only_to_cached_numeric_address(self):
+        with patch.object(audio.socket, "getaddrinfo", side_effect=AssertionError("DNS in capture")):
+            self.stream._send_bands(self.bands)
+            self.stream._sock.sendto.assert_not_called()
+            self.stream._target = ("192.0.2.1", 4210)
+            self.stream._send_bands(self.bands)
+        self.stream._sock.sendto.assert_called_once_with(b"FFT1" + bytes(32), ("192.0.2.1", 4210))
+
+    def test_slow_dns_does_not_block_capture_or_publish_old_target(self):
+        entered, finish = threading.Event(), threading.Event()
+
+        def resolve(*args):
+            entered.set()
+            finish.wait(2)
+            self.stream.stop()
+            return [(None, None, None, None, ("192.0.2.1", 4210))]
+
+        self.stream._target = ("192.0.2.1", 4210)
+        with patch.object(audio, "audio_thread_com"), patch.object(audio.sc, "default_speaker"), \
+                patch.object(audio.socket, "getaddrinfo", side_effect=resolve):
+            worker = threading.Thread(target=self.stream._maintenance)
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(1))
+                sender = threading.Thread(target=self.stream._send_bands, args=(self.bands,))
+                sender.start()
+                sender.join(timeout=0.5)
+                self.assertFalse(sender.is_alive(), "DNS holds up audio sends")
+                self.stream.set_target("new-clock.local", 4210)
+                finish.set()
+                worker.join(timeout=1)
+                self.assertIsNone(self.stream._target)
+            finally:
+                finish.set()
+                self.stream.stop()
+                worker.join(timeout=2)
+
+    def test_unchanged_settings_keep_resolved_address(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        self.stream.set_target("pixelclock.local", 4210)
+        self.assertEqual(self.stream._target, ("192.0.2.1", 4210))
+        self.stream.set_target("pixelclock.local", 4211)
+        self.assertIsNone(self.stream._target)
+
+    def test_capture_initializes_com_on_its_own_thread_and_can_join(self):
+        entered = []
+        exited = []
+
+        @contextmanager
+        def com():
+            entered.append(threading.get_ident())
+            try:
+                yield
+            finally:
+                exited.append(threading.get_ident())
+
+        def capture():
+            self.assertIn(threading.get_ident(), entered)
+
+        with patch.object(audio, "audio_thread_com", com), \
+                patch.object(audio, "boost_thread_priority"), \
+                patch.object(audio, "release_thread_priority"), \
+                patch.object(self.stream, "_watchdog"), \
+                patch.object(self.stream, "_maintenance"), \
+                patch.object(self.stream, "_capture_loop", side_effect=capture):
+            self.stream.start()
+            self.stream.join(timeout=2)
+        self.assertFalse(self.stream.is_alive())
+        self.assertEqual(entered, [self.stream.ident])
+        self.assertEqual(exited, entered)
+
+    def test_stopped_stream_does_not_send_more_packets(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        self.stream.stop()
+        self.stream._send_bands(self.bands)
+        self.stream._sock.sendto.assert_not_called()
+
+    def test_mode_retries_network_failure_using_cached_address(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        reply = Mock()
+        reply.__enter__ = Mock(return_value=reply)
+        reply.__exit__ = Mock(return_value=False)
+        with patch.object(audio, "urlopen", side_effect=[OSError("network waking"), reply]) as request, \
+                patch.object(audio.time, "monotonic", return_value=10.0) as now:
+            self.stream._send_mode("auto")
+            request.assert_not_called()  # Capture only queues the request.
+            self.stream._flush_mode()
+            self.assertIn("network waking", self.stream.auto_error)
+            self.stream._flush_mode()
+            self.assertEqual(request.call_count, 1)
+            now.return_value = 12.0
+            self.stream._flush_mode()
+            self.assertEqual(self.stream.auto_error, "")
+            self.assertIsNone(self.stream._mode_pending)
+            request.assert_called_with("http://192.0.2.1/api/mode/auto", timeout=4)
+
+    def test_new_mode_supersedes_failed_or_inflight_request(self):
+        def fail(*args, **kwargs):
+            self.stream._send_mode("auto")
+            raise OSError("old request failed")
+
+        self.stream._send_mode("viz")
+        with patch.object(audio, "urlopen", side_effect=fail):
+            self.stream._flush_mode()
+        self.assertEqual(self.stream._mode_pending, "auto")
+        self.assertEqual(self.stream.auto_error, "")
+        self.assertEqual(self.stream._mode_retry_at, 0.0)
+
+    def test_target_change_cancels_pending_old_mode(self):
+        self.stream._send_mode("auto")
+        self.stream.auto.forced = True
+        self.stream.set_target("new-clock.local", 4210)
+        self.assertEqual(self.stream._mode_pending, "viz")
+        self.assertIsNone(self.stream._target)
+
+    def test_reopened_device_does_not_loop_on_stale_default_id(self):
+        self.stream._default_device_id = "old-speaker"
+        recorder = Mock()
+        recorder.__enter__ = Mock(return_value=recorder)
+        recorder.__exit__ = Mock(return_value=False)
+        calls = []
+
+        def record(**kwargs):
+            calls.append(1)
+            if len(calls) == 2:
+                self.stream.stop()
+            return audio.np.zeros((audio.FRAMES, 2), dtype=audio.np.float32)
+
+        recorder.record.side_effect = record
+        mic = Mock()
+        mic.recorder.return_value = recorder
+        with patch.object(audio.sc, "default_speaker", return_value=Mock(id="new-speaker")) as speaker, \
+                patch.object(audio.sc, "get_microphone", return_value=mic):
+            self.stream._capture_loop()
+        speaker.assert_called_once()
+        self.assertEqual(len(calls), 2)
+
+    def check_device(self, now, uptime, forced=False):
+        reply = Mock()
+        reply.read.return_value = audio.json.dumps({"uptime": uptime, "forcedViz": forced}).encode()
+        reply.__enter__ = Mock(return_value=reply)
+        reply.__exit__ = Mock(return_value=False)
+        with patch.object(audio, "urlopen", return_value=reply), \
+                patch.object(audio.time, "monotonic", return_value=now):
+            self.stream._check_device_restart()
+
+    def test_device_restart_reasserts_active_playback(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        self.stream.auto.enabled = self.stream.auto.forced = True
+        self.check_device(100, 50, True)
+        self.check_device(200, 3)
+        self.assertEqual(self.stream._mode_pending, "viz")
+        self.assertFalse(self.stream._device_viz)
+
+    def test_manual_stop_is_not_treated_as_a_device_restart(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        self.stream.auto.enabled = self.stream.auto.forced = True
+        self.check_device(100, 50, True)
+        self.check_device(110, 60)
+        self.assertIsNone(self.stream._mode_pending)
+        self.assertFalse(self.stream._device_viz)
+
+    def test_restart_during_silence_does_not_force_visualizer(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        self.stream.auto.enabled = True
+        self.check_device(100, 50)
+        self.check_device(200, 3)
+        self.assertIsNone(self.stream._mode_pending)
 
 
 if __name__ == "__main__":
