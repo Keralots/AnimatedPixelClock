@@ -19,3 +19,6 @@ gifs/
 
 # Local hardware/enclosure work - not committed
 hardware/
+
+# Release upload copy; the companion EXE is already tracked in win-companion/dist.
+/release/*/*.exe
