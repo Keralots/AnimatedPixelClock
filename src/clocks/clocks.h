@@ -134,6 +134,9 @@ void resetMatrixRainAnimation();
 void displayClockWithBomberman();
 void resetBombermanAnimation();
 
+void displayClockWithTron();
+void resetTronAnimation();
+
 // ========== Weather Clock ==========
 void displayClockWithWeather();
 

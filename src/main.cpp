@@ -130,7 +130,7 @@ int getOptimalRefreshRate() {
         settings.clockStyle == 6 || settings.clockStyle == 7 ||
         settings.clockStyle == 8 || settings.clockStyle == 9 ||
         settings.clockStyle == 10 || settings.clockStyle == 11 ||
-        settings.clockStyle == 12 || settings.clockStyle == 14 || settings.clockStyle == 15) {
+        settings.clockStyle == 12 || settings.clockStyle == 14 || settings.clockStyle == 15 || settings.clockStyle == 16) {
       // Animated clocks (Mario, Space Invaders, Space Ship, Pong, Pac-Man, Snake, Tetris, Cycle, Asteroids, Dino, Matrix, Weather)
       rate = 20; // 20 Hz keeps character movement smooth
     } else {
@@ -183,6 +183,7 @@ void cycleClockScreens() {
     case 12: displayClockWithMatrixRain(); break;
     case 14: displayClockWithWeather(); break;
     case 15: displayClockWithBomberman(); break;
+    case 16: displayClockWithTron(); break;
   }
 }
 
@@ -418,6 +419,9 @@ void loop() {
         break;
       case 12:
         displayClockWithMatrixRain();
+        break;
+      case 16:
+        displayClockWithTron();
         break;
       case 15:
         displayClockWithBomberman();

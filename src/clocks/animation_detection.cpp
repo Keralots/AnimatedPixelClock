@@ -81,7 +81,7 @@ bool isAnimationActive() {
     return true;
   }
 
-  if (settings.clockStyle == 15) return true;
+  if (settings.clockStyle == 15 || settings.clockStyle == 16) return true;
 
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;

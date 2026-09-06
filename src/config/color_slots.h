@@ -91,6 +91,9 @@ enum ColorSlot {
   COL_VIZ_MID,         // bar gradient: middle zone
   COL_VIZ_PEAK,        // bar gradient: top zone + peak-hold dots
   COL_DIGITS_S15, // Bomberman (separate from the historical contiguous slots)
+  COL_DIGITS_S16, // TRON
+  COL_TRON_BLUE,
+  COL_TRON_ORANGE,
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

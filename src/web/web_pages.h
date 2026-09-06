@@ -131,6 +131,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="12" %SEL_CLOCKSTYLE_12%>Matrix Rain</option>
                   <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
                   <option value="15" %SEL_CLOCKSTYLE_15%>Bomberman</option>
+                  <option value="16" %SEL_CLOCKSTYLE_16%>TRON</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Custom rotation</option>
                 </select>
               </div>
@@ -142,6 +143,10 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <input type="hidden" id="cycleConfig" name="cycleConfig" value="%V_CYCLECONFIG%">
               <div id="cycleRows"></div>
             </div>
+            <div class="subcard" id="tronSettings" style="display:none">
+              <p class="field-hint">Two light cycles duel around the time. A cycle traces each changed digit; collisions burst into sparks. Customize the neon colors below.</p>
+            </div>
+
             <!-- Mario -->
             <div class="subcard" id="marioSettings" style="display:%DSP_CLOCKSTYLE_0%">
               <div class="grid-2">
@@ -1220,7 +1225,7 @@ var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
 var tetSmallClk = $('#tetrisSmallClock');
 if (tetSmallClk) { var ftsc = function () { toggle($('#tetrisSmallClockField'), tetSmallClk.checked); }; tetSmallClk.addEventListener('change', ftsc); ftsc(); }
-var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings' };
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings','16':'tronSettings' };
 var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','weatherSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
@@ -1696,9 +1701,10 @@ return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
 }
 
 var cycleInput = $('#cycleConfig'), cycleRows = $('#cycleRows');
-var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather',15:'Bomberman'};
+var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather',15:'Bomberman',16:'TRON'};
 var cycleItems = cycleInput.value.split(',').map(function(v) { var p=v.split(':'); return {id:Number(p[0]),seconds:Number(p[1]),enabled:Number(p[1])>0}; });
 if (!cycleItems.some(function(v){return v.id===15;})) cycleItems.push({id:15,seconds:300,enabled:false});
+if (!cycleItems.some(function(v){return v.id===16;})) cycleItems.push({id:16,seconds:300,enabled:false});
 function saveCycle() { cycleInput.value=cycleItems.map(function(v){return v.id+':'+(v.enabled?v.seconds:0);}).join(','); cycleInput.dispatchEvent(new Event('change',{bubbles:true})); }
 function drawCycle() {
  cycleRows.innerHTML='';
