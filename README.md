@@ -1,8 +1,5 @@
 # AnimatedPixelClock
 
-Early beta / work in progress: the project is already working and usable, with more
-information coming over the next weeks and months.
-
 An animated retro-arcade clock on a 128x64 RGB LED matrix, driven by an ESP32-S3.
 
 ![AnimatedPixelClock prototype displaying the Tetris clock on two RGB matrix panels](img/animatedpixelclock.jpg)
@@ -211,8 +208,8 @@ metrics) and returns to the clock when the PC goes offline.
 web-style config window, live device preview, drag-and-drop layout editor and
 sensor picker.
 
-- **Windows**: run the prebuilt
-  [`pc_stats_monitor_v4.exe`](PC-Companion-App-v4/win-companion/dist/pc_stats_monitor_v4.exe),
+- **Windows**: download and run
+  [`pc_stats_monitor_v4.exe`](https://github.com/Keralots/AnimatedPixelClock/releases/latest/download/pc_stats_monitor_v4.exe),
   no Python needed. Install
   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
   and run it as Administrator for temperature/fan/power sensors (on 0.9.5+ enable
@@ -221,9 +218,8 @@ sensor picker.
   `python3 -m pip install -r requirements.txt` and
   `python3 pc_stats_monitor_v4_linux.py`.
 
-The feature descriptions here follow the current source. The checked-in Windows
-executable has not been verified against that source; if a feature is missing,
-follow the [Windows companion instructions](PC-Companion-App-v4/win-companion/README.md)
+The release includes the Windows companion alongside the firmware. Follow the
+[Windows companion instructions](PC-Companion-App-v4/win-companion/README.md)
 to run from source or rebuild it.
 
 Metrics are sent as JSON over local UDP (port 4210), at the companion's configured
@@ -317,6 +313,10 @@ Board choices on that page:
   provides more space for custom animations.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.
+It also provides a direct Windows companion download after flashing. Full images,
+OTA-only images for both boards, the EXE and SHA-256 checksums are available in
+[GitHub Releases](https://github.com/Keralots/AnimatedPixelClock/releases/latest).
+Release packaging is documented in [docs/firmware/README.md](docs/firmware/README.md).
 
 ### Building from source
 

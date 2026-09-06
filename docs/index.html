@@ -132,6 +132,8 @@
           </div>
         </section>
 
+        <p class="hint">After flashing and connecting WiFi, <a href="#panel-pc">download the PC companion below</a> for live stats and the music visualizer.</p>
+
         <!-- ────────── 02 Connect to WiFi ────────── -->
         <section class="panel" id="panel-wifi" aria-labelledby="wifi-head">
           <header class="panel-head">
@@ -201,7 +203,7 @@
             <h2 id="pc-head">Connect your PC <span class="path-tag path-tag-muted" style="margin-left:8px">optional</span></h2>
           </header>
 
-          <p class="lede">A companion app reads your hardware sensors and streams CPU / RAM / GPU / disk stats to the device over your network. When it's running, the matrix switches from clock to live stats; when your PC sleeps, it falls back to the animated clock.</p>
+          <p class="lede">The companion streams live PC stats and your music to the matrix. Use the audio visualizer while music plays, show CPU / RAM / GPU / disk stats, or leave the clock running on its own.</p>
 
           <div class="os-tabs" role="tablist" aria-label="Operating system">
             <button class="os-tab is-active" type="button" role="tab" data-os="win" aria-selected="true">Windows</button>
@@ -210,9 +212,13 @@
 
           <!-- Windows -->
           <div class="os-panel is-active" data-os-panel="win" role="tabpanel">
+            <div class="companion-download">
+              <a id="companion-download" class="btn-monitor" href="https://github.com/Keralots/AnimatedPixelClock/releases/latest/download/pc_stats_monitor_v4.exe">Download for Windows</a>
+              <p class="hint">Companion v4 · <span id="companion-release">Latest release</span> · No Python required.<br><a id="release-downloads" href="https://github.com/Keralots/AnimatedPixelClock/releases/latest" target="_blank" rel="noopener">Release notes, firmware and checksums</a></p>
+            </div>
             <ol class="step-list">
-              <li><strong>Install LibreHardwareMonitor</strong> from <a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" target="_blank" rel="noopener">GitHub</a> and run it <strong>as Administrator</strong>. On 0.9.5+, enable <em>Options → Remote Web Server → Run</em>.</li>
-              <li><strong>Download the companion app</strong> - the prebuilt <a href="https://github.com/Keralots/AnimatedPixelClock/tree/main/PC-Companion-App-v4-beta/win-companion" target="_blank" rel="noopener"><code>pc_stats_monitor_v4.exe</code></a> needs no Python. Double-click to run; it lives in the system tray.</li>
+              <li><strong>Download and run <code>pc_stats_monitor_v4.exe</code></strong> using the button above. It lives in the system tray; closing its window keeps it running.</li>
+              <li><strong>For temperature, fan and power sensors:</strong> install <a href="https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases" target="_blank" rel="noopener">LibreHardwareMonitor</a> and run it <strong>as Administrator</strong>. On 0.9.5+, enable <em>Options → Remote Web Server → Run</em>. The music visualizer works without it.</li>
               <li>In the config window, enter the <strong>device IP</strong> (from the matrix), pick the sensors you want, arrange them on the live preview, then <strong>Save &amp; push</strong>.</li>
             </ol>
 
@@ -231,7 +237,7 @@
             <div class="cmd" data-cmd>
               <div class="cmd-head"><span class="cmd-dot"></span><span class="cmd-dot"></span><span class="cmd-dot"></span><span class="cmd-title">bash</span></div>
               <button class="cmd-copy" type="button">copy</button>
-              <pre><span class="pr">$ </span>cd PC-Companion-App-v4-beta/linux-companion
+              <pre><span class="pr">$ </span>cd PC-Companion-App-v4/linux-companion
 <span class="pr">$ </span>python3 -m pip install -r requirements.txt
 <span class="pr">$ </span>python3 pc_stats_monitor_v4_linux.py</pre>
             </div>

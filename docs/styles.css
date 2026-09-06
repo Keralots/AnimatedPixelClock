@@ -609,6 +609,9 @@ a:hover { border-color: var(--green); color: var(--green); }
   cursor: pointer; transition: filter 120ms ease, opacity 120ms ease;
 }
 .btn-monitor:hover:not(:disabled) { filter: brightness(1.05); }
+.companion-download { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 20px; margin: 0 0 22px; }
+.companion-download .btn-monitor { display: inline-block; color: #fff; text-align: center; }
+.companion-download .hint { margin: 0; }
 .btn-monitor:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-monitor.btn-ghost { background: #fff; color: var(--ink); border-color: var(--line-2); }
 .btn-monitor.btn-ghost:hover:not(:disabled) { background: var(--card-2); }
