@@ -1,0 +1,2 @@
+64b663a2068c751bdff52ae7a2f6109ce5270a87e19fb1e221f411dd28a491c4  AnimatedPixelClock-supermini-v2.1.0-Full.bin
+f968f7dfd8c7102ec75c24b24f8b17b472dc76aa268a707e40a20d4384e27349  AnimatedPixelClock-wroom-v2.1.0-Full.bin
