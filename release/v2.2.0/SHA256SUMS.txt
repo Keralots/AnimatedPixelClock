@@ -1,0 +1,5 @@
+aef8d7cec313749848ece38a7c9302b13c9a4ed37b30d241727d8b80e8be0e55  OTA_ONLY_firmware-v2.2.0-supermini.bin
+67b7e765b66d7d843b7e51669d350c0a0151bfd598b3a700edfae0e1d55340f2  OTA_ONLY_firmware-v2.2.0-wroom.bin
+ad872bd67a334de33022d3f035b0152385b205dfecb7100f8fb9560fba2dad55  firmware-v2.2.0-supermini.bin
+ba1f53a670d566637998fda581854360e0678f71cd2dc2dcd8bac81c7586335a  firmware-v2.2.0-wroom.bin
+e8e78e045c3d0eee8b5b1ee2f94cec0cb25bfeff40b0d569dd5de0ce16e05551  pc_stats_monitor_v4.exe
