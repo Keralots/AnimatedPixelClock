@@ -39,6 +39,16 @@ your panels show flicker or ghosting, plus bench setup and first-light checks.
 [Download PNG](docs/img/hub75_connection_diagram.png) ·
 [Open scalable SVG](docs/img/hub75_connection_diagram.svg)
 
+### Build photos
+
+Photos of the hand-soldered prototype - an ESP32-S3, a USB-C power breakout, the
+2200µF capacitor, an XT60 panel feed and the HUB75 header on a piece of protoboard,
+wired point to point:
+
+- Board, component side: [boardA.jpg](img/boardA.jpg) · solder side: [boardB.jpg](img/boardB.jpg)
+- Board size, about 50 x 41 mm: [board1.jpg](img/board1.jpg) · [board1a.jpg](img/board1a.jpg)
+- Connected to the panels: [display1.jpg](img/display1.jpg) · [display2.jpg](img/display2.jpg)
+
 ### Powering it
 
 - **Prototype shown above:** a phone charger plugs into a **separate USB-C power
@@ -373,6 +383,13 @@ section, or from the command line:
 ```bash
 curl -F "firmware=@.pio/build/matrix-s3-wroom/firmware.bin" http://<device-ip>/update
 ```
+
+Updating from a [GitHub release](https://github.com/Keralots/AnimatedPixelClock/releases/latest):
+upload `OTA_ONLY_firmware-v<version>-<board>.bin`. Do not upload the full
+`firmware-v<version>-<board>.bin` - that one carries the bootloader and partition
+table and belongs at `0x0` over USB. `wroom` is the ESP32-S3-WROOM-1 N16R8 (16MB)
+build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build. Downloads can be
+verified against `SHA256SUMS.txt`.
 
 ## HTTP control API
 
