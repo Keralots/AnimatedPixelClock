@@ -213,9 +213,9 @@ void setup() {
     display.setTextColor(DISPLAY_WHITE);
     display.setTextSize(1);
     display.setCursor(10, 20);
-    display.println("PC Monitor");
+    display.println("PIXEL CLOCK");
     display.setCursor(10, 35);
-    display.println("Starting...");
+    display.println("INSERT COIN");
     display.display();
   }
 
