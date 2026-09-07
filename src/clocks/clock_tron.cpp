@@ -7,6 +7,8 @@
 
 namespace {
 const int GX=64, GY=32, TRAIL=96;
+const int BIKE_RADIUS=3;
+const uint32_t STEP_MS=80;
 const int digitX[4]={14,38,74,98};
 const int digitY=20;
 const int dx[4]={1,0,-1,0},dy[4]={0,1,0,-1};
@@ -39,7 +41,7 @@ uint16_t dim(uint16_t c,int level) {
 }
 uint16_t bikeColor(int n) { return SPRITE_COLOR(n==0?COL_TRON_BLUE:COL_TRON_ORANGE); }
 bool blocked(int x,int y) {
-  if(x<1 || x>=GX-1 || y<3 || y>=GY-2) return true;
+  if(x<0 || x>=GX || y<0 || y>=GY) return true;
   int px=x*2,py=y*2;
   for(int i=0;i<4;i++) if(px>=digitX[i]-2 && px<=digitX[i]+14 && py>=18 && py<=46) return true;
   // Keep the colon readable in the middle of the arena.
@@ -87,20 +89,25 @@ void updateBike(int n,uint32_t now) {
   Bike& b=bikes[n];
   if(phase!=DUEL && builder==n) return;
   if(b.dead) { if(now-b.crashed>=650) spawn(n,now); return; }
-  if(now-b.stepped<80) return;
-  b.stepped=now;
-  int choices[3]={b.dir,(b.dir+1)%4,(b.dir+3)%4};
-  int selected=-1,best=-100;
-  bool turn=random(11)==0;
-  for(int j=0;j<3;j++) {
-    int free=clearance(b.x,b.y,choices[j]);
-    if(!free) continue;
-    int score=free*3+random(5)+(j==0?(turn?0:12):(turn?15:0));
-    if(score>best) { best=score; selected=choices[j]; }
+  // Advance on the real time grid. Snapping every step to the frame that
+  // noticed it turned the 80ms cadence into an alternating 80/96ms one, which
+  // reads as short speed changes. Keep the remainder; bound long catch-ups.
+  if(now-b.stepped>400) b.stepped=now-STEP_MS-(now-b.stepped)%STEP_MS;
+  while(now-b.stepped>=STEP_MS) {
+    b.stepped+=STEP_MS;
+    int choices[3]={b.dir,(b.dir+1)%4,(b.dir+3)%4};
+    int selected=-1,best=-100;
+    bool turn=random(11)==0;
+    for(int j=0;j<3;j++) {
+      int free=clearance(b.x,b.y,choices[j]);
+      if(!free) continue;
+      int score=free*3+random(5)+(j==0?(turn?0:12):(turn?15:0));
+      if(score>best) { best=score; selected=choices[j]; }
+    }
+    if(selected<0) { b.dead=true; b.crashed=now; return; }
+    b.px=b.x; b.py=b.y; b.dir=selected;
+    b.x+=dx[selected]; b.y+=dy[selected]; addTrail(n);
   }
-  if(selected<0) { b.dead=true; b.crashed=now; return; }
-  b.px=b.x; b.py=b.y; b.dir=selected;
-  b.x+=dx[selected]; b.y+=dy[selected]; addTrail(n);
 }
 void neonLine(int x,int y,int xx,int yy,uint16_t c) {
   uint16_t glow=dim(c,45);
@@ -109,13 +116,38 @@ void neonLine(int x,int y,int xx,int yy,uint16_t c) {
   display.drawLine(x,y,xx,yy,c);
 }
 void drawBike(int x,int y,int d,uint16_t c) {
-  // Top-down body, two wheels and a white nose; rotates with every right angle.
+  // Compact motorcycle profile: two round wheel rims, low fairing and a
+  // crouched rider. Rotate the whole silhouette with the travel direction.
+  // The reference sprite faces right; dark hubs keep both wheels distinct.
+  static const uint8_t profile[5][7]={
+    {0,0,0,4,0,0,0}, // helmet
+    {0,0,3,3,4,2,0}, // crouched rider / handlebars
+    {0,2,3,3,3,2,0}, // low light-cycle fairing
+    {2,1,2,3,2,1,2}, // rear and front wheels
+    {0,2,0,0,0,2,0}
+  };
+  // Narrow overhead alternative: inline tyres, enclosed fairing and canopy.
+  // Same maximum footprint so steering and digit tracing need no changes.
+  static const uint8_t overhead[5][7]={
+    {0,0,0,0,0,0,0},
+    {0,0,2,3,2,0,0},
+    {1,2,3,4,3,2,1},
+    {0,0,2,3,2,0,0},
+    {0,0,0,0,0,0,0}
+  };
+  const uint8_t (*sprite)[7]=settings.tronBikeStyle==1?overhead:profile;
+  const uint16_t palette[5]={0,dim(c,30),c,dim(c,190),0xFFFF};
   int ax=dx[d],ay=dy[d],sx=-ay,sy=ax;
-  display.drawLine(x-ax*2,y-ay*2,x+ax*2,y+ay*2,c);
-  display.drawPixel(x+sx,y+sy,c); display.drawPixel(x-sx,y-sy,c);
-  display.drawPixel(x-ax*2+sx,y-ay*2+sy,dim(c,100));
-  display.drawPixel(x-ax*2-sx,y-ay*2-sy,dim(c,100));
-  display.drawPixel(x+ax*2,y+ay*2,0xFFFF);
+  // Keep the whole silhouette on the panel; coordinates here are screen pixels.
+  int halfWidth=settings.tronBikeStyle==1?1:2;
+  int rx=ax?BIKE_RADIUS:halfWidth,ry=ay?BIKE_RADIUS:halfWidth;
+  x=constrain(x,rx,127-rx); y=constrain(y,ry,63-ry);
+  for(int along=-BIKE_RADIUS;along<=BIKE_RADIUS;along++) {
+    for(int across=-2;across<=2;across++) {
+      uint8_t ink=sprite[across+2][along+BIKE_RADIUS];
+      if(ink) display.drawPixel(x+ax*along+sx*across,y+ay*along+sy*across,palette[ink]);
+    }
+  }
 }
 void drawDuel(uint32_t now) {
   for(int n=0;n<2;n++) {
@@ -132,8 +164,8 @@ void drawDuel(uint32_t now) {
       int r=2+(now-b.crashed)/65;
       for(int d=0;d<4;d++) display.drawPixel(b.x*2+dx[d]*r,b.y*2+dy[d]*r,dim(c,fade));
     } else {
-      float t=fminf((now-b.stepped)/80.0f,1);
-      drawBike((int)((b.px+(b.x-b.px)*t)*2),(int)((b.py+(b.y-b.py)*t)*2),b.dir,c);
+      float t=fminf((now-b.stepped)/(float)STEP_MS,1);
+      drawBike(lroundf((b.px+(b.x-b.px)*t)*2),lroundf((b.py+(b.y-b.py)*t)*2),b.dir,c);
     }
   }
 }
@@ -261,7 +293,7 @@ void displayClockWithTron() {
   updateBike(0,now); updateBike(1,now); updateTrace(dt,now);
   // Sparse grid and a dim border keep the neon trails dominant.
   for(int x=4;x<128;x+=8) for(int y=4;y<62;y+=8) display.drawPixel(x,y,0x0842);
-  display.drawRect(1,4,126,57,0x0945);
+  display.drawRect(0,0,128,64,0x0945);
   drawDuel(now);
   drawDigits(now);
   if(phase!=DUEL) drawBike((int)buildX,(int)buildY,buildDir,bikeColor(builder));

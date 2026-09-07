@@ -230,6 +230,7 @@ void handleStatus() {
  doc["forcedViz"] = httpForceViz;
  doc["brightness"] = (settings.displayBrightness * 100) / 255; // percent
  doc["clockStyle"] = settings.clockStyle;
+ doc["tronBikeStyle"] = settings.tronBikeStyle;
  doc["pcOnline"] = pcOnline;
  doc["uptime"] = millis() / 1000;
 
@@ -855,6 +856,8 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_16")) { out = String(settings.clockStyle == 16 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TRONBIKESTYLE_0")) { out = String(settings.tronBikeStyle == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_TRONBIKESTYLE_1")) { out = String(settings.tronBikeStyle == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_15")) { out = String(settings.clockStyle == 15 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "selected" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
@@ -1510,6 +1513,11 @@ void handleSave() {
  settings.spaceExplosionGravity = server.arg("spaceExplosionGravity").toInt();
  }
 
+ // Save TRON settings
+ if (server.hasArg("tronBikeStyle")) {
+   settings.tronBikeStyle = server.arg("tronBikeStyle") == "1" ? 1 : 0;
+ }
+
  // Save Snake settings
  if (server.hasArg("snakeSpeed")) {
  settings.snakeSpeed = server.arg("snakeSpeed").toInt();
@@ -1887,6 +1895,7 @@ void handleExportConfig() {
  // Clock settings
  json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
  json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
+ json += "\"tronBikeStyle\":" + String(settings.tronBikeStyle) + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
  json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
@@ -2033,6 +2042,9 @@ void handleImportConfig() {
    strcpy(settings.cycleConfig, cycle);
  }
  // Import clock settings
+ if (!doc["tronBikeStyle"].isNull()) {
+   settings.tronBikeStyle = doc["tronBikeStyle"].is<int>() && doc["tronBikeStyle"].as<int>() == 1 ? 1 : 0;
+ }
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];

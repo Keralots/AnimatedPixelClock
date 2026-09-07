@@ -153,6 +153,16 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <div id="cycleRows"></div>
             </div>
             <div class="subcard" id="tronSettings" style="display:none">
+              <div class="field">
+                <label class="field-label" for="tronBikeStyle">Motorcycle variant</label>
+                <div class="select-wrap">
+                  <select name="tronBikeStyle" id="tronBikeStyle">
+                    <option value="0" %SEL_TRONBIKESTYLE_0%>Motorcycle (side view)</option>
+                    <option value="1" %SEL_TRONBIKESTYLE_1%>Light cycle (top view)</option>
+                  </select>
+                </div>
+                <p class="field-hint">Choose a rider with visible wheels or a slim light cycle viewed from above. Applies to both bikes, including in Cycle All.</p>
+              </div>
               <p class="field-hint">Two light cycles duel around the time. A cycle traces each changed digit; collisions burst into sparks. Customize the neon colors below.</p>
             </div>
 
@@ -1235,7 +1245,7 @@ if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.che
 var tetSmallClk = $('#tetrisSmallClock');
 if (tetSmallClk) { var ftsc = function () { toggle($('#tetrisSmallClockField'), tetSmallClk.checked); }; tetSmallClk.addEventListener('change', ftsc); ftsc(); }
 var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings','16':'tronSettings' };
-var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','weatherSettings'];
+var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','weatherSettings','tronSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
 ALL_PANELS.forEach(function (id) {

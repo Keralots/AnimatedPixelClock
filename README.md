@@ -99,6 +99,9 @@ their order and durations, with Bomberman initially disabled.
 
 Select **TRON** in **Clock > Clock style** and save. **Colors** controls the
 time digits and both light cycles. It supports 12/24-hour time and colon blinking.
+Under TRON settings, **Motorcycle variant** selects **Motorcycle (side view)**
+(the default) or **Light cycle (top view)**. Save to keep the choice across reboots;
+it also applies when TRON runs in Cycle All.
 Enable TRON separately in **Cycle All**; existing rotations retain their settings
 with the new style initially disabled.
 

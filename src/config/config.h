@@ -140,6 +140,9 @@ struct Settings {
   char dns1[16];
   char dns2[16];
 
+  // TRON clock settings
+  uint8_t tronBikeStyle;       // 0=Motorcycle profile, 1=Light cycle top view
+
   // Mario clock settings
   uint8_t marioBounceHeight;  // Tenths (40 = 4.0)
   uint8_t marioBounceSpeed;   // Tenths (6 = 0.6)

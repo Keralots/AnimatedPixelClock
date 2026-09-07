@@ -151,6 +151,7 @@ void loadSettings() {
     settings.ambientCustomFile[0] = '\0';
     settings.vizShowClock = true;
     settings.vizStyle = 0;
+    settings.tronBikeStyle = 0;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -246,6 +247,8 @@ void loadSettings() {
   if (cycle.length() < sizeof(settings.cycleConfig) && parseCycleConfig(cycle.c_str(), checked))
     strcpy(settings.cycleConfig, cycle.c_str());
   settings.clockStyle = preferences.getInt("clockStyle", 0); // Default: Mario
+  settings.tronBikeStyle = preferences.getUChar("tronBikeStyle", 0);
+  if (settings.tronBikeStyle > 1) settings.tronBikeStyle = 0;
   if (settings.clockStyle == 13) settings.clockStyle = 1;    // retired Missile Command -> Standard
 
   // gmtOffset migration: convert old hours to new minutes format
@@ -752,6 +755,7 @@ void saveSettings() {
   preferences.putBool("snakeDate", settings.snakeShowDate);
   preferences.putUChar("tetFallSpd", settings.tetrisFallSpeed);
   preferences.putUChar("tetBlockSty", settings.tetrisBlockStyle);
+  preferences.putUChar("tronBikeStyle", settings.tronBikeStyle);
   preferences.putBool("tetIdleTmbl", settings.tetrisIdleTumble);
   preferences.putUChar("tetAnimSty", settings.tetrisAnimStyle);
   preferences.putBool("tetShowDate", settings.tetrisShowDate);
