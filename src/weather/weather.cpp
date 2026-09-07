@@ -91,6 +91,7 @@ static bool fetchWeather() {
   client.setInsecure();  // public, non-sensitive data; saves a cert bundle
   HTTPClient http;
   http.setTimeout(10000);
+  http.useHTTP10(true);
   if (!http.begin(client, url)) return false;
 
   int code = http.GET();
