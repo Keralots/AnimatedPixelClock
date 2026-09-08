@@ -91,10 +91,10 @@ The **E** address line is required for 64x64 (1/32 scan) panels:
 | 5 | Pong / Arkanoid | Breakout-style ball physics, digits shatter and reassemble |
 | 6 | Pac-Man | Pac-Man eats pellet-based digits |
 | 7 | Snake | Nokia-style snake hunts pellets left by changed digits |
-| 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle tetrominoes in classic piece colors; optional small corner-clock mode hands the whole panel to an auto-played game with a much taller stack |
+| 8 | Tetris | Block digits rebuilt by slabs or falling dots, idle falling blocks with a separate configurable color per shape; optional small corner-clock mode hands the whole panel to an auto-played game with a much taller stack |
 | 9 | Cycle All Styles | Choose enabled styles, their order and duration in Clock settings; Weather is skipped until configured |
 | 10 | Asteroids | Wireframe ship shoots changed digits into spinning line shards |
-| 11 | Dino Runner | Chrome T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
+| 11 | Dino Runner | A T-Rex runs and jumps cacti; a pterodactyl swaps changed digits |
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
 | 16 | TRON | Two neon light cycles leave fading trails, avoid walls and crash into sparks; one traces changed digits as a continuous line |
 | 15 | Bomberman | Brick digits explode with cross-shaped blasts and rebuild; a tiny hero navigates between digits, bombs crates and collects bonuses |
@@ -120,6 +120,10 @@ choice in the web interface. ID 13 is retired; use the IDs listed above.
 
 Style colors are editable in the web interface (digits,
 characters, effects, backgrounds), so each clock can match your setup.
+
+The style names describe what each animation is styled after. This project is
+not affiliated with or endorsed by the rights holders; see
+[Trademarks and attribution](#trademarks-and-attribution).
 
 ## Web interface
 
@@ -501,3 +505,21 @@ rest_command:
 ## License
 
 Licensed under the [MIT License](LICENSE).
+
+## Trademarks and attribution
+
+AnimatedPixelClock is an independent, non-commercial hobby project. It is not
+affiliated with, endorsed by, sponsored by or connected to Nintendo, The Tetris
+Company, Bandai Namco, Taito, Atari, Konami or any other rights holder.
+
+The clock and ambient style names describe what each animation is styled after,
+so that you can tell the styles apart. Every sprite and effect in this firmware
+is drawn procedurally from the source in this repository, with user-configurable
+colors. No game artwork, sprite sheets, tile data, ROM data, fonts, sounds or
+music from any commercial game are copied, bundled or distributed here, and the
+firmware does not emulate or reproduce any of those games.
+
+All product names, game titles, logos and brands referenced in this project are
+the property of their respective owners. They are used here only to describe the
+visual style of an animation, and their use does not imply any endorsement,
+sponsorship or affiliation.
