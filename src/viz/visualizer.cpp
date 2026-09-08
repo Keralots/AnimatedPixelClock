@@ -152,6 +152,9 @@ bool vizIngest(const uint8_t* buf, int len) {
     memcpy(vizWave, buf + VIZ_PACKET_LEN, VIZ_WAVE_POINTS);
     vizWaveEver = true;
     ++vizWaveserial;
+  } else {
+    // A legacy companion must not keep a previous sender's waveform alive.
+    vizWaveEver = false;
   }
   vizLastReceived = millis();
   ++vizPacketSerial;

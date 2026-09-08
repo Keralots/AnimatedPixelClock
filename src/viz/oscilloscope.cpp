@@ -8,6 +8,7 @@
 
 namespace {
 uint8_t trail[SCOPE_TRAIL_MAX][VIZ_WAVE_POINTS];
+uint8_t previousWave[VIZ_WAVE_POINTS];
 bool trailUsed[SCOPE_TRAIL_MAX] = {};
 int trailHead = 0;
 uint32_t seenSerial = 0;
@@ -55,7 +56,7 @@ void drawTrace(const uint8_t* wave, float cy, float halfHeight, float gain,
 void drawOscilloscope(const uint8_t* wave, uint32_t serial, bool stale,
                       float dt, bool reset) {
   (void)dt;
-  if (reset) {
+  if (reset || wave == nullptr || stale) {
     memset(trailUsed, 0, sizeof(trailUsed));
     trailHead = 0;
     seenSerial = serial;
@@ -103,14 +104,17 @@ void drawOscilloscope(const uint8_t* wave, uint32_t serial, bool stale,
     return;
   }
 
+  if (stale) return;
+
   const int depth = settings.scopeTrail > SCOPE_TRAIL_MAX ? SCOPE_TRAIL_DEFAULT
                                                           : settings.scopeTrail;
   if (serial != seenSerial || !everSeen) {
     if (everSeen && depth > 0) {
       trailHead = (trailHead + SCOPE_TRAIL_MAX - 1) % SCOPE_TRAIL_MAX;
-      memcpy(trail[trailHead], wave, VIZ_WAVE_POINTS);
+      memcpy(trail[trailHead], previousWave, VIZ_WAVE_POINTS);
       trailUsed[trailHead] = true;
     }
+    memcpy(previousWave, wave, VIZ_WAVE_POINTS);
     seenSerial = serial;
     everSeen = true;
   }

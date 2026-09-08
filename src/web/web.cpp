@@ -1464,9 +1464,6 @@ void handleSave() {
  }
  if (server.arg("resetScope") == "1") {
    applyScopeDefaults();
-   settings.spriteColors[COL_SCOPE_GRID] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_GRID];
-   settings.spriteColors[COL_SCOPE_TRACE] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_TRACE];
-   settings.spriteColors[COL_SCOPE_PEAK] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_PEAK];
  } else {
    settings.scopeGrid = server.hasArg("scopeGrid");
    settings.scopeFill = server.hasArg("scopeFill");
@@ -1876,6 +1873,13 @@ void handleSave() {
      uint8_t r8 = (rgb >> 16) & 0xFF, g8 = (rgb >> 8) & 0xFF, b8 = rgb & 0xFF;
      settings.spriteColors[slot] = ((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3);
    }
+ }
+
+ // Apply the scope reset after posted color fields so they cannot undo it.
+ if (server.hasArg("ambientStyle") && server.arg("resetScope") == "1") {
+   settings.spriteColors[COL_SCOPE_GRID] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_GRID];
+   settings.spriteColors[COL_SCOPE_TRACE] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_TRACE];
+   settings.spriteColors[COL_SCOPE_PEAK] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_PEAK];
  }
 
  saveSettings();
