@@ -9,6 +9,8 @@
  */
 
 #include "visualizer.h"
+#include "starfield.h"
+#include "oscilloscope.h"
 
 #include "../clocks/clocks.h"
 #include "../config/config.h"
@@ -21,8 +23,12 @@
 #define VIZ_PEAK_GRAVITY 60.0f  // px/s^2
 
 static uint8_t vizBands[VIZ_BANDS];
+static uint8_t vizWave[VIZ_WAVE_POINTS];
+static bool vizWaveEver = false;
+static uint32_t vizWaveserial = 0;
 static unsigned long vizLastReceived = 0;
 static bool vizEverReceived = false;
+static uint32_t vizPacketSerial = 0;
 
 static float barH[VIZ_BANDS];
 static float peakY[VIZ_BANDS];
@@ -38,6 +44,45 @@ static uint8_t lastStyle = 255;
 
 static uint16_t vizRgb(int r, int g, int b) {
   return ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+}
+
+static void drawPurpleStage(unsigned long now) {
+  // A curved concert LED wall: each column follows its own FFT band,
+  // while bass opens the light waves and treble adds pale pink highlights.
+  // Only 32 x 16 lamps; no framebuffer, allocations or per-pixel trig.
+  float bass = 0.0f;
+  float treble = 0.0f;
+  for (int i = 0; i < 6; i++) bass += barH[i] / (6.0f * VIZ_MAX_H);
+  for (int i = 24; i < VIZ_BANDS; i++) treble += barH[i] / (8.0f * VIZ_MAX_H);
+  const float phase = (now % 60000UL) * (6.2831853f / 3000.0f);
+  for (int i = 0; i < VIZ_BANDS; i++) {
+    float level = barH[i] / VIZ_MAX_H;
+    float side = (i - 15.5f) / 15.5f;
+    float curve = side * side * 3.5f;
+    float wave = sinf(i * 0.28f - phase);
+    float center = 7.5f + curve + wave * (1.0f + bass * 2.5f);
+    float reach = 1.0f + level * 6.0f + bass * 2.0f;
+    for (int row = 0; row < SCREEN_HEIGHT / 4; row++) {
+      float distance = fabsf(row - center);
+      float glow = 1.0f - distance / reach;
+      if (glow < 0.0f) glow = 0.0f;
+      float rim = 1.0f - fabsf(distance - reach) * 1.4f;
+      if (rim < 0.0f) rim = 0.0f;
+      float light = glow * (0.2f + level * 0.65f) + rim * bass * 0.4f;
+      if (light > 1.0f) light = 1.0f;
+      int hot = (int)(glow * glow * treble * 160.0f);
+      int r = 12 + (int)(light * 210.0f);
+      int g = 2 + (int)(light * 24.0f) + hot;
+      int b = 24 + (int)(light * 200.0f);
+      int x = i * 4 + 1;
+      int y = row * 4 + 1;
+      // Dim cross-shaped halo, bright 2x2 core, black separation.
+      uint16_t halo = vizRgb(r / 4, g / 4, b / 4);
+      display.drawFastHLine(x - 1, y, 4, halo);
+      display.drawFastVLine(x, y - 1, 4, halo);
+      display.fillRect(x, y, 2, 2, vizRgb(r, g, b));
+    }
+  }
 }
 
 static void drawNeonMirror() {
@@ -103,10 +148,19 @@ static void drawPhosphorWaterfall(unsigned long now, bool stale) {
 bool vizIngest(const uint8_t* buf, int len) {
   if (len < VIZ_PACKET_LEN || memcmp(buf, "FFT1", 4) != 0) return false;
   memcpy(vizBands, buf + 4, VIZ_BANDS);
+  if (len >= VIZ_WAVE_PACKET_LEN) {
+    memcpy(vizWave, buf + VIZ_PACKET_LEN, VIZ_WAVE_POINTS);
+    vizWaveEver = true;
+    ++vizWaveserial;
+  }
   vizLastReceived = millis();
+  ++vizPacketSerial;
   vizEverReceived = true;
   return true;
 }
+
+const uint8_t* vizWaveform() { return vizWaveEver ? vizWave : nullptr; }
+uint32_t vizWaveSerial() { return vizWaveserial; }
 
 bool vizRecentEnough(unsigned long maxAgeMs) {
   return vizEverReceived && (millis() - vizLastReceived) <= maxAgeMs;
@@ -140,7 +194,8 @@ static void drawVizClock() {
 
 void displayVisualizer() {
   unsigned long now = millis();
-  if (settings.vizStyle != lastStyle || now - lastVizFrame > 250) {
+  bool resetStyle = settings.vizStyle != lastStyle || now - lastVizFrame > 250;
+  if (resetStyle) {
     memset(waterfall, 0, sizeof(waterfall));
     waterfallHead = 0;
     lastWaterfallRow = now - 40;
@@ -176,7 +231,7 @@ void displayVisualizer() {
       if (peakY[i] < 0) peakY[i] = 0;
     }
 
-    if (settings.vizStyle == 1 || settings.vizStyle == 2) continue;
+    if (settings.vizStyle != 0) continue;
 
     int h = (int)barH[i];
     int x = i * 4;
@@ -199,6 +254,14 @@ void displayVisualizer() {
 
   if (settings.vizStyle == 1) drawNeonMirror();
   if (settings.vizStyle == 2) drawPhosphorWaterfall(now, stale);
+  if (settings.vizStyle == 3) drawPurpleStage(now);
+  if (settings.vizStyle == 5) {
+    float levels[VIZ_BANDS];
+    for (int i = 0; i < VIZ_BANDS; i++) levels[i] = barH[i] / VIZ_MAX_H;
+    drawStarfieldOverdrive(levels, vizBands, vizPacketSerial, dt, resetStyle);
+  }
+  if (settings.vizStyle == 6)
+    drawOscilloscope(vizWaveform(), vizWaveserial, stale, dt, resetStyle);
 
   if (stale) {
     display.setTextSize(1);

@@ -676,6 +676,9 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_VIZ_LOW, -3, "Bars (bottom)"},
     {COL_VIZ_MID, -3, "Bars (middle)"},
     {COL_VIZ_PEAK, -3, "Bars (top) + peaks"},
+    {COL_SCOPE_GRID, -4, "Graticule"},
+    {COL_SCOPE_TRACE, -4, "Trace"},
+    {COL_SCOPE_PEAK, -4, "Trace at full deflection"},
 };
 
 // One <label><input type=color></label> row for a single sprite-color slot.
@@ -755,6 +758,9 @@ static String buildColorsCard() {
 // Visualizer bar-gradient color rows (inside the Display page's viz card).
 static String buildVizColorRows() { return buildColorRows(-3); }
 
+// Oscilloscope color rows (same card, revealed only for that style).
+static String buildScopeColorRows() { return buildColorRows(-4); }
+
 // PC-monitor stat colors as their own card (Display-layout page). "" if none.
 static String buildPcMetricsColorCard() {
   String rows = buildColorRows(-2);
@@ -785,11 +791,27 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "COLOR_PCMETRICS")) { out = buildPcMetricsColorCard(); return true; }
   // Visualizer bar colors (rows only; the card lives in web_pages.h).
   if (!strcmp(n, "COLOR_VIZ")) { out = buildVizColorRows(); return true; }
+  if (!strcmp(n, "COLOR_SCOPE")) { out = buildScopeColorRows(); return true; }
+  if (!strcmp(n, "CHK_SCOPEGRID")) { out = String(settings.scopeGrid ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_SCOPEFILL")) { out = String(settings.scopeFill ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_SCOPEFLAT")) { out = String(settings.scopeFlat ? "checked" : ""); return true; }
+  if (!strcmp(n, "V_SCOPEGAIN")) { out = String(settings.scopeGain); return true; }
+  if (!strcmp(n, "OPT_SCOPETRAIL")) {
+    for (int i = 0; i <= SCOPE_TRAIL_MAX; i++) {
+      out += "<option value=\"" + String(i) + "\"" + (settings.scopeTrail == i ? " selected" : "") + ">" + String(i);
+      if (i == SCOPE_TRAIL_DEFAULT) out += " (default)";
+      out += "</option>";
+    }
+    return true;
+  }
   if (!strcmp(n, "CHK_VIZSHOWCLOCK")) { out = String(settings.vizShowClock ? "checked" : ""); return true; }
   if (!strcmp(n, "OPT_VIZSTYLE")) {
-    const char* names[] = {"Classic EQ", "Neon Mirror", "Phosphor Waterfall"};
-    for (int i = 0; i < 3; i++) {
-      out += "<option value=\"" + String(i) + "\"" + (settings.vizStyle == i ? " selected" : "") + ">" + names[i] + "</option>";
+    // Slot 4 is retired; ids stay stable for saved settings.
+    const uint8_t ids[] = {0, 1, 2, 3, 5, 6};
+    const char* names[] = {"Classic EQ", "Neon Mirror", "Phosphor Waterfall",
+                           "Purple LED Stage", "Starfield Overdrive", "Oscilloscope"};
+    for (int i = 0; i < 6; i++) {
+      out += "<option value=\"" + String(ids[i]) + "\"" + (settings.vizStyle == ids[i] ? " selected" : "") + ">" + names[i] + "</option>";
     }
     return true;
   }
@@ -1438,7 +1460,20 @@ void handleSave() {
  settings.vizShowClock = server.hasArg("vizShowClock");
  if (server.hasArg("vizStyle")) {
    int style = server.arg("vizStyle").toInt();
-   settings.vizStyle = (style >= 0 && style <= 2) ? style : 0;
+   settings.vizStyle = normalizeVizStyle(style);
+ }
+ if (server.arg("resetScope") == "1") {
+   applyScopeDefaults();
+   settings.spriteColors[COL_SCOPE_GRID] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_GRID];
+   settings.spriteColors[COL_SCOPE_TRACE] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_TRACE];
+   settings.spriteColors[COL_SCOPE_PEAK] = SPRITE_COLOR_DEFAULTS[COL_SCOPE_PEAK];
+ } else {
+   settings.scopeGrid = server.hasArg("scopeGrid");
+   settings.scopeFill = server.hasArg("scopeFill");
+   settings.scopeFlat = server.hasArg("scopeFlat");
+   if (server.hasArg("scopeTrail")) settings.scopeTrail = server.arg("scopeTrail").toInt();
+   if (server.hasArg("scopeGain")) settings.scopeGain = server.arg("scopeGain").toInt();
+   clampScopeSettings();
  }
  }
 
@@ -1924,6 +1959,11 @@ void handleExportConfig() {
  json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
  json += "\"vizStyle\":" + String(settings.vizStyle) + ",";
+ json += "\"scopeGrid\":" + String(settings.scopeGrid ? "true" : "false") + ",";
+ json += "\"scopeFill\":" + String(settings.scopeFill ? "true" : "false") + ",";
+ json += "\"scopeFlat\":" + String(settings.scopeFlat ? "true" : "false") + ",";
+ json += "\"scopeTrail\":" + String(settings.scopeTrail) + ",";
+ json += "\"scopeGain\":" + String(settings.scopeGain) + ",";
 
  // Metric labels
  json += "\"metricLabels\":[";
@@ -2098,9 +2138,15 @@ void handleImportConfig() {
  }
  }
  if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
+ if (!doc["scopeGrid"].isNull()) settings.scopeGrid = doc["scopeGrid"].as<bool>();
+ if (!doc["scopeFill"].isNull()) settings.scopeFill = doc["scopeFill"].as<bool>();
+ if (!doc["scopeFlat"].isNull()) settings.scopeFlat = doc["scopeFlat"].as<bool>();
+ if (!doc["scopeTrail"].isNull()) settings.scopeTrail = doc["scopeTrail"].as<int>();
+ if (!doc["scopeGain"].isNull()) settings.scopeGain = doc["scopeGain"].as<int>();
+ clampScopeSettings();
  if (!doc["vizStyle"].isNull()) {
    int style = doc["vizStyle"].as<int>();
-   settings.vizStyle = (style >= 0 && style <= 2) ? style : 0;
+   settings.vizStyle = normalizeVizStyle(style);
  }
  if (!doc["deviceName"].isNull()) {
    const char* name = doc["deviceName"];

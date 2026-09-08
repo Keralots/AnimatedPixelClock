@@ -13,6 +13,10 @@
 
 #define VIZ_BANDS 32
 #define VIZ_PACKET_LEN 36  // "FFT1" magic + 32 amplitude bytes
+#define VIZ_WAVE_POINTS 128
+// Companions that know the oscilloscope append a trigger-aligned waveform.
+// Older ones send the short packet and the scope falls back to a flat trace.
+#define VIZ_WAVE_PACKET_LEN (VIZ_PACKET_LEN + VIZ_WAVE_POINTS)
 
 // Consume a UDP packet if it is a spectrum packet. Returns true when
 // consumed (caller skips JSON parsing and logging).
@@ -27,6 +31,10 @@ void vizNoteForced();
 
 // Show the visualizer? True while fed (10s tolerance) or in the grace window.
 bool vizShouldDisplay();
+
+// Latest waveform, 128 samples centred on 128. Null until one arrives.
+const uint8_t* vizWaveform();
+uint32_t vizWaveSerial();
 
 // Render one frame of the bar EQ (call at 60 Hz while forced mode active).
 void displayVisualizer();

@@ -3,8 +3,10 @@
 Captures what the PC is playing (WASAPI loopback on Windows, PulseAudio
 monitor on Linux - both via the `soundcard` package), reduces each ~40ms
 block to 32 log-spaced frequency bands, and sends them to the device as a
-tiny binary UDP packet: b"FFT1" + 32 amplitude bytes, ~25 packets/s to the
-same port the stats JSON uses. The device only shows them in its forced
+tiny binary UDP packet: b"FFT1" + 32 amplitude bytes + 128 waveform bytes,
+~25 packets/s to the same port the stats JSON uses. The waveform tail is what
+the device's oscilloscope style draws; firmware that predates it reads the
+bands and ignores the rest, so the packet stays backwards compatible. The device only shows them in its forced
 visualizer mode (/api/mode/viz), so streaming is harmless otherwise.
 
 With auto-start enabled the streamer also switches the display itself: it
@@ -42,6 +44,15 @@ FRAMES = 1920            # 40 ms blocks -> 25 packets/s
 FFT_N = 2048
 BANDS = 32
 F_LO, F_HI = 50.0, 16000.0
+
+# Waveform tail. Decimating by 8 low-passes the trace to roughly 3 kHz, which
+# is what makes it read as an oscilloscope rather than as noise, and leaves
+# 240 filtered points per block to pick a trigger-aligned window of 128 from.
+WAVE_POINTS = 128
+WAVE_DECIM = 8
+WAVE_AGC_DECAY = 0.55    # per second, multiplicative
+WAVE_AGC_FLOOR = 0.02    # silence stays a flat line instead of amplified noise
+WAVE_GAIN = 118.0        # peak deflection, leaving headroom inside +/-128
 
 # AGC: the reference level tracks the loudest recent band and decays slowly,
 # so quiet and loud music both use the full bar height.
@@ -242,6 +253,7 @@ class SpectrumStreamer(threading.Thread):
         self._capture_mmcss = None   # MMCSS handles: kept alive, not inspected
         self._watchdog_mmcss = None
         self._last_bands = None   # newest frame, reused by the watchdog
+        self._last_wave = None
         self._last_frame_at = 0.0
 
         # Precompute the window and the FFT-bin span of each log band.
@@ -254,6 +266,7 @@ class SpectrumStreamer(threading.Thread):
             hi = max(lo + 1, int(edges[i + 1] / bin_hz))
             self._band_bins.append((lo, hi))
         self._agc_ref = AGC_FLOOR_DB
+        self._wave_ref = WAVE_AGC_FLOOR
 
     def set_target(self, ip, port):
         with self._lock:
@@ -357,6 +370,31 @@ class SpectrumStreamer(threading.Thread):
         norm = (db - (self._agc_ref - AGC_RANGE_DB)) / AGC_RANGE_DB
         return np.clip(norm * 255.0, 0, 255).astype(np.uint8)
 
+    def _process_wave(self, mono):
+        """Trigger-aligned, decimated waveform as offset-binary bytes."""
+        usable = (len(mono) // WAVE_DECIM) * WAVE_DECIM
+        low = mono[:usable].reshape(-1, WAVE_DECIM).mean(axis=1)
+        if len(low) < WAVE_POINTS:
+            low = np.pad(low, (0, WAVE_POINTS - len(low)))
+
+        # Start on a rising zero crossing so the trace stands still instead of
+        # sliding sideways one block to the next.
+        start = 0
+        limit = len(low) - WAVE_POINTS
+        if limit > 0:
+            head = low[:limit + 1]
+            rising = np.nonzero((head[:-1] <= 0.0) & (head[1:] > 0.0))[0]
+            if rising.size:
+                start = int(rising[0]) + 1
+        seg = low[start:start + WAVE_POINTS]
+
+        dt = FRAMES / float(RATE)
+        peak = float(np.abs(seg).max())
+        self._wave_ref = max(self._wave_ref * (WAVE_AGC_DECAY ** dt), peak,
+                             WAVE_AGC_FLOOR)
+        scaled = seg / self._wave_ref * WAVE_GAIN + 128.0
+        return np.clip(scaled, 0, 255).astype(np.uint8)
+
     def _block_level_db(self, mono):
         """Block loudness in dBFS. AGC-free, so the auto-start threshold
         means the same thing whatever the music's volume."""
@@ -365,13 +403,17 @@ class SpectrumStreamer(threading.Thread):
             return SILENT_DB
         return max(SILENT_DB, 20.0 * np.log10(rms))
 
-    def _send_bands(self, bands):
+    def _send_bands(self, bands, wave=None):
         with self._lock:
             target = self._target
         if target is None or self._stop_event.is_set():
             return
+        if wave is None:
+            wave = np.full(WAVE_POINTS, 128, dtype=np.uint8)
         try:
-            self._sock.sendto(b"FFT1" + bands.astype(np.uint8).tobytes(), target)
+            packet = (b"FFT1" + bands.astype(np.uint8).tobytes()
+                      + wave.astype(np.uint8).tobytes())
+            self._sock.sendto(packet, target)
             self.last_sent = time.monotonic()
         except OSError:
             pass
@@ -387,6 +429,7 @@ class SpectrumStreamer(threading.Thread):
                 now = time.monotonic()
                 with self._lock:
                     bands = self._last_bands
+                    wave = self._last_wave
                     last_frame_at = self._last_frame_at
                 if bands is None or not self.last_sent or now - self.last_sent < GAP_S:
                     holding = False
@@ -399,9 +442,13 @@ class SpectrumStreamer(threading.Thread):
                     self.stalls += 1
                 if action == "decay":
                     bands = bands * STALL_DECAY
+                    if wave is not None:
+                        wave = np.clip((wave.astype(np.float32) - 128.0)
+                                       * STALL_DECAY + 128.0, 0, 255).astype(np.uint8)
                     with self._lock:
                         self._last_bands = bands
-                self._send_bands(bands)
+                        self._last_wave = wave
+                self._send_bands(bands, wave)
         finally:
             release_thread_priority(self._watchdog_mmcss)
 
@@ -487,14 +534,16 @@ class SpectrumStreamer(threading.Thread):
                         mono = data.mean(axis=1) if data.ndim > 1 else data
                         mono = mono.astype(np.float32)
                         bands = self._process_block(mono)
+                        wave = self._process_wave(mono)
                         level = self._block_level_db(mono)
                         self.last_level_db = level
                         self.last_error = ""
                         with self._lock:
                             self._last_bands = bands.astype(np.float32)
+                            self._last_wave = wave
                             self._last_frame_at = time.monotonic()
                             action = self.auto.feed(level, self._last_frame_at)
-                        self._send_bands(bands)
+                        self._send_bands(bands, wave)
                         if action:
                             self._send_mode(action)
                         with self._lock:

@@ -131,7 +131,36 @@ class StreamTimingTests(unittest.TestCase):
             self.stream._sock.sendto.assert_not_called()
             self.stream._target = ("192.0.2.1", 4210)
             self.stream._send_bands(self.bands)
-        self.stream._sock.sendto.assert_called_once_with(b"FFT1" + bytes(32), ("192.0.2.1", 4210))
+        flat = bytes([128]) * audio.WAVE_POINTS
+        self.stream._sock.sendto.assert_called_once_with(
+            b"FFT1" + bytes(32) + flat, ("192.0.2.1", 4210))
+
+    def test_packet_carries_bands_then_waveform(self):
+        self.stream._target = ("192.0.2.1", 4210)
+        wave = audio.np.arange(audio.WAVE_POINTS, dtype=audio.np.uint8)
+        self.stream._send_bands(self.bands, wave)
+        packet = self.stream._sock.sendto.call_args[0][0]
+        self.assertEqual(len(packet), 4 + audio.BANDS + audio.WAVE_POINTS)
+        self.assertEqual(packet[:4], b"FFT1")
+        self.assertEqual(packet[4 + audio.BANDS:], wave.tobytes())
+
+    def test_waveform_triggers_on_a_rising_zero_crossing(self):
+        # Two blocks of the same tone at different phases must yield the same
+        # trace, otherwise the scope slides sideways instead of standing still.
+        t = audio.np.arange(audio.FRAMES, dtype=audio.np.float32) / audio.RATE
+        first = audio.np.sin(2 * audio.np.pi * 110.0 * t).astype(audio.np.float32)
+        shifted = audio.np.sin(2 * audio.np.pi * 110.0 * t + 1.1).astype(audio.np.float32)
+        a = self.stream._process_wave(first)
+        b = self.stream._process_wave(shifted)
+        self.assertEqual(len(a), audio.WAVE_POINTS)
+        self.assertLess(int(audio.np.abs(a.astype(int) - b.astype(int)).max()), 12)
+        self.assertGreater(int(a.max()), 200)
+        self.assertLess(int(a.min()), 55)
+
+    def test_silence_stays_a_flat_trace(self):
+        quiet = audio.np.zeros(audio.FRAMES, dtype=audio.np.float32)
+        wave = self.stream._process_wave(quiet)
+        self.assertTrue(bool((wave == 128).all()))
 
     def test_slow_dns_does_not_block_capture_or_publish_old_target(self):
         entered, finish = threading.Event(), threading.Event()

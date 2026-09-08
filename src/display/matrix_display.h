@@ -44,12 +44,29 @@ public:
   explicit MatrixDisplay(const HUB75_I2S_CFG &cfg) : MatrixPanel_I2S_DMA(cfg) {}
 
   inline void clearDisplay() { clearScreen(); }      // clear the (back) draw buffer
-  inline void display() { flipDMABuffer(); }         // swap double buffers
+  inline void display() {
+    flipDMABuffer();
+    lastFlipUs = micros();
+    hasFlipped = true;
+  }
+
+  // The S3 driver queues a DMA chain switch but does not wait for EOF.
+  // A full scan after the request guarantees the old front buffer is free.
+  inline void waitForScanCompletion() {
+    if (!hasFlipped || calculated_refresh_rate <= 0) return;
+    const uint32_t scanUs = (1000000UL + calculated_refresh_rate - 1) /
+                            calculated_refresh_rate + 100;
+    const uint32_t elapsed = micros() - lastFlipUs;
+    if (elapsed < scanUs) delayMicroseconds(scanUs - elapsed);
+  }
 
   // No readable framebuffer on the DMA panel; nothing samples it anymore
   // (Pong's digit shatter reads the 5x7 glyph font instead), kept only so any
   // future caller fails safe on a null check rather than a build error.
   inline uint8_t *getBuffer() { return nullptr; }
+private:
+  uint32_t lastFlipUs = 0;
+  bool hasFlipped = false;
 };
 
 #endif  // MATRIX_DISPLAY_H

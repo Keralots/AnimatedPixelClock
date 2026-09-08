@@ -832,7 +832,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             <div class="field">
               <label class="field-label" for="vizStyle">Visualizer style</label>
               <div class="select-wrap"><select name="vizStyle" id="vizStyle">%OPT_VIZSTYLE%</select></div>
-              <p class="field-hint">Classic EQ: original bars. Neon Mirror: cyan and magenta pulses. Phosphor Waterfall: scrolling green and amber trails. Save settings to apply.</p>
+              <p class="field-hint">Classic EQ: original bars. Neon Mirror: cyan and magenta pulses. Phosphor Waterfall: scrolling green and amber trails. Purple LED Stage: curved purple and pink LED waves pulsing with the music. Starfield Overdrive: persistent music-pulsing trails, short hyperspace bursts and bright star tips. Oscilloscope: the live waveform on a lab-scope graticule with a phosphor trail; needs the companion app from this release. Save settings to apply.</p>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
               <button type="button" class="btn" id="vizStartBtn">Start visualizer</button>
@@ -844,8 +844,44 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <span class="check-box" aria-hidden="true"></span>
               <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner over the bars.</span></span>
             </label>
-            <p class="field-hint">Colors below apply to Classic EQ. The retro styles use their own palettes.</p>
-            <div style="margin-top:8px">%COLOR_VIZ%</div>
+            <div id="vizClassicColors" style="display:none">
+              <p class="field-hint">Colors below apply to Classic EQ. The other styles use their own palettes.</p>
+              <div style="margin-top:8px">%COLOR_VIZ%</div>
+            </div>
+            <div id="vizScopeOptions" style="display:none">
+              <p class="field-hint">Oscilloscope colors. Defaults: green graticule, yellow trace, red at full deflection.</p>
+              <div style="margin-top:8px">%COLOR_SCOPE%</div>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="scopeGrid" id="scopeGrid" %CHK_SCOPEGRID%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show graticule</strong><span class="ct-hint">The grid and centre line behind the trace. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:8px">
+                <input type="checkbox" name="scopeFill" id="scopeFill" %CHK_SCOPEFILL%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Fill to centre line</strong><span class="ct-hint">Solid silhouette instead of a bare line. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:8px">
+                <input type="checkbox" name="scopeFlat" id="scopeFlat" %CHK_SCOPEFLAT%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Flat trace color</strong><span class="ct-hint">One color everywhere instead of fading to the deflection color. Default off.</span></span>
+              </label>
+              <div class="field" style="margin-top:12px">
+                <label class="field-label" for="scopeTrail">Phosphor trail</label>
+                <div class="select-wrap"><select name="scopeTrail" id="scopeTrail">%OPT_SCOPETRAIL%</select></div>
+                <p class="field-hint">Ghost traces behind the live one. 0 is a single sharp line, 4 smears the most. Default 3.</p>
+              </div>
+              <div class="field" style="margin-top:12px">
+                <label class="field-label" for="scopeGain">Vertical gain (%)</label>
+                <input type="number" name="scopeGain" id="scopeGain" min="50" max="200" step="5" value="%V_SCOPEGAIN%">
+                <p class="field-hint">Trace height, 50 to 200. Above 100 the loud parts flatten against the edges. Default 100.</p>
+              </div>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="resetScope" value="1">
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Restore oscilloscope defaults on save</strong><span class="ct-hint">Resets the options above and the three colors.</span></span>
+              </label>
+            </div>
           </div>
 
           <div class="card">
@@ -1211,6 +1247,14 @@ syncAnimField();
 }).catch(function () { animStatus('Cannot read animation storage. Retry after checking the connection.'); });
 }
 if (ambStyleSel) ambStyleSel.addEventListener('change', syncAnimField);
+var vizStyleSel = $('#vizStyle'), vizClassicC = $('#vizClassicColors'), vizScopeO = $('#vizScopeOptions');
+function syncVizPanels() {
+var v = vizStyleSel ? vizStyleSel.value : '0';
+if (vizClassicC) vizClassicC.style.display = (v === '0') ? '' : 'none';
+if (vizScopeO) vizScopeO.style.display = (v === '6') ? '' : 'none';
+}
+if (vizStyleSel) vizStyleSel.addEventListener('change', syncVizPanels);
+syncVizPanels();
 animRefresh();
 var animUp = $('#animUploadBtn');
 if (animUp) animUp.addEventListener('click', function () {

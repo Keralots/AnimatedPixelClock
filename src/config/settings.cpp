@@ -72,7 +72,24 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DIGITS_S16     */ 0x07FF,  // neon cyan
     /* COL_TRON_BLUE      */ 0x05FF,  // blue light cycle
     /* COL_TRON_ORANGE    */ 0xFC60,  // orange light cycle
+    /* COL_SCOPE_GRID     */ 0x07E0,  // green
+    /* COL_SCOPE_TRACE    */ 0xFFE0,  // yellow
+    /* COL_SCOPE_PEAK     */ 0xF800,  // red
 };
+void applyScopeDefaults() {
+  settings.scopeGrid = true;
+  settings.scopeFill = false;
+  settings.scopeFlat = false;
+  settings.scopeTrail = SCOPE_TRAIL_DEFAULT;
+  settings.scopeGain = SCOPE_GAIN_DEFAULT;
+}
+
+void clampScopeSettings() {
+  if (settings.scopeTrail > SCOPE_TRAIL_MAX) settings.scopeTrail = SCOPE_TRAIL_DEFAULT;
+  if (settings.scopeGain < SCOPE_GAIN_MIN || settings.scopeGain > SCOPE_GAIN_MAX)
+    settings.scopeGain = SCOPE_GAIN_DEFAULT;
+}
+
 // Every ColorSlot must have a default here, else it silently defaults to black.
 static_assert(sizeof(SPRITE_COLOR_DEFAULTS) / sizeof(SPRITE_COLOR_DEFAULTS[0]) == COL_COUNT,
               "every ColorSlot needs a default in SPRITE_COLOR_DEFAULTS");
@@ -151,6 +168,7 @@ void loadSettings() {
     settings.ambientCustomFile[0] = '\0';
     settings.vizShowClock = true;
     settings.vizStyle = 0;
+    applyScopeDefaults();
     settings.tronBikeStyle = 0;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
@@ -395,8 +413,13 @@ void loadSettings() {
   settings.ambientCustomFile[27] = '\0';
   settings.vizShowClock =
       preferences.getBool("vizClock", true); // Default: Show time
-  settings.vizStyle = preferences.getUChar("vizStyle", 0);
-  if (settings.vizStyle > 2) settings.vizStyle = 0;
+  settings.vizStyle = normalizeVizStyle(preferences.getUChar("vizStyle", 0));
+  settings.scopeGrid = preferences.getBool("scopeGrid", true);
+  settings.scopeFill = preferences.getBool("scopeFill", false);
+  settings.scopeFlat = preferences.getBool("scopeFlat", false);
+  settings.scopeTrail = preferences.getUChar("scopeTrail", SCOPE_TRAIL_DEFAULT);
+  settings.scopeGain = preferences.getUChar("scopeGain", SCOPE_GAIN_DEFAULT);
+  clampScopeSettings();
   settings.marioBounceHeight =
       preferences.getUChar("marioBnceH", 35); // Default: 3.5
   settings.marioBounceSpeed =
@@ -725,6 +748,11 @@ void saveSettings() {
   preferences.putString("ambCustom", settings.ambientCustomFile);
   preferences.putBool("vizClock", settings.vizShowClock);
   preferences.putUChar("vizStyle", settings.vizStyle);
+  preferences.putBool("scopeGrid", settings.scopeGrid);
+  preferences.putBool("scopeFill", settings.scopeFill);
+  preferences.putBool("scopeFlat", settings.scopeFlat);
+  preferences.putUChar("scopeTrail", settings.scopeTrail);
+  preferences.putUChar("scopeGain", settings.scopeGain);
   preferences.putUChar("marioBnceH", settings.marioBounceHeight);
   preferences.putUChar("marioBnceS", settings.marioBounceSpeed);
   preferences.putBool("marioSmooth", settings.marioSmoothAnimation);

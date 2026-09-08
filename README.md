@@ -274,14 +274,45 @@ card, then **Save settings**:
 - **Phosphor Waterfall**: a scrolling spectrum history in green, mint and amber,
   inspired by vintage computer displays. Bass is on the left, treble on the right;
   new sound enters at the top and fades downward.
+- **Purple LED Stage**: a curved concert light wall. Each column follows its own
+  band, bass opens the wave and treble adds pale pink highlights.
+- **Starfield Overdrive**: flight through stars whose trails stretch on every
+  bass onset.
+- **Oscilloscope**: the live waveform on a lab-scope graticule, with a phosphor
+  trail behind it. The trace is trigger-aligned on the PC so it stands still
+  instead of sliding, and it takes its colors from the same three editable slots
+  as Classic EQ (grid from the low color, trace from mid, peaks from the top one).
 
-The two new styles use fixed retro palettes. All three support the small clock
-and the same companion audio stream. Style selection survives restarts and is
-included in settings export/import; older settings keep Classic EQ by default
-on a fresh device.
+Classic EQ and the Oscilloscope each have their own color pickers, and the card
+shows the set that belongs to the selected style; the others use fixed palettes. All of them support the small clock and the same companion audio
+stream. Style selection survives restarts and is included in settings
+export/import; older settings keep Classic EQ by default on a fresh device.
+
+Selecting the Oscilloscope also reveals its own options, all of which default to
+the look above:
+
+- **Graticule**: its own color, or switched off for a bare trace (default on).
+- **Trace colors**: the trace itself and the color it fades to at full
+  deflection (default yellow fading to red).
+- **Flat trace color**: drops that fade so the trace is one color (default off).
+- **Fill to centre line**: a solid silhouette instead of a bare line (default off).
+- **Phosphor trail**: 0 to 4 ghost traces behind the live one. 0 is a single
+  sharp line, 4 smears the most (default 3).
+- **Vertical gain**: 50 to 200 percent trace height. Above 100 the loud parts
+  flatten against the top and bottom edges, like a scope driven too hard
+  (default 100).
+
+**Restore oscilloscope defaults on save** puts all of those back, colors
+included, without touching any other setting.
+
+The Oscilloscope needs the waveform that the companion app from this release
+sends alongside the spectrum. An older companion streams the spectrum only, and
+the device then says so on screen instead of drawing a trace; the other styles
+keep working with either version.
 
 Turning **Show small clock** off also hides the fixed guide lines in Neon Mirror
-and Phosphor Waterfall. Waterfall then uses the full display height.
+and Phosphor Waterfall. Waterfall then uses the full display height, and the
+Oscilloscope re-centers its graticule on the full panel.
 
 Setup:
 

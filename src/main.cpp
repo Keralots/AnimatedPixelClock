@@ -368,6 +368,9 @@ void loop() {
     // frame, so skip the redundant clear when it is what renders this tick.
     bool animFullRepaint = !showViz && !showStats && ambientActive() &&
                            settings.ambientStyle == 6 && ambientCustomPlaying();
+    // Bright starfield details make partial scans visible. Do not clear/reuse
+    // the previous front buffer until the queued flip has settled.
+    if (showViz && settings.vizStyle == 5) display.waitForScanCompletion();
     if (!animFullRepaint) display.clearDisplay();
 
     if (showViz) {

@@ -94,6 +94,9 @@ enum ColorSlot {
   COL_DIGITS_S16, // TRON
   COL_TRON_BLUE,
   COL_TRON_ORANGE,
+  COL_SCOPE_GRID,      // oscilloscope graticule
+  COL_SCOPE_TRACE,     // oscilloscope trace
+  COL_SCOPE_PEAK,      // oscilloscope trace at full deflection
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

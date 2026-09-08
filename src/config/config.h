@@ -29,6 +29,19 @@ static inline uint8_t normalizeAmbientStyle(int s) {
   return (s == 2 || s < 0 || s > 6) ? 0 : (uint8_t)s;
 }
 
+#define SCOPE_TRAIL_MAX 4
+#define SCOPE_TRAIL_DEFAULT 3
+#define SCOPE_GAIN_MIN 50
+#define SCOPE_GAIN_MAX 200
+#define SCOPE_GAIN_DEFAULT 100
+
+// Visualizer slots in use: 0,1,2,3,5,6. Slot 4 held a dropped effect; map it
+// and any out-of-range value to 0 (Classic EQ) so a device that still has it
+// saved lands on a real style.
+static inline uint8_t normalizeVizStyle(int s) {
+  return (s == 4 || s < 0 || s > 6) ? 0 : (uint8_t)s;
+}
+
 // ========== Metric Structures ==========
 struct Metric {
   uint8_t id;
@@ -124,7 +137,12 @@ struct Settings {
 
   // Audio spectrum visualizer (forced mode fed by the companion)
   bool vizShowClock;            // Small HH:MM overlay over the bars
-  uint8_t vizStyle;             // 0=Classic EQ, 1=Neon Mirror, 2=Phosphor Waterfall
+  uint8_t vizStyle;             // 0=Classic EQ, 1=Neon Mirror, 2=Phosphor Waterfall, 3=Purple LED Stage, 5=Starfield Overdrive, 6=Oscilloscope
+  bool scopeGrid;               // Oscilloscope: draw the graticule
+  bool scopeFill;               // Oscilloscope: fill to the centre line
+  bool scopeFlat;               // Oscilloscope: one trace color, no deflection gradient
+  uint8_t scopeTrail;           // Oscilloscope: ghost traces behind the live one (0-4)
+  uint8_t scopeGain;            // Oscilloscope: trace height percent (50-200)
 
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
@@ -419,6 +437,10 @@ struct PathStep {
 
 // Settings and state
 extern Settings settings;
+
+// Oscilloscope tunables, shared by load, save and the web handlers.
+void applyScopeDefaults();
+void clampScopeSettings();
 extern MetricData metricData;
 extern bool displayAvailable;
 extern bool ntpSynced;
