@@ -39,7 +39,7 @@ void applyTimezone();
 void handleUDP();
 
 // Parse incoming stats JSON
-void parseStats(const char* json);
+bool parseStats(const char* json);
 void parseStatsV2(JsonDocument& doc);
 
 // WiFi reconnection handling

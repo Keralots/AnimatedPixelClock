@@ -516,8 +516,8 @@ void handleUDP() {
       Serial.print(len);
       Serial.println(" bytes");
 
-      parseStats(buffer);
-      lastReceived = millis();
+      // Only a packet that actually parsed proves the PC is alive.
+      if (parseStats(buffer)) lastReceived = millis();
     }
   }
 }
@@ -659,17 +659,18 @@ void parseStatsV2(JsonDocument& doc) {
   Serial.println(" visible (position assigned)");
 }
 
-void parseStats(const char* json) {
+bool parseStats(const char* json) {
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
 
   if (error) {
     Serial.print("JSON parse error: ");
     Serial.println(error.c_str());
-    return;
+    return false;
   }
 
   parseStatsV2(doc);
+  return true;
 }
 
 // ========== Display Status Screens ==========
