@@ -136,11 +136,30 @@ Once on WiFi, open the device's IP address or `http://pixelclock.local` in a bro
   power-off window that blanks the panel overnight to spare the LEDs
 - **Timezone**: built-in region list with automatic DST transitions (POSIX TZ rules, no
   manual toggles)
-- **Network**: DHCP or static IP, device name (mDNS), show IP at boot
+- **Network**: DHCP or static IP, device name (mDNS), show IP at boot, NTP time
+  servers (see below)
 - **PC monitor layout**: which metrics are visible and where, 5-row / 6-row / large
   text modes, progress bars, drag-and-drop placement on a live preview
 - **Config export/import** as JSON (includes the color palette)
 - **Firmware update**: upload a `.bin` over the air
+
+### Time servers (NTP)
+
+The clock gets the time over NTP and applies the timezone rules locally. By default it
+asks `pool.ntp.org`, then `time.nist.gov`.
+
+The **Network** page has a *Time servers (NTP)* card with a primary and a secondary
+field. Either accepts a hostname or an IP, so you can point the clock at a local time
+source (a router, a pfSense box, an internal NTP server) instead of the public pool.
+Leave the primary blank to fall back to the compiled default; leave the secondary blank
+to use no fallback server at all.
+
+**Test** probes each configured server directly and reports whether it answered, with
+the UTC time it returned. That check uses its own throwaway socket, so it never
+disturbs the running clock. Saving the settings reapplies the timezone and forces a
+resync, which can take a few seconds on a slow server.
+
+Both fields are included in config export/import.
 
 ## Weather (optional)
 
@@ -443,6 +462,7 @@ the device on a trusted LAN.
 | `/api/mode/ambient` | Force the ambient screensaver on now |
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
+| `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash

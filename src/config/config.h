@@ -157,6 +157,8 @@ struct Settings {
   char subnet[16];
   char dns1[16];
   char dns2[16];
+  char ntpServer1[64];        // Primary NTP server (blank = compiled default)
+  char ntpServer2[64];        // Secondary NTP server (blank = none)
 
   // TRON clock settings
   uint8_t tronBikeStyle;       // 0=Motorcycle profile, 1=Light cycle top view

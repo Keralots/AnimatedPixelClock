@@ -34,6 +34,7 @@ void handleDeviceInfo();
 void handleRename();
 void handleExportConfig();
 void handleImportConfig();
+void handleNtpTest();
 
 // Notification banner API
 void handleNotify();
