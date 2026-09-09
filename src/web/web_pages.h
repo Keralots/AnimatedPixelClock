@@ -67,6 +67,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <div class="nav-label">Configuration</div>
         <button type="button" class="nav-item active" data-nav="clock">Clock</button>
         <button type="button" class="nav-item" data-nav="display">Display</button>
+        <button type="button" class="nav-item" data-nav="viz">Audio visualizer<span class="nv-tag">Audio</span></button>
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
       </div>
@@ -827,8 +828,34 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
 
           <div class="card">
-            <h2 class="card-title">Audio visualizer</h2>
-            <p class="field-hint" style="margin-top:0">Retro effects driven by your PC's sound. Needs the companion app running with its <strong>Audio visualizer</strong> option enabled.</p>
+            <h2 class="card-title">Notifications</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="notifyEnabled" id="notifyEnabled" %CHK_NOTIFYENABLED%>
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Notification banner</strong><span class="ct-hint">Allow POST /api/notify to show a scrolling message over any screen (Home Assistant, scripts).</span></span>
+            </label>
+            <div class="field" style="margin:14px 0 0">
+              <label class="field-label" for="notifyPosition">Banner position</label>
+              <div class="select-wrap">
+                <select name="notifyPosition" id="notifyPosition">
+                  <option value="0" %SEL_NOTIFYPOSITION_0%>Bottom</option>
+                  <option value="1" %SEL_NOTIFYPOSITION_1%>Top</option>
+                </select>
+              </div>
+              <p class="field-hint">Default edge for the banner. A request can override it per message.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- AUDIO VISUALIZER -->
+        <section class="page" data-page="viz">
+          <div class="page-header">
+            <h1 class="page-h1">Audio visualizer</h1>
+            <p class="page-lede">Retro effects driven by your PC's sound. Needs the companion app running with its <strong>Audio visualizer</strong> option enabled.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Effect</h2>
             <div class="field">
               <label class="field-label" for="vizStyle">Visualizer style</label>
               <div class="select-wrap"><select name="vizStyle" id="vizStyle">%OPT_VIZSTYLE%</select></div>
@@ -844,6 +871,10 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <span class="check-box" aria-hidden="true"></span>
               <span class="check-text"><strong>Show small clock</strong><span class="ct-hint">Keeps a small HH:MM in the corner over the bars.</span></span>
             </label>
+          </div>
+
+          <div class="card" id="vizOptionsCard">
+            <h2 class="card-title">Colors and options</h2>
             <div id="vizClassicColors" style="display:none">
               <p class="field-hint">Colors below apply to Classic EQ. The other styles use their own palettes.</p>
               <div style="margin-top:8px">%COLOR_VIZ%</div>
@@ -881,25 +912,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Restore oscilloscope defaults on save</strong><span class="ct-hint">Resets the options above and the three colors.</span></span>
               </label>
-            </div>
-          </div>
-
-          <div class="card">
-            <h2 class="card-title">Notifications</h2>
-            <label class="check-row standalone">
-              <input type="checkbox" name="notifyEnabled" id="notifyEnabled" %CHK_NOTIFYENABLED%>
-              <span class="check-box" aria-hidden="true"></span>
-              <span class="check-text"><strong>Notification banner</strong><span class="ct-hint">Allow POST /api/notify to show a scrolling message over any screen (Home Assistant, scripts).</span></span>
-            </label>
-            <div class="field" style="margin:14px 0 0">
-              <label class="field-label" for="notifyPosition">Banner position</label>
-              <div class="select-wrap">
-                <select name="notifyPosition" id="notifyPosition">
-                  <option value="0" %SEL_NOTIFYPOSITION_0%>Bottom</option>
-                  <option value="1" %SEL_NOTIFYPOSITION_1%>Top</option>
-                </select>
-              </div>
-              <p class="field-hint">Default edge for the banner. A request can override it per message.</p>
             </div>
           </div>
         </section>
@@ -1181,7 +1193,7 @@ function showPage(key) {
 pages.forEach(function (p) { p.classList.toggle('active', p.dataset.page === key); });
 navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.nav === key); });
 var active = navItems.filter(function (n) { return n.dataset.nav === key; })[0];
-if (active && crumb) crumb.textContent = active.textContent.replace(/PC$/, '').trim();
+if (active && crumb) crumb.textContent = (active.firstChild ? active.firstChild.textContent : active.textContent).trim();
 window.scrollTo(0, 0);
 closeNav();
 try { localStorage.setItem('soled_section', key); } catch (e) {}
@@ -1260,11 +1272,12 @@ syncAnimField();
 }).catch(function () { animStatus('Cannot read animation storage. Retry after checking the connection.'); });
 }
 if (ambStyleSel) ambStyleSel.addEventListener('change', syncAnimField);
-var vizStyleSel = $('#vizStyle'), vizClassicC = $('#vizClassicColors'), vizScopeO = $('#vizScopeOptions');
+var vizStyleSel = $('#vizStyle'), vizClassicC = $('#vizClassicColors'), vizScopeO = $('#vizScopeOptions'), vizOptCard = $('#vizOptionsCard');
 function syncVizPanels() {
 var v = vizStyleSel ? vizStyleSel.value : '0';
 if (vizClassicC) vizClassicC.style.display = (v === '0') ? '' : 'none';
 if (vizScopeO) vizScopeO.style.display = (v === '6') ? '' : 'none';
+if (vizOptCard) vizOptCard.style.display = (v === '0' || v === '6') ? '' : 'none';
 }
 if (vizStyleSel) vizStyleSel.addEventListener('change', syncVizPanels);
 syncVizPanels();
