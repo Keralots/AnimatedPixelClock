@@ -64,6 +64,7 @@ if exist dist  rmdir /s /q dist
   --hidden-import animation_service ^
   --hidden-import gif_converter ^
   --hidden-import layout_engine ^
+  --hidden-import config_store ^
   --collect-all webview ^
   --collect-all pythonnet ^
   --collect-all pystray ^
