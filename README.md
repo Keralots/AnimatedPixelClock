@@ -134,6 +134,7 @@ Once on WiFi, open the device's IP address or `http://pixelclock.local` in a bro
 - **Display**: brightness (live slider), colon blink mode/rate, adaptive refresh rate,
   scheduled night dimming (start/end time to the minute + dim level) and a scheduled
   power-off window that blanks the panel overnight to spare the LEDs
+- **Audio visualizer**: effect style, its colors and the oscilloscope options
 - **Timezone**: built-in region list with automatic DST transitions (POSIX TZ rules, no
   manual toggles)
 - **Network**: DHCP or static IP, device name (mDNS), show IP at boot, NTP time
@@ -306,8 +307,8 @@ card, then **Save settings**:
   instead of sliding, and it takes its colors from the same three editable slots
   as Classic EQ (grid from the low color, trace from mid, peaks from the top one).
 
-Classic EQ and the Oscilloscope each have their own color pickers, and the card
-shows the set that belongs to the selected style; the others use fixed palettes. All of them support the small clock and the same companion audio
+Classic EQ and the Oscilloscope each have their own color pickers, and the
+**Colors and options** card shows the set that belongs to the selected style; the others use fixed palettes. All of them support the small clock and the same companion audio
 stream. Style selection survives restarts and is included in settings
 export/import; older settings keep Classic EQ by default on a fresh device.
 
@@ -345,7 +346,7 @@ Setup:
    (`python -m pip install soundcard numpy`). It captures whatever the PC is
    playing (WASAPI loopback on Windows, PulseAudio monitor on Linux) - no cables,
    no microphone.
-2. On the device: Display page -> **Audio visualizer** card -> **Start visualizer**
+2. On the device: **Audio visualizer** page -> **Start visualizer**
    (or `GET /api/mode/viz` from an automation).
 
 The visualizer stays on until you stop it; if the audio stream disappears for 10
