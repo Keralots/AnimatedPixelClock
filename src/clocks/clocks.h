@@ -14,6 +14,9 @@
 // Get time with timeout (defined in main.cpp)
 bool getTimeWithTimeout(struct tm* timeinfo, unsigned long timeout_ms = 100);
 
+// Single non-blocking read of the system clock, for render paths (main.cpp)
+bool peekLocalTime(struct tm* info);
+
 // Animation detection for adaptive refresh rate
 bool isAnimationActive();
 

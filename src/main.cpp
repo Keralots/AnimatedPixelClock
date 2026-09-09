@@ -74,6 +74,16 @@ int getOptimalRefreshRate();
 
 // ========== Helper Functions ==========
 
+// One non-blocking read of the clock. getLocalTime(info, 0) cannot do this: it
+// stamps millis() then loops while elapsed <= budget, so a tick landing in
+// between skips every attempt and reports failure with the time available.
+bool peekLocalTime(struct tm *info) {
+  time_t now;
+  time(&now);
+  localtime_r(&now, info);
+  return info->tm_year > 120;
+}
+
 // Helper function to get time with short timeout
 bool getTimeWithTimeout(struct tm *timeinfo, unsigned long timeout_ms) {
   if (!ntpSynced) {

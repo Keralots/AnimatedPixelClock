@@ -18,9 +18,9 @@ bool ambientActive() {
   if (!settings.ambientEnabled) return false;
 
   struct tm timeinfo;
-  // Zero timeout: one non-blocking check. A 10ms timeout here blocks every
-  // loop iteration while NTP is still syncing.
-  if (!getTimeWithTimeout(&timeinfo, 0)) return false;
+  // Non-blocking: a timeout here would stall every loop iteration while NTP
+  // is still syncing.
+  if (!peekLocalTime(&timeinfo)) return false;
 
   int h = timeinfo.tm_hour;
   int s = settings.ambientStartHour;
@@ -34,7 +34,7 @@ bool ambientActive() {
 // readable over bright effects like the fire.
 static void drawAmbientClock() {
   struct tm timeinfo;
-  if (!getTimeWithTimeout(&timeinfo, 0)) return;  // non-blocking, see ambientActive()
+  if (!peekLocalTime(&timeinfo)) return;
 
   int displayHour, displayMin;
   bool isPM;

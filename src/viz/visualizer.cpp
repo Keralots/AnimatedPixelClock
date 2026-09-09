@@ -180,7 +180,7 @@ bool vizShouldDisplay() {
 // Small HH:MM top-right, same idea as the ambient corner clock.
 static void drawVizClock() {
   struct tm timeinfo;
-  if (!getTimeWithTimeout(&timeinfo, 0)) return;
+  if (!peekLocalTime(&timeinfo)) return;
   int displayHour, displayMin;
   bool isPM;
   formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour,
