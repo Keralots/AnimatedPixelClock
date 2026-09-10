@@ -2,11 +2,12 @@
  * hello_matrix.cpp - HUB75 RGB matrix hardware bring-up (Phase 1)
  * Project: AnimatedPixelClock
  *
- * Target: Waveshare ESP32-S3-Zero driving 2x Waveshare P2.5 64x64 HUB75E
+ * Target: any supported ESP32-S3 board driving 2x Waveshare P2.5 64x64 HUB75E
  *         panels chained (panel1 JOUT -> panel2 JIN) = 128x64 RGB.
  *
- * Build / flash:  platformio run -e matrix-s3 --target upload
- *   (hold BOOT/GPIO0 while plugging USB to enter download mode on the S3-Zero)
+ * Build / flash:  platformio run -e matrix-s3-bringup --target upload
+ *   (or matrix-wroom-bringup / matrix-waveshare-bringup)
+ *   (hold BOOT/GPIO0 while plugging USB to enter download mode on native-USB boards)
  *
  * Purpose: prove the hardware path BEFORE porting any clock animation -
  * pin map, color order, 1/32 scan, panel chaining/seam, and FM6126A init.
@@ -21,6 +22,10 @@
 
 #include <Arduino.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+
+// Pin map (locked; see docs/HUB75_WIRING.md). Shared with the firmware so a
+// bring-up run tests the same wiring the clock will use.
+#include "display/hub75_pins.h"
 
 // ---- Panel geometry ----
 #define PANEL_W 64    // single module width
@@ -37,22 +42,6 @@
 // FM6126A Waveshare) - the missing right-edge column / corner. Set false to fix.
 // If instead the FIRST column doubles or the image shifts, set this back to true.
 #define CLK_PHASE false
-
-// ---- ESP32-S3-Zero -> HUB75 pin map (locked; see docs/HUB75_WIRING.md) ----
-#define PIN_R1  1
-#define PIN_G1  2
-#define PIN_B1  4
-#define PIN_R2  5
-#define PIN_G2  6
-#define PIN_B2  7
-#define PIN_A   8
-#define PIN_B   9
-#define PIN_C   10
-#define PIN_D   11
-#define PIN_E   12   // mandatory for 64x64 (1/32 scan)
-#define PIN_CLK 13
-#define PIN_LAT 14
-#define PIN_OE  38
 
 static MatrixPanel_I2S_DMA *dma = nullptr;
 static const uint16_t TOTAL_W = PANEL_W * PANELS;   // 128 with PANELS=2
@@ -75,10 +64,10 @@ void setup() {
 
   // i2s_pins field order is FIXED: r1,g1,b1,r2,g2,b2,a,b,c,d,e,lat,oe,clk
   HUB75_I2S_CFG::i2s_pins pins = {
-      PIN_R1, PIN_G1, PIN_B1,
-      PIN_R2, PIN_G2, PIN_B2,
-      PIN_A, PIN_B, PIN_C, PIN_D, PIN_E,
-      PIN_LAT, PIN_OE, PIN_CLK};
+      HUB75_PIN_R1, HUB75_PIN_G1, HUB75_PIN_B1,
+      HUB75_PIN_R2, HUB75_PIN_G2, HUB75_PIN_B2,
+      HUB75_PIN_A, HUB75_PIN_B, HUB75_PIN_C, HUB75_PIN_D, HUB75_PIN_E,
+      HUB75_PIN_LAT, HUB75_PIN_OE, HUB75_PIN_CLK};
 
   HUB75_I2S_CFG mxconfig(PANEL_W, PANEL_H, PANELS, pins);
 #if USE_FM6126A

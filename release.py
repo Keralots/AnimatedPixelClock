@@ -5,8 +5,9 @@ End-to-end release builder for the AnimatedPixelClock web flasher.
 Runs the whole release pipeline for the browser flasher at docs/:
     1. Reads FIRMWARE_VERSION from src/config/config.h  ->  v<ver>
     2. Locates the PlatformIO CLI (PATH, then the standard penv install)
-    3. Builds both board variants in a single PlatformIO invocation
-       (matrix-s3-wroom = WROOM 16MB, matrix-s3 = S3-Zero / Super Mini 4MB)
+    3. Builds every board variant in a single PlatformIO invocation
+       (matrix-s3-wroom = WROOM 16MB, matrix-s3 = S3-Zero / Super Mini 4MB,
+        matrix-waveshare = Waveshare ESP32-S3-RGB-Matrix)
     4. Merges bootloader + partitions + OTA initialization + app into a "Full" image per
        variant (flashed at 0x0, what ESP Web Tools writes)
     5. Copies the Full.bin images into docs/firmware/latest/ as
@@ -22,7 +23,7 @@ The web flasher reads the firmware id from the BOARDS map in docs/flasher.js:
 each board's `firmware` field must match an id below.
 
 Usage:
-    python release.py                 # build + package both variants
+    python release.py                 # build + package every variant
     python release.py --skip-build    # package whatever .pio/build already has
     python release.py v2.1.0          # require this version to match config.h
 """
@@ -41,10 +42,17 @@ from pathlib import Path
 # (PlatformIO env, firmware id, label). The firmware id must match the
 # `firmware` field in docs/flasher.js and drives the release/ filenames.
 VARIANTS = [
-    ("matrix-s3-wroom", "wroom",     "ESP32-S3-WROOM devkit (16MB)"),
-    ("matrix-s3",       "supermini", "ESP32-S3-Zero / Super Mini (4MB)"),
+    ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)"),
+    ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)"),
+    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix"),
 ]
-FLASH_BYTES = {"matrix-s3-wroom": 16 * 1024 * 1024, "matrix-s3": 4 * 1024 * 1024}
+# The Waveshare board carries a 32MB part but its image is written with a 16MB
+# flash header, so the packaging bound is 16MB.
+FLASH_BYTES = {
+    "matrix-s3-wroom": 16 * 1024 * 1024,
+    "matrix-s3": 4 * 1024 * 1024,
+    "matrix-waveshare": 16 * 1024 * 1024,
+}
 
 # Flash offsets for the ESP32-S3 (bootloader starts at 0x0).
 BOOTLOADER_OFFSET = 0x0
@@ -306,7 +314,7 @@ def main():
     print(f'  git commit -m "release: publish {version}"')
     print("  git push origin main")
     print(f"  Create tag {version} at that commit, then publish a GitHub Release with")
-    print(f"  the four BINs, {COMPANION_EXE.name} and SHA256SUMS.txt from {ota_dir}.")
+    print(f"  the {2 * len(VARIANTS)} BINs, {COMPANION_EXE.name} and SHA256SUMS.txt from {ota_dir}.")
 
 
 if __name__ == "__main__":

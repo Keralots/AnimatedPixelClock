@@ -9,13 +9,15 @@
  *   - 2x Waveshare P2.5 64x64 HUB75E chained = 128x64
  *   - driver FM6126A, clkphase=false (fixes dropped rightmost column)
  *   - internal-SRAM DMA only (NOT PSRAM), double-buffered
- *   - pin map identical to bringup/hello_matrix.cpp
+ *   - pin map from hub75_pins.h, shared with bringup/hello_matrix.cpp
  */
 
 #ifndef MATRIX_DISPLAY_H
 #define MATRIX_DISPLAY_H
 
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+
+#include "hub75_pins.h"
 
 #define HUB75_PANEL_W 64
 #define HUB75_PANEL_H 64
@@ -26,10 +28,10 @@
 inline HUB75_I2S_CFG makeMatrixConfig() {
   // i2s_pins field order is FIXED: r1,g1,b1,r2,g2,b2,a,b,c,d,e,lat,oe,clk
   HUB75_I2S_CFG::i2s_pins pins = {
-      1, 2, 4,             // R1, G1, B1
-      5, 6, 7,             // R2, G2, B2
-      8, 9, 10, 11, 12,    // A, B, C, D, E
-      14, 38, 13};         // LAT, OE, CLK
+      HUB75_PIN_R1, HUB75_PIN_G1, HUB75_PIN_B1,
+      HUB75_PIN_R2, HUB75_PIN_G2, HUB75_PIN_B2,
+      HUB75_PIN_A, HUB75_PIN_B, HUB75_PIN_C, HUB75_PIN_D, HUB75_PIN_E,
+      HUB75_PIN_LAT, HUB75_PIN_OE, HUB75_PIN_CLK};
   HUB75_I2S_CFG cfg(HUB75_PANEL_W, HUB75_PANEL_H, HUB75_CHAIN, pins);
   cfg.driver = HUB75_I2S_CFG::FM6126A;  // verified Phase 1
   cfg.clkphase = false;                 // verified: fixes dropped rightmost column

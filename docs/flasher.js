@@ -1,8 +1,7 @@
 // AnimatedPixelClock Web Flasher - client logic.
 // Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
-// install button, specs and board photo in sync. Two boards, two firmware
-// images: the ESP32-S3 Super Mini (4MB) and the ESP32-S3-WROOM devkit (16MB),
-// both driving the 128x64 HUB75 matrix.
+// install button, specs and board photo in sync. One firmware image per board in
+// BOARDS below, all driving the 128x64 HUB75 matrix.
 
 const BOARDS = {
   supermini: {
@@ -19,10 +18,18 @@ const BOARDS = {
     board: 'ESP32-S3-WROOM-1 (N16R8)',
     note: 'The full-size 16MB devkit has more storage for custom GIF animations. Follow the wiring guide for the panel power connections.',
   },
+  waveshare: {
+    label: 'Waveshare ESP32-S3-RGB-Matrix',
+    chipFamily: 'ESP32-S3',
+    firmware: 'waveshare',              // AnimatedPixelClock-waveshare-<ver>-Full.bin
+    board: 'Waveshare ESP32-S3-RGB-Matrix',
+    note: 'The purpose-built HUB75 driver board: the panel header and output buffers are onboard, so no per-GPIO wiring is needed - you still connect the ribbon cables and panel power. Two USB-C ports, one for programming and one for power. Native USB: if the serial port does not appear, hold BOOT while plugging in. Follow Waveshare\'s own connection guide for this board.',
+  },
 };
 
 const DEFAULT_BOARD = 'supermini';
 const DISPLAY = 'HUB75 · 128×64 RGB';
+const PROBE_TIMEOUT_MS = 4000;
 
 let _version = null;
 let _currentManifestUrl = null;
@@ -87,7 +94,15 @@ function renderSpecs(boardId) {
   if (boardEl) boardEl.textContent = info.board;
   document.getElementById('spec-display').textContent = DISPLAY;
   const img = document.getElementById('board-img');
-  if (img) { img.src = `img/boards/${boardId}.jpg`; img.alt = info.board; }
+  if (img) {
+    // Eager: a lazy image in a collapsed step never loads, so its onerror never
+    // fires and a board without a photo would show a broken-image icon.
+    img.loading = 'eager';
+    img.onerror = () => { img.hidden = true; };
+    img.hidden = false;
+    img.src = `img/boards/${boardId}.jpg`;
+    img.alt = info.board;
+  }
   const note = document.getElementById('board-note-text');
   if (note) note.textContent = info.note;
 }
@@ -145,6 +160,44 @@ function showVersionError(err) {
   document.getElementById('install-slot').innerHTML = '';
 }
 
+// Only a definite 404/410 counts as "not published yet". A blocked HEAD, a 405,
+// a 5xx or a timeout is inconclusive, and dropping a board on those grounds would
+// hide a perfectly good image.
+async function probeBoard(info, version) {
+  const url = new URL(`firmware/latest/AnimatedPixelClock-${info.firmware}-${version}-Full.bin`, location.href).href;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { method: 'HEAD', cache: 'no-cache', signal: ctrl.signal });
+    if (r.ok) return 'published';
+    return (r.status === 404 || r.status === 410) ? 'missing' : 'unknown';
+  } catch {
+    return 'unknown';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// A board is only offered once its Full.bin exists for the published version -
+// otherwise picking it hands ESP Web Tools a 404.
+async function pruneUnpublishedBoards(version) {
+  const sel = document.getElementById('board-select');
+  if (!sel) return;
+  const results = await Promise.all(
+    Object.entries(BOARDS).map(async ([id, info]) => [id, await probeBoard(info, version)]),
+  );
+  // Every image missing means the VERSION file and the published binaries
+  // disagree. Say so rather than silently emptying the picker.
+  if (results.every(([, state]) => state === 'missing')) {
+    showStatus(`No firmware images published for ${version} yet. The site may be mid-deploy, try again in a minute.`, 'error');
+    return;
+  }
+  for (const [id, state] of results) {
+    if (state === 'missing') sel.querySelector(`option[value="${id}"]`)?.remove();
+  }
+  if (!sel.querySelector(`option[value="${sel.value}"]`)) sel.selectedIndex = 0;
+}
+
 function checkBrowserSupport() {
   if (!('serial' in navigator)) {
     document.getElementById('browser-callout').classList.add('show');
@@ -165,9 +218,13 @@ async function init() {
   }
 
   showVersion(_version);
-  renderInstallButton(DEFAULT_BOARD, _version);
+  await pruneUnpublishedBoards(_version);
 
   const sel = document.getElementById('board-select');
+  const initialBoard = sel && sel.value ? sel.value : DEFAULT_BOARD;
+  renderSpecs(initialBoard);
+  renderInstallButton(initialBoard, _version);
+
   if (sel) sel.addEventListener('change', (e) => {
     const boardId = e.target.value;
     renderSpecs(boardId);

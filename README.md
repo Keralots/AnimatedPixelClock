@@ -24,6 +24,7 @@ sent by a desktop companion app.
 | Part | Notes |
 |------|-------|
 | ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
+| Alternative: [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix) | Purpose-built HUB75 driver board (ESP32-S3-WROOM-2-N32R16V, 32MB flash, 16MB PSRAM). Carries the HUB75 header and output buffers, so no per-GPIO wiring is needed; ribbon cables and panel power still get connected, per [Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use). Uses its own pin map - see below |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | 5V power | Two options - see below |
 | Panel joiner (optional) | 3D-printable bracket that locks the two panels into one flat 128x64 frame: [MakerWorld model 3264534](https://makerworld.com/en/models/3264534) |
@@ -63,10 +64,17 @@ wired point to point:
 - **Bench alternative:** the wiring guide describes a dedicated 5V supply
   (10A example) feeding both panels separately, with the ESP32 powered by USB
   and all grounds connected together.
+- **Waveshare ESP32-S3-RGB-Matrix:** the board handles panel power itself. It has
+  **two USB-C ports** - one for programming and data, one for power - plus screw-post
+  power terminals. Follow [Waveshare's own documentation](https://docs.waveshare.com/ESP32-S3-RGB-Matrix)
+  for which input to use; do not guess from the connector shape. The two small wire
+  connectors on the board are **not** power inputs: the PH2.0 header is the speaker
+  output and the SH1.0 header is the RTC backup battery. Feeding 5V into either will
+  damage the board.
 
 ### Pin map
 
-Same pin map on every supported board:
+Hand-wired boards (WROOM devkit, ESP32-S3-Zero, Super Mini):
 
 | Function | Signals | GPIO |
 |----------|---------|------|
@@ -77,8 +85,23 @@ Same pin map on every supported board:
 | Common ground | HUB75E pins 4 and 16 / power ground | GND |
 
 The **E** address line is required for 64x64 (1/32 scan) panels:
-**HUB75E pin 8 → GPIO12**, not ground. The firmware mapping is defined in
-[`src/display/matrix_display.h`](src/display/matrix_display.h).
+**HUB75E pin 8 → GPIO12**, not ground.
+
+Waveshare ESP32-S3-RGB-Matrix (fixed by the board, nothing to wire):
+
+| Function | Signals | GPIO |
+|----------|---------|------|
+| Upper half RGB | R1 / G1 / B1 | 4 / 5 / 6 |
+| Lower half RGB | R2 / G2 / B2 | 7 / 15 / 16 |
+| Row address | A / B / C / D / E | 18 / 8 / 3 / 42 / 9 |
+| Clock / Latch / Output-enable | CLK / LAT / OE | 41 / 40 / 2 |
+
+[`src/display/hub75_pins.h`](src/display/hub75_pins.h) holds the hand-wired map as
+the default and defines the override contract; the Waveshare values are supplied by
+the `matrix-waveshare` environment in [`platformio.ini`](platformio.ini). A board
+environment overrides the map from `build_flags` by defining `HUB75_PINS_CUSTOM`
+plus all 14 pins. A partial override is a compile error, so a half-edited map cannot
+reach the panels.
 
 ## Clock styles
 
@@ -393,10 +416,12 @@ Board choices on that page:
   port never appears, hold BOOT while plugging the board in.
 - **ESP32-S3-WROOM devkit (16MB)** - the full-size devkit; its larger flash also
   provides more space for custom animations.
+- **Waveshare ESP32-S3-RGB-Matrix** - the purpose-built driver board. Native USB,
+  same BOOT-hold trick if the port does not appear.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 It also provides a direct Windows companion download after flashing. Full images,
-OTA-only images for both boards, the EXE and SHA-256 checksums are available in
+OTA-only images for every board, the EXE and SHA-256 checksums are available in
 [GitHub Releases](https://github.com/Keralots/AnimatedPixelClock/releases/latest).
 Release packaging is documented in [docs/firmware/README.md](docs/firmware/README.md).
 
@@ -410,6 +435,9 @@ pio run -e matrix-s3-wroom -t upload
 
 # Compact 4MB boards (ESP32-S3 Super Mini, Waveshare ESP32-S3-Zero)
 pio run -e matrix-s3 -t upload
+
+# Waveshare ESP32-S3-RGB-Matrix driver board
+pio run -e matrix-waveshare -t upload
 ```
 
 Omit `-t upload` to build only. The WROOM environment currently sets upload and
@@ -418,9 +446,17 @@ override the upload port with `--upload-port <port>` for your computer.
 
 The compact 4MB boards use native USB (no separate USB-UART chip): if the first
 flash isn't detected, hold BOOT while plugging in USB, then use OTA for later
-updates. The `matrix-s3-bringup` / `matrix-wroom-bringup` environments
-build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six test
-patterns, useful for verifying wiring before flashing the full firmware.
+updates.
+
+The Waveshare driver board also uses native USB, and its UART0 pins are reused for
+the onboard audio and SD card, so the firmware console is USB CDC. Its module has
+octal flash, which the `matrix-waveshare` environment selects with
+`board_build.arduino.memory_type = opi_opi`; the image is written with a 16MB flash
+header on the 32MB part, which is deliberate.
+
+The `matrix-s3-bringup` / `matrix-wroom-bringup` / `matrix-waveshare-bringup`
+environments build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six
+test patterns, useful for verifying wiring before flashing the full firmware.
 
 ### First-time WiFi setup
 
@@ -443,8 +479,9 @@ Updating from a [GitHub release](https://github.com/Keralots/AnimatedPixelClock/
 upload `OTA_ONLY_firmware-v<version>-<board>.bin`. Do not upload the full
 `firmware-v<version>-<board>.bin` - that one carries the bootloader and partition
 table and belongs at `0x0` over USB. `wroom` is the ESP32-S3-WROOM-1 N16R8 (16MB)
-build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build. Downloads can be
-verified against `SHA256SUMS.txt`.
+build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build, and `waveshare` the
+Waveshare ESP32-S3-RGB-Matrix build. Downloads can be verified against
+`SHA256SUMS.txt`.
 
 ## HTTP control API
 
