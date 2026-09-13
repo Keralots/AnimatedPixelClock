@@ -79,6 +79,26 @@ STALL_DECAY = 0.85       # per watchdog packet once fading
 GIVE_UP_S = 6.0          # capture dead this long: stop sending, let the device say so
 RETRY_WAITS = (0.25, 0.5, 1.0, 3.0)
 
+# A loopback client that outlives a suspend, an audio-engine restart or a driver
+# reset keeps answering GetNextPacketSize with S_OK and no packets. SoundCard
+# reads that as a card indicating silence and synthesises zeros forever, so
+# nothing raises and nothing reopens: capture looks healthy while the meter sits
+# at SILENT_DB and the bars stay flat until the app is restarted. Reopening is
+# the only way to tell a dead stream from a quiet PC, so a run of silent blocks
+# reopens the recorder. Real silence pays a reopen it cannot hear, and the wait
+# doubles while silence lasts so an idle machine does not churn COM enumeration.
+SILENCE_REOPEN_S = 10.0
+SILENCE_REOPEN_MAX_S = 60.0
+# Blocks arrive every 40ms; the capture thread is frozen while the PC sleeps, so
+# a wall-clock jump this large across one block means we just resumed. Catching
+# it reopens on the first block back instead of waiting out the silence run.
+RESUME_JUMP_S = 5.0
+
+
+def capture_stale(silence_s, wall_gap_s, reopen_after_s):
+    """Whether the loopback client must be reopened rather than trusted."""
+    return wall_gap_s >= RESUME_JUMP_S or silence_s >= reopen_after_s
+
 
 def frame_action(age_s):
     """What the pacer does when no new frame is queued, by age of the last one."""
@@ -250,6 +270,7 @@ class SpectrumStreamer(threading.Thread):
         self._device_boot_at = None
         self._device_viz = False
         self.stalls = 0
+        self.reopens = 0
         self._capture_mmcss = None   # MMCSS handles: kept alive, not inspected
         self._watchdog_mmcss = None
         self._last_bands = None   # newest frame, reused by the watchdog
@@ -519,6 +540,7 @@ class SpectrumStreamer(threading.Thread):
 
     def _capture_loop(self):
         attempt = 0
+        reopen_after = SILENCE_REOPEN_S  # survives reopens, so silence backs off
         while not self._stop_event.is_set():
             try:
                 # Re-resolve the default output each (re)open, so switching
@@ -529,8 +551,13 @@ class SpectrumStreamer(threading.Thread):
                 mic = sc.get_microphone(id=spk.id, include_loopback=True)
                 with mic.recorder(samplerate=RATE, blocksize=FRAMES) as rec:
                     attempt = 0
+                    silent_since = None
+                    last_wall = time.time()
                     while not self._stop_event.is_set():
                         data = rec.record(numframes=FRAMES)
+                        now_wall = time.time()
+                        wall_gap = now_wall - last_wall
+                        last_wall = now_wall
                         mono = data.mean(axis=1) if data.ndim > 1 else data
                         mono = mono.astype(np.float32)
                         bands = self._process_block(mono)
@@ -546,6 +573,17 @@ class SpectrumStreamer(threading.Thread):
                         self._send_bands(bands, wave)
                         if action:
                             self._send_mode(action)
+                        if level > SILENT_DB:
+                            silent_since = None
+                            reopen_after = SILENCE_REOPEN_S
+                        elif silent_since is None:
+                            silent_since = self._last_frame_at
+                        silence = 0.0 if silent_since is None else \
+                            self._last_frame_at - silent_since
+                        if capture_stale(silence, wall_gap, reopen_after):
+                            reopen_after = min(reopen_after * 2, SILENCE_REOPEN_MAX_S)
+                            self.reopens += 1
+                            break
                         with self._lock:
                             default_id = self._default_device_id
                         if default_id is not None and default_id != spk.id:
@@ -620,6 +658,7 @@ def status():
         sending = running and (time.monotonic() - _streamer.last_sent) < 2.0
         err = _streamer.last_error if _streamer is not None else ""
         stalls = _streamer.stalls if _streamer is not None else 0
+        reopens = _streamer.reopens if _streamer is not None else 0
         auto_on = running and _streamer.auto.enabled
         forced = running and _streamer.auto.forced and _streamer._device_viz
         level = _streamer.last_level_db if running else SILENT_DB
@@ -635,4 +674,5 @@ def status():
         "audioVizLevel": round(float(level), 1),
         "audioVizAutoError": auto_err,
         "audioVizStalls": stalls,
+        "audioVizReopens": reopens,
     }

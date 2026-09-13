@@ -117,6 +117,30 @@ class PacerTests(unittest.TestCase):
         self.assertLess(level, 1.0)
 
 
+class StaleCaptureTests(unittest.TestCase):
+    """A loopback client that survives a suspend reads silence without error."""
+
+    def test_live_audio_is_never_reopened(self):
+        self.assertFalse(audio.capture_stale(0.0, 0.04, audio.SILENCE_REOPEN_S))
+
+    def test_brief_quiet_passages_are_left_alone(self):
+        self.assertFalse(audio.capture_stale(audio.SILENCE_REOPEN_S - 0.04, 0.04,
+                                             audio.SILENCE_REOPEN_S))
+
+    def test_long_silence_reopens_the_recorder(self):
+        self.assertTrue(audio.capture_stale(audio.SILENCE_REOPEN_S, 0.04,
+                                            audio.SILENCE_REOPEN_S))
+
+    def test_backed_off_wait_is_respected(self):
+        self.assertFalse(audio.capture_stale(audio.SILENCE_REOPEN_S, 0.04,
+                                             audio.SILENCE_REOPEN_MAX_S))
+
+    def test_resume_from_sleep_reopens_on_the_first_block(self):
+        # The capture thread is frozen while the PC sleeps, so the wall clock
+        # jumps across a single block even though nothing looks wrong yet.
+        self.assertTrue(audio.capture_stale(0.0, 1800.0, audio.SILENCE_REOPEN_S))
+
+
 @unittest.skipUnless(audio.AVAILABLE, "Audio dependencies unavailable")
 class StreamTimingTests(unittest.TestCase):
     def setUp(self):
@@ -190,6 +214,40 @@ class StreamTimingTests(unittest.TestCase):
                 finish.set()
                 self.stream.stop()
                 worker.join(timeout=2)
+
+    def test_silent_stream_is_reopened_not_trusted(self):
+        """The regression: after a resume the old client returns zeros forever."""
+        opens, blocks = [], [0]
+
+        class FakeRecorder:
+            def __enter__(inner):
+                opens.append(True)
+                return inner
+
+            def __exit__(inner, *exc):
+                return False
+
+            def record(inner, numframes):
+                blocks[0] += 1
+                # Bounded so an unfixed capture loop fails here instead of
+                # spinning on synthesised silence forever.
+                if len(opens) > 2 or blocks[0] > 5000:
+                    self.stream.stop()
+                return audio.np.zeros((numframes, 2), dtype=audio.np.float32)
+
+        class FakeMic:
+            def recorder(inner, samplerate, blocksize):
+                return FakeRecorder()
+
+        speaker = Mock()
+        speaker.id = "spk"
+        self.stream._target = ("192.0.2.1", 4210)
+        with patch.object(audio, "SILENCE_REOPEN_S", 0.02),                 patch.object(audio, "SILENCE_REOPEN_MAX_S", 0.02),                 patch.object(audio.sc, "default_speaker", return_value=speaker),                 patch.object(audio.sc, "get_microphone", return_value=FakeMic()):
+            self.stream._capture_loop()
+
+        self.assertGreater(len(opens), 1, "silent capture was never reopened")
+        self.assertEqual(self.stream.reopens, len(opens) - 1)
+        self.assertEqual(self.stream.last_error, "")
 
     def test_unchanged_settings_keep_resolved_address(self):
         self.stream._target = ("192.0.2.1", 4210)
