@@ -98,22 +98,8 @@ The **E** address line is required for 64x64 (1/32 scan) panels:
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
 | 16 | TRON | Two neon light cycles leave fading trails, avoid walls and crash into sparks; one traces changed digits as a continuous line |
 | 15 | Bomberman | Brick digits explode with cross-shaped blasts and rebuild; a tiny hero navigates between digits, bombs crates and collects bonuses |
+| 17 | Doom Fire | The PSX Doom fire effect: the digits are heat sources burning white-hot over a fire line, and a changed digit burns away before the new one re-ignites |
 | 14 | Weather Clock | Time plus live local weather: animated condition icon, temperature, daily range, humidity, sunrise/sunset |
-
-Select **Bomberman** in **Clock > Clock style** and save. Its digit color is
-configurable in **Colors**. It respects 12/24-hour time and colon blinking.
-The hero follows corridors around the digits, chooses different bombing spots,
-and retreats to safety. Blast arms stop at the first digit brick or crate.
-In **Cycle All**, enable Bomberman and set its duration; existing rotations keep
-their order and durations, with Bomberman initially disabled.
-
-Select **TRON** in **Clock > Clock style** and save. **Colors** controls the
-time digits and both light cycles. It supports 12/24-hour time and colon blinking.
-Under TRON settings, **Motorcycle variant** selects **Motorcycle (side view)**
-(the default) or **Light cycle (top view)**. Save to keep the choice across reboots;
-it also applies when TRON runs in Cycle All.
-Enable TRON separately in **Cycle All**; existing rotations retain their settings
-with the new style initially disabled.
 
 ID 4 is a legacy alias for the Space Invaders renderer and is not a separate
 choice in the web interface. ID 13 is retired; use the IDs listed above.

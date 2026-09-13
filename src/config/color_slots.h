@@ -97,6 +97,12 @@ enum ColorSlot {
   COL_SCOPE_GRID,      // oscilloscope graticule
   COL_SCOPE_TRACE,     // oscilloscope trace
   COL_SCOPE_PEAK,      // oscilloscope trace at full deflection
+  // Doom Fire (style 17). The 37-level flame ramp is interpolated from these
+  // three anchors, so they are the whole palette, not three separate sprites.
+  COL_DOOM_EMBER,      // coolest visible heat
+  COL_DOOM_FLAME,      // mid heat
+  COL_DOOM_CORE,       // white-hot core (digits and the ground line)
+  COL_DIGITS_S17,      // Doom Fire (separate from the historical contiguous slots)
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

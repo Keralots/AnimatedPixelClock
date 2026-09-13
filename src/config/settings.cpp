@@ -75,6 +75,10 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_SCOPE_GRID     */ 0x07E0,  // green
     /* COL_SCOPE_TRACE    */ 0xFFE0,  // yellow
     /* COL_SCOPE_PEAK     */ 0xF800,  // red
+    /* COL_DOOM_EMBER     */ 0x1820,  // deep red, classic Doom ramp foot
+    /* COL_DOOM_FLAME     */ 0xCB61,  // orange, classic Doom ramp middle
+    /* COL_DOOM_CORE      */ 0xFFFF,  // white-hot
+    /* COL_DIGITS_S17     */ 0xFFFF,  // white
 };
 void applyScopeDefaults() {
   settings.scopeGrid = true;
@@ -526,6 +530,21 @@ void loadSettings() {
       preferences.getBool("mxDate", false); // Default: hidden (centred clock)
   settings.matrixTransparent =
       preferences.getBool("mxTransp", false); // Default: solid digit plates
+  settings.doomFlameHeight =
+      preferences.getUChar("dmHeight", 20); // Default: 20px reach
+  // Before the split one setting drove both, with the cooler ground reaching
+  // two thirds as far. Deriving the default keeps an existing device looking
+  // exactly as it did, whatever flame height it was on.
+  settings.doomGroundHeight =
+      preferences.getUChar("dmGround", (uint8_t)((settings.doomFlameHeight * 2) / 3));
+  settings.doomWind =
+      preferences.getUChar("dmWind", 0); // Default: classic left drift
+  settings.doomShowDate =
+      preferences.getBool("dmDate", false); // Default: hidden (centred clock)
+  settings.doomBurningDigits =
+      preferences.getBool("dmBurn", true); // Default: digits throw flames
+  settings.doomSmoothFire =
+      preferences.getBool("dmSmooth", false); // Default: blocky retro flames
   settings.mcMissileSpeed =
       preferences.getUChar("mcSpeed", 12); // Default: 1.2
   settings.mcMissileFreq =
@@ -814,6 +833,12 @@ void saveSettings() {
   preferences.putUChar("mxDensity", settings.matrixRainDensity);
   preferences.putBool("mxDate", settings.matrixShowDate);
   preferences.putBool("mxTransp", settings.matrixTransparent);
+  preferences.putUChar("dmHeight", settings.doomFlameHeight);
+  preferences.putUChar("dmGround", settings.doomGroundHeight);
+  preferences.putUChar("dmWind", settings.doomWind);
+  preferences.putBool("dmDate", settings.doomShowDate);
+  preferences.putBool("dmBurn", settings.doomBurningDigits);
+  preferences.putBool("dmSmooth", settings.doomSmoothFire);
   preferences.putUChar("mcSpeed", settings.mcMissileSpeed);
   preferences.putUChar("mcFreq", settings.mcMissileFreq);
   preferences.putBool("mcDate", settings.mcShowDate);

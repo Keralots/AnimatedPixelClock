@@ -156,6 +156,10 @@ int getOptimalRefreshRate() {
 
 // Rotation uses elapsed time, independent of wall-clock adjustments.
 #include "clocks/cycle_config.h"
+// Style cycleClockScreens() rendered last, so the render loop can tell which
+// renderer is actually on screen while clockStyle is 9 (Custom rotation).
+static uint8_t cycleActiveStyle = 255;
+
 void cycleClockScreens() {
   static char previous[128] = "";
   static CycleEntry entries[CYCLE_COUNT];
@@ -177,8 +181,12 @@ void cycleClockScreens() {
   }
   static int lastStyle = -1;
   if (lastStyle != entries[index].style) {
-    resetClockAnimationState(); lastStyle = entries[index].style;
+    // The outer loop may have skipped its clear for the style leaving the
+    // screen, so blank here before a different renderer paints over it.
+    resetClockAnimationState(); display.clearDisplay();
+    lastStyle = entries[index].style;
   }
+  cycleActiveStyle = entries[index].style;
   switch (entries[index].style) {
     case 0: displayClockWithMario(); break;
     case 1: displayStandardClock(); break;
@@ -194,6 +202,7 @@ void cycleClockScreens() {
     case 14: displayClockWithWeather(); break;
     case 15: displayClockWithBomberman(); break;
     case 16: displayClockWithTron(); break;
+    case 17: displayClockWithDoom(); break;
   }
 }
 
@@ -378,10 +387,16 @@ void loop() {
     // frame, so skip the redundant clear when it is what renders this tick.
     bool animFullRepaint = !showViz && !showStats && ambientActive() &&
                            settings.ambientStyle == 6 && ambientCustomPlaying();
+    // Doom Fire paints every pixel itself. Clearing first would blank the
+    // buffer the panel is still scanning, which is exactly the dark flash the
+    // comment below describes - and it showed as flicker along the bottom,
+    // where the brightest rows are drawn last.
+    uint8_t styleNow = settings.clockStyle == 9 ? cycleActiveStyle : settings.clockStyle;
+    bool doomFullRepaint = !showViz && !showStats && !ambientActive() && styleNow == 17;
     // Bright starfield details make partial scans visible. Do not clear/reuse
     // the previous front buffer until the queued flip has settled.
     if (showViz && settings.vizStyle == 5) display.waitForScanCompletion();
-    if (!animFullRepaint) display.clearDisplay();
+    if (!animFullRepaint && !doomFullRepaint) display.clearDisplay();
 
     if (showViz) {
       displayVisualizer();
@@ -435,6 +450,9 @@ void loop() {
         break;
       case 16:
         displayClockWithTron();
+        break;
+      case 17:
+        displayClockWithDoom();
         break;
       case 15:
         displayClockWithBomberman();

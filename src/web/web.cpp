@@ -308,16 +308,16 @@ void handleModeViz() {
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"viz\"}");
 }
 
-// GET /api/clock/style?id=0-16 - switch the active clock animation
+// GET /api/clock/style?id=0-17 - switch the active clock animation
 void handleSetClockStyle() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!server.hasArg("id")) {
-   server.send(400, "application/json", "{\"error\":\"Missing id (0-16)\"}");
+   server.send(400, "application/json", "{\"error\":\"Missing id (0-17)\"}");
    return;
  }
  int id = server.arg("id").toInt();
- if (id < 0 || id > 16) {
-   server.send(400, "application/json", "{\"error\":\"id must be 0-16\"}");
+ if (id < 0 || id > 17) {
+   server.send(400, "application/json", "{\"error\":\"id must be 0-17\"}");
    return;
  }
  settings.clockStyle = (uint8_t)id;
@@ -672,6 +672,9 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_MATRIX_HEAD, 12, "Rain head"},
     {COL_TRON_BLUE, 16, "Blue light cycle"},
     {COL_TRON_ORANGE, 16, "Orange light cycle"},
+    {COL_DOOM_EMBER, 17, "Flame (coolest)"},
+    {COL_DOOM_FLAME, 17, "Flame (middle)"},
+    {COL_DOOM_CORE, 17, "Flame (hottest)"},
     {COL_WEATHER_ICON, 14, "Icon"},
     {COL_WEATHER_ACCENT, 14, "Rain / effects"},
     {COL_WEATHER_TEMP, 14, "Temperature"},
@@ -708,7 +711,7 @@ static String buildColorRows(int style) {
 
 // The per-style time-digit + colon color row (slot COL_DIGITS_S0 + style).
 static String buildDigitRow(int style) {
-  return colorInputRow((uint8_t)(style == 16 ? COL_DIGITS_S16 : style == 15 ? COL_DIGITS_S15 : COL_DIGITS_S0 + style), "Time digits + colon");
+  return colorInputRow((uint8_t)(style == 17 ? COL_DIGITS_S17 : style == 16 ? COL_DIGITS_S16 : style == 15 ? COL_DIGITS_S15 : COL_DIGITS_S0 + style), "Time digits + colon");
 }
 
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
@@ -720,13 +723,13 @@ static const StyleCard STYLE_CARDS[] = {
     {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},
     {6, "pacmanSettings"},  {7, "snakeSettings"},  {8, "tetrisSettings"},
     {10, "asteroidsSettings"}, {11, "dinoSettings"}, {12, "matrixSettings"},
-    {14, "weatherSettings"}, {16, "tronSettings"},
+    {14, "weatherSettings"}, {16, "tronSettings"}, {17, "doomSettings"},
 };
 
 // Clock styles that appear in the style selector, each shown a per-style digit
 // color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
 // has no picker; its digit slot still exists and defaults to white.)
-static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
 
 // The single per-page "Colors" card on the Clock page: the selected style's sprite
 // rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
@@ -880,6 +883,7 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_16")) { out = String(settings.clockStyle == 16 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_CLOCKSTYLE_17")) { out = String(settings.clockStyle == 17 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_TRONBIKESTYLE_0")) { out = String(settings.tronBikeStyle == 0 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_TRONBIKESTYLE_1")) { out = String(settings.tronBikeStyle == 1 ? "selected" : ""); return true; }
   if (!strcmp(n, "SEL_CLOCKSTYLE_15")) { out = String(settings.clockStyle == 15 ? "selected" : ""); return true; }
@@ -981,7 +985,16 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "SEL_MATRIXRAINDENSITY_2")) { out = String(settings.matrixRainDensity == 2 ? "selected" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_MATRIXTRANSPARENT")) { out = String(settings.matrixTransparent ? "checked" : ""); return true; }
+  if (!strcmp(n, "V_DOOMFLAMEHEIGHT")) { out = String(settings.doomFlameHeight); return true; }
+  if (!strcmp(n, "V_DOOMGROUNDHEIGHT")) { out = String(settings.doomGroundHeight); return true; }
+  if (!strcmp(n, "SEL_DOOMWIND_0")) { out = String(settings.doomWind == 0 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DOOMWIND_1")) { out = String(settings.doomWind == 1 ? "selected" : ""); return true; }
+  if (!strcmp(n, "SEL_DOOMWIND_2")) { out = String(settings.doomWind == 2 ? "selected" : ""); return true; }
+  if (!strcmp(n, "CHK_DOOMSHOWDATE")) { out = String(settings.doomShowDate ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_DOOMBURNINGDIGITS")) { out = String(settings.doomBurningDigits ? "checked" : ""); return true; }
+  if (!strcmp(n, "CHK_DOOMSMOOTHFIRE")) { out = String(settings.doomSmoothFire ? "checked" : ""); return true; }
   if (!strcmp(n, "DSP_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "block" : "none"); return true; }
+  if (!strcmp(n, "DSP_CLOCKSTYLE_17")) { out = String(settings.clockStyle == 17 ? "block" : "none"); return true; }
   if (!strcmp(n, "CHK_WEATHERENABLED")) { out = String(settings.weatherEnabled ? "checked" : ""); return true; }
   if (!strcmp(n, "CHK_WEATHERF")) { out = String(settings.weatherUseFahrenheit ? "checked" : ""); return true; }
   if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
@@ -1624,6 +1637,18 @@ void handleSave() {
  }
  settings.matrixShowDate = server.hasArg("matrixShowDate");
  settings.matrixTransparent = server.hasArg("matrixTransparent");
+ if (server.hasArg("doomFlameHeight")) {
+ settings.doomFlameHeight = server.arg("doomFlameHeight").toInt();
+ }
+ if (server.hasArg("doomGroundHeight")) {
+ settings.doomGroundHeight = server.arg("doomGroundHeight").toInt();
+ }
+ if (server.hasArg("doomWind")) {
+ settings.doomWind = server.arg("doomWind").toInt();
+ }
+ settings.doomShowDate = server.hasArg("doomShowDate");
+ settings.doomBurningDigits = server.hasArg("doomBurningDigits");
+ settings.doomSmoothFire = server.hasArg("doomSmoothFire");
 
  // Save network configuration
  if (server.hasArg("deviceName")) {
@@ -1829,7 +1854,7 @@ void handleSave() {
  }
 
  // Validate settings bounds before saving
- assertBounds(settings.clockStyle, 0, 16, "clockStyle");
+ assertBounds(settings.clockStyle, 0, 17, "clockStyle");
  assertBounds(settings.gmtOffset, -720, 840, "gmtOffset"); // -12h to +14h in minutes
  assertBounds(settings.clockPosition, 0, 2, "clockPosition");
  assertBounds(settings.displayRowMode, 0, 3, "displayRowMode");
@@ -1869,6 +1894,9 @@ void handleSave() {
  assertBounds(settings.dinoCactusFreq, 0, 2, "dinoCactusFreq");
  assertBounds(settings.matrixRainSpeed, 5, 30, "matrixRainSpeed");
  assertBounds(settings.matrixRainDensity, 0, 2, "matrixRainDensity");
+ assertBounds(settings.doomFlameHeight, 8, 40, "doomFlameHeight");
+ assertBounds(settings.doomGroundHeight, 5, 40, "doomGroundHeight");
+ assertBounds(settings.doomWind, 0, 2, "doomWind");
 
  // Sprite colors. Written straight into settings.spriteColors[] (read every
  // frame by SPRITE_COLOR), so the change is live; saveSettings() persists it.
@@ -1950,6 +1978,12 @@ void handleExportConfig() {
  json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
  json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
  json += "\"tronBikeStyle\":" + String(settings.tronBikeStyle) + ",";
+ json += "\"doomFlameHeight\":" + String(settings.doomFlameHeight) + ",";
+ json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
+ json += "\"doomWind\":" + String(settings.doomWind) + ",";
+ json += "\"doomShowDate\":" + String(settings.doomShowDate ? "true" : "false") + ",";
+ json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
+ json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
  json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
@@ -2165,6 +2199,21 @@ void handleImportConfig() {
  if (!doc["tronBikeStyle"].isNull()) {
    settings.tronBikeStyle = doc["tronBikeStyle"].is<int>() && doc["tronBikeStyle"].as<int>() == 1 ? 1 : 0;
  }
+ if (doc["doomFlameHeight"].is<int>()) {
+   int v = doc["doomFlameHeight"].as<int>();
+   if (v >= 8 && v <= 40) settings.doomFlameHeight = (uint8_t)v;
+ }
+ if (doc["doomGroundHeight"].is<int>()) {
+   int v = doc["doomGroundHeight"].as<int>();
+   if (v >= 5 && v <= 40) settings.doomGroundHeight = (uint8_t)v;
+ }
+ if (doc["doomWind"].is<int>()) {
+   int v = doc["doomWind"].as<int>();
+   if (v >= 0 && v <= 2) settings.doomWind = (uint8_t)v;
+ }
+ if (!doc["doomShowDate"].isNull()) settings.doomShowDate = doc["doomShowDate"];
+ if (!doc["doomBurningDigits"].isNull()) settings.doomBurningDigits = doc["doomBurningDigits"];
+ if (!doc["doomSmoothFire"].isNull()) settings.doomSmoothFire = doc["doomSmoothFire"];
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];

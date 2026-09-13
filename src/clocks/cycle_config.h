@@ -4,10 +4,10 @@
 #include <stdlib.h>
 
 // All selectable renderers, with the historical default rotation order.
-static const uint8_t CYCLE_STYLES[] = {1, 0, 3, 2, 5, 6, 7, 8, 10, 11, 12, 14, 15, 16};
+static const uint8_t CYCLE_STYLES[] = {1, 0, 3, 2, 5, 6, 7, 8, 10, 11, 12, 14, 15, 16, 17};
 static const unsigned CYCLE_COUNT = sizeof(CYCLE_STYLES);
 static const char CYCLE_DEFAULT[] =
-    "1:300,0:300,3:300,2:300,5:300,6:300,7:300,8:300,10:300,11:300,12:300,14:300,15:300,16:300";
+    "1:300,0:300,3:300,2:300,5:300,6:300,7:300,8:300,10:300,11:300,12:300,14:300,15:300,16:300,17:300";
 struct CycleEntry { uint8_t style; uint16_t seconds; };
 
 // Zero duration disables an entry. Keep one non-weather renderer available.
