@@ -111,6 +111,37 @@ The style names describe what each animation is styled after. This project is
 not affiliated with or endorsed by the rights holders; see
 [Trademarks and attribution](#trademarks-and-attribution).
 
+### Hour change animations
+
+Every animated style rebuilding all four digits at the 09:59 to 10:00 rollover,
+shown at twice the panel's pixel size.
+
+<table>
+<tr>
+<td align="center"><img src="docs/img/clocks/mario.gif" width="256" alt="Mario clock changing 09:59 to 10:00"><br><b>0</b> Mario</td>
+<td align="center"><img src="docs/img/clocks/space-invaders.gif" width="256" alt="Space Invaders clock changing 09:59 to 10:00"><br><b>3</b> Space Invaders</td>
+<td align="center"><img src="docs/img/clocks/pong-arkanoid.gif" width="256" alt="Pong / Arkanoid clock changing 09:59 to 10:00"><br><b>5</b> Pong / Arkanoid</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/pacman.gif" width="256" alt="Pac-Man clock changing 09:59 to 10:00"><br><b>6</b> Pac-Man</td>
+<td align="center"><img src="docs/img/clocks/snake.gif" width="256" alt="Snake clock changing 09:59 to 10:00"><br><b>7</b> Snake</td>
+<td align="center"><img src="docs/img/clocks/tetris.gif" width="256" alt="Tetris clock changing 09:59 to 10:00"><br><b>8</b> Tetris</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/asteroids.gif" width="256" alt="Asteroids clock changing 09:59 to 10:00"><br><b>10</b> Asteroids</td>
+<td align="center"><img src="docs/img/clocks/dino.gif" width="256" alt="Dino Runner clock changing 09:59 to 10:00"><br><b>11</b> Dino Runner</td>
+<td align="center"><img src="docs/img/clocks/matrix-rain.gif" width="256" alt="Matrix Rain clock changing 09:59 to 10:00"><br><b>12</b> Matrix Rain</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/tron.gif" width="256" alt="TRON clock changing 09:59 to 10:00"><br><b>16</b> TRON</td>
+<td align="center"><img src="docs/img/clocks/bomberman.gif" width="256" alt="Bomberman clock changing 09:59 to 10:00"><br><b>15</b> Bomberman</td>
+<td align="center"><img src="docs/img/clocks/doom-fire.gif" width="256" alt="Doom Fire clock changing 09:59 to 10:00"><br><b>17</b> Doom Fire</td>
+</tr>
+</table>
+
+Standard and Large have no change animation, and the Weather clock is not shown
+here. All colors above are the defaults.
+
 ## Web interface
 
 Once on WiFi, open the device's IP address or `http://pixelclock.local` in a browser:
