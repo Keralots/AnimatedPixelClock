@@ -9,7 +9,7 @@ commit, push, or publish a GitHub Release.
 | --- | --- | --- |
 | `supermini` | `matrix-s3` | ESP32-S3-Zero / Super Mini, 4 MB, native USB |
 | `wroom` | `matrix-s3-wroom` | ESP32-S3-WROOM-1 N16R8, 16 MB, USB-UART |
-| `waveshare` | `matrix-waveshare` | Waveshare ESP32-S3-RGB-Matrix (WROOM-2-N32R16V), 32 MB part imaged as 16 MB, native USB |
+| `waveshare` | `matrix-waveshare` | Waveshare ESP32-S3-RGB-Matrix (WROOM-2-N32R16V), 32 MB octal flash, 16 MB octal PSRAM, native USB |
 
 The `supermini` filename is retained for compatibility; it also covers the
 Waveshare ESP32-S3-Zero. Choose the image for your board and flash size.

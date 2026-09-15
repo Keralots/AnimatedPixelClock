@@ -44,14 +44,12 @@ from pathlib import Path
 VARIANTS = [
     ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)"),
     ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)"),
-    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix"),
+    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix (32MB)"),
 ]
-# The Waveshare board carries a 32MB part but its image is written with a 16MB
-# flash header, so the packaging bound is 16MB.
 FLASH_BYTES = {
     "matrix-s3-wroom": 16 * 1024 * 1024,
     "matrix-s3": 4 * 1024 * 1024,
-    "matrix-waveshare": 16 * 1024 * 1024,
+    "matrix-waveshare": 32 * 1024 * 1024,
 }
 
 # Flash offsets for the ESP32-S3 (bootloader starts at 0x0).

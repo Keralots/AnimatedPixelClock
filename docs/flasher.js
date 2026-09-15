@@ -19,11 +19,11 @@ const BOARDS = {
     note: 'The full-size 16MB devkit has more storage for custom GIF animations. Follow the wiring guide for the panel power connections.',
   },
   waveshare: {
-    label: 'Waveshare ESP32-S3-RGB-Matrix',
+    label: 'Waveshare ESP32-S3-RGB-Matrix (32MB)',
     chipFamily: 'ESP32-S3',
     firmware: 'waveshare',              // AnimatedPixelClock-waveshare-<ver>-Full.bin
     board: 'Waveshare ESP32-S3-RGB-Matrix',
-    note: 'The purpose-built HUB75 driver board: the panel header and output buffers are onboard, so no per-GPIO wiring is needed - you still connect the ribbon cables and panel power. Two USB-C ports, one for programming and one for power. Native USB: if the serial port does not appear, hold BOOT while plugging in. Follow Waveshare\'s own connection guide for this board.',
+    note: 'The purpose-built HUB75 driver board: the panel header and output buffers are onboard, so no per-GPIO wiring is needed - you still connect the ribbon cables and panel power. Its 32MB flash leaves 23MB for custom GIF animations. Two USB-C ports, one for programming and one for power. Native USB: if the serial port does not appear, hold BOOT while plugging in. Follow Waveshare\'s own connection guide for this board.',
   },
 };
 

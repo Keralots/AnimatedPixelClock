@@ -234,9 +234,10 @@ on automatically during set hours (e.g. 20:00-23:00). `GET /api/mode/ambient` /
 
 ### Custom animations (upload your own GIFs)
 
-The **Custom animation** ambient effect plays animations you upload to the device
-on both 4MB and 16MB boards. The 4MB layout has 128KiB of animation storage,
-so short clips fit best: an empty tested device allows about 23 frames. The UI
+The **Custom animation** ambient effect plays animations you upload to the device.
+How much fits depends on the board: the 4MB layout has 128KiB of animation storage,
+so short clips fit best there (an empty tested device allows about 23 frames), the
+16MB devkit has 3.4MB, and the 32MB Waveshare driver board has 23MB. The UI
 reports the current upload budget, including space needed for a temporary file.
 
 In the desktop companion, save `pixelclock.local` (or your clock's IP) on
@@ -434,7 +435,8 @@ Board choices on that page:
 - **ESP32-S3-WROOM devkit (16MB)** - the full-size devkit; its larger flash also
   provides more space for custom animations.
 - **Waveshare ESP32-S3-RGB-Matrix** - the purpose-built driver board. Native USB,
-  same BOOT-hold trick if the port does not appear.
+  same BOOT-hold trick if the port does not appear. Its 32MB flash leaves 23MB
+  for custom animations.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 It also provides a direct Windows companion download after flashing. Full images,
@@ -468,8 +470,9 @@ updates.
 The Waveshare driver board also uses native USB, and its UART0 pins are reused for
 the onboard audio and SD card, so the firmware console is USB CDC. Its module has
 octal flash, which the `matrix-waveshare` environment selects with
-`board_build.arduino.memory_type = opi_opi`; the image is written with a 16MB flash
-header on the 32MB part, which is deliberate.
+`board_build.arduino.memory_type = opi_opi`; the image is written with a 32MB flash
+header, and `large_littlefs_32MB.csv` splits the part into two 4.5MB OTA slots and
+23MB of animation storage.
 
 The `matrix-s3-bringup` / `matrix-wroom-bringup` / `matrix-waveshare-bringup`
 environments build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six
