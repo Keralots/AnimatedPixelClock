@@ -10,7 +10,7 @@ over UDP.
 
 | Folder | What it is |
 |--------|------------|
-| [`win-companion/`](win-companion/) | **Windows** app (core + PyInstaller build). Ships a prebuilt `dist/pc_stats_monitor_v4.exe`. |
+| [`win-companion/`](win-companion/) | **Windows** app (core + PyInstaller build). The built `dist/pc_stats_monitor_v4.exe` is not in git; download it from the [latest release](https://github.com/Keralots/AnimatedPixelClock/releases/latest) or build it yourself. |
 | [`linux-companion/`](linux-companion/) | **Linux** app - run from source (`python3 pc_stats_monitor_v4_linux.py`), no build step. |
 | [`companion-common/`](companion-common/) | Shared, OS-neutral code used by both: the localhost web server, the pywebview window host, the `webui/` (HTML/CSS/JS extracted from the firmware portal), the layout engine and the device renderer. |
 
@@ -18,8 +18,9 @@ The two platform folders contain only the OS-specific core (sensor discovery,
 autostart, packaging); everything else is shared from `companion-common/`.
 
 ## Quick start
-- **Windows:** double-click `win-companion/dist/pc_stats_monitor_v4.exe` (needs the
-  WebView2 runtime - preinstalled on Win11). See [`win-companion/README.md`](win-companion/README.md).
+- **Windows:** download [`pc_stats_monitor_v4.exe`](https://github.com/Keralots/AnimatedPixelClock/releases/latest/download/pc_stats_monitor_v4.exe) from the latest release
+  and run it (needs the WebView2 runtime - preinstalled on Win11). See
+  [`win-companion/README.md`](win-companion/README.md) to run from source or rebuild.
 - **Linux:** `cd linux-companion && pip install -r requirements.txt && python3 pc_stats_monitor_v4_linux.py`.
   See [`linux-companion/README.md`](linux-companion/README.md).
 

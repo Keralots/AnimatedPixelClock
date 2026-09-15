@@ -142,6 +142,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <option value="14" %SEL_CLOCKSTYLE_14%>Weather Clock</option>
                   <option value="15" %SEL_CLOCKSTYLE_15%>Bomberman</option>
                   <option value="16" %SEL_CLOCKSTYLE_16%>TRON</option>
+                  <option value="17" %SEL_CLOCKSTYLE_17%>Doom Fire</option>
                   <option value="9" %SEL_CLOCKSTYLE_9%>Custom rotation</option>
                 </select>
               </div>
@@ -612,6 +613,55 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Transparent digits</strong><span class="ct-hint">Rain falls behind the digits instead of solid plates. Default off.</span></span>
               </label>
+            </div>
+
+            <!-- Doom Fire (style 17) -->
+            <div class="subcard" id="doomSettings" style="display:%DSP_CLOCKSTYLE_17%">
+              <div class="grid-2">
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="doomFlameHeight">Digit flame height</label>
+                  <div class="range-row">
+                    <input type="range" name="doomFlameHeight" id="doomFlameHeight" min="8" max="40" step="1" value="%V_DOOMFLAMEHEIGHT%">
+                    <span class="range-val" data-for="doomFlameHeight">%V_DOOMFLAMEHEIGHT%</span>
+                  </div>
+                  <p class="field-hint">How far the flames thrown by the digits reach above them, in pixels. Default 20.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="doomGroundHeight">Ground fire height</label>
+                  <div class="range-row">
+                    <input type="range" name="doomGroundHeight" id="doomGroundHeight" min="5" max="40" step="1" value="%V_DOOMGROUNDHEIGHT%">
+                    <span class="range-val" data-for="doomGroundHeight">%V_DOOMGROUNDHEIGHT%</span>
+                  </div>
+                  <p class="field-hint">How far the fire along the bottom edge reaches, in pixels. Independent of the digits. Default 13.</p>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <label class="field-label" for="doomWind">Draught</label>
+                  <div class="select-wrap">
+                    <select name="doomWind" id="doomWind">
+                      <option value="0" %SEL_DOOMWIND_0%>Left (classic)</option>
+                      <option value="1" %SEL_DOOMWIND_1%>None</option>
+                      <option value="2" %SEL_DOOMWIND_2%>Right</option>
+                    </select>
+                  </div>
+                  <p class="field-hint">Which way the flames lean. Default Left, as in the original effect.</p>
+                </div>
+              </div>
+              <label class="check-row standalone" style="margin-top:16px">
+                <input type="checkbox" name="doomBurningDigits" id="doomBurningDigits" %CHK_DOOMBURNINGDIGITS%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Burning digits</strong><span class="ct-hint">The digits feed the fire and throw their own flames. Off leaves a calm ground fire under a plain clock. Default on.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="doomSmoothFire" id="doomSmoothFire" %CHK_DOOMSMOOTHFIRE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Smooth fire</strong><span class="ct-hint">Softer, flowing flames off the digits instead of the blocky retro ones. The ground fire is left alone either way. Default off.</span></span>
+              </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="doomShowDate" id="doomShowDate" %CHK_DOOMSHOWDATE%>
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Show date</strong><span class="ct-hint">Off centres the clock in the fire. Default off.</span></span>
+              </label>
+              <p class="field-hint">The digits are heat sources: they burn white-hot and throw their own flames. A changed digit burns away and the new one re-ignites.</p>
             </div>
 
             <!-- Weather Clock (style 14) -->
@@ -1314,7 +1364,7 @@ var marioEnc = $('#marioIdleEncounters');
 if (marioEnc) { var fe = function () { toggle($('#marioEncFields'), marioEnc.checked); }; marioEnc.addEventListener('change', fe); fe(); }
 var tetSmallClk = $('#tetrisSmallClock');
 if (tetSmallClk) { var ftsc = function () { toggle($('#tetrisSmallClockField'), tetSmallClk.checked); }; tetSmallClk.addEventListener('change', ftsc); ftsc(); }
-var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings','16':'tronSettings' };
+var STYLE_PANELS = { '0':'marioSettings','3':'spaceSettings','4':'spaceSettings','5':'pongSettings','6':'pacmanSettings','7':'snakeSettings','8':'tetrisSettings','10':'asteroidsSettings','11':'dinoSettings','12':'matrixSettings','14':'weatherSettings','16':'tronSettings','17':'doomSettings' };
 var ALL_PANELS = ['marioSettings','spaceSettings','pongSettings','pacmanSettings','snakeSettings','tetrisSettings','asteroidsSettings','dinoSettings','matrixSettings','weatherSettings','tronSettings'];
 var clockStyle = $('#clockStyle');
 function syncClockPanels() {
@@ -1810,10 +1860,11 @@ return (d > 0 ? d + 'd ' : '') + p2(h) + ':' + p2(m) + ':' + p2(s);
 }
 
 var cycleInput = $('#cycleConfig'), cycleRows = $('#cycleRows');
-var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather',15:'Bomberman',16:'TRON'};
+var cycleNames = {0:'Mario',1:'Standard',2:'Large',3:'Space Invaders',5:'Arkanoid',6:'Pac-Man',7:'Snake',8:'Tetris',10:'Asteroids',11:'Dino Runner',12:'Matrix Rain',14:'Weather',15:'Bomberman',16:'TRON',17:'Doom Fire'};
 var cycleItems = cycleInput.value.split(',').map(function(v) { var p=v.split(':'); return {id:Number(p[0]),seconds:Number(p[1]),enabled:Number(p[1])>0}; });
 if (!cycleItems.some(function(v){return v.id===15;})) cycleItems.push({id:15,seconds:300,enabled:false});
 if (!cycleItems.some(function(v){return v.id===16;})) cycleItems.push({id:16,seconds:300,enabled:false});
+if (!cycleItems.some(function(v){return v.id===17;})) cycleItems.push({id:17,seconds:300,enabled:false});
 function saveCycle() { cycleInput.value=cycleItems.map(function(v){return v.id+':'+(v.enabled?v.seconds:0);}).join(','); cycleInput.dispatchEvent(new Event('change',{bubbles:true})); }
 function drawCycle() {
  cycleRows.innerHTML='';

@@ -67,8 +67,10 @@ SHA256SUMS.txt
   the clock's Firmware Update page. Do not upload a full image as an OTA update.
 - **Windows:** download and run the EXE. No Python installation is needed.
 
-The release-directory EXE copy is gitignored to avoid storing it twice; upload
-it as a release asset. The original EXE remains tracked in `win-companion/dist`.
+The EXE is not stored in git. Both `win-companion/dist/` and the
+release-directory copy are gitignored, because every rebuild added about
+50 MB to the history permanently. Build it, then upload it as a release
+asset: the GitHub Release is the only place users download it from.
 
 ## Publishing
 

@@ -140,6 +140,10 @@ void resetBombermanAnimation();
 void displayClockWithTron();
 void resetTronAnimation();
 
+// ========== Doom Fire Clock ==========
+void displayClockWithDoom();
+void resetDoomAnimation();
+
 // ========== Weather Clock ==========
 void displayClockWithWeather();
 

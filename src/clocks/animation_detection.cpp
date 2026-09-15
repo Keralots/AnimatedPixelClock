@@ -81,7 +81,11 @@ bool isAnimationActive() {
     return true;
   }
 
-  if (settings.clockStyle == 15 || settings.clockStyle == 16) return true;
+  // Bomberman (15), TRON (16) and Doom Fire (17) always have something moving
+  if (settings.clockStyle == 15 || settings.clockStyle == 16 ||
+      settings.clockStyle == 17) {
+    return true;
+  }
 
   // Standard and Large clocks (clockStyle 1 & 2) have no animations
   return false;

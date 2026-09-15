@@ -121,22 +121,8 @@ reach the panels.
 | 12 | Matrix Rain | Digital rain with fading glyph trails; changed digits decode out of the rain |
 | 16 | TRON | Two neon light cycles leave fading trails, avoid walls and crash into sparks; one traces changed digits as a continuous line |
 | 15 | Bomberman | Brick digits explode with cross-shaped blasts and rebuild; a tiny hero navigates between digits, bombs crates and collects bonuses |
+| 17 | Doom Fire | The PSX Doom fire effect: the digits are heat sources burning white-hot over a fire line, and a changed digit burns away before the new one re-ignites |
 | 14 | Weather Clock | Time plus live local weather: animated condition icon, temperature, daily range, humidity, sunrise/sunset |
-
-Select **Bomberman** in **Clock > Clock style** and save. Its digit color is
-configurable in **Colors**. It respects 12/24-hour time and colon blinking.
-The hero follows corridors around the digits, chooses different bombing spots,
-and retreats to safety. Blast arms stop at the first digit brick or crate.
-In **Cycle All**, enable Bomberman and set its duration; existing rotations keep
-their order and durations, with Bomberman initially disabled.
-
-Select **TRON** in **Clock > Clock style** and save. **Colors** controls the
-time digits and both light cycles. It supports 12/24-hour time and colon blinking.
-Under TRON settings, **Motorcycle variant** selects **Motorcycle (side view)**
-(the default) or **Light cycle (top view)**. Save to keep the choice across reboots;
-it also applies when TRON runs in Cycle All.
-Enable TRON separately in **Cycle All**; existing rotations retain their settings
-with the new style initially disabled.
 
 ID 4 is a legacy alias for the Space Invaders renderer and is not a separate
 choice in the web interface. ID 13 is retired; use the IDs listed above.
@@ -147,6 +133,37 @@ characters, effects, backgrounds), so each clock can match your setup.
 The style names describe what each animation is styled after. This project is
 not affiliated with or endorsed by the rights holders; see
 [Trademarks and attribution](#trademarks-and-attribution).
+
+### Hour change animations
+
+Every animated style rebuilding all four digits at the 09:59 to 10:00 rollover,
+shown at twice the panel's pixel size.
+
+<table>
+<tr>
+<td align="center"><img src="docs/img/clocks/mario.gif" width="256" alt="Mario clock changing 09:59 to 10:00"><br><b>0</b> Mario</td>
+<td align="center"><img src="docs/img/clocks/space-invaders.gif" width="256" alt="Space Invaders clock changing 09:59 to 10:00"><br><b>3</b> Space Invaders</td>
+<td align="center"><img src="docs/img/clocks/pong-arkanoid.gif" width="256" alt="Pong / Arkanoid clock changing 09:59 to 10:00"><br><b>5</b> Pong / Arkanoid</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/pacman.gif" width="256" alt="Pac-Man clock changing 09:59 to 10:00"><br><b>6</b> Pac-Man</td>
+<td align="center"><img src="docs/img/clocks/snake.gif" width="256" alt="Snake clock changing 09:59 to 10:00"><br><b>7</b> Snake</td>
+<td align="center"><img src="docs/img/clocks/tetris.gif" width="256" alt="Tetris clock changing 09:59 to 10:00"><br><b>8</b> Tetris</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/asteroids.gif" width="256" alt="Asteroids clock changing 09:59 to 10:00"><br><b>10</b> Asteroids</td>
+<td align="center"><img src="docs/img/clocks/dino.gif" width="256" alt="Dino Runner clock changing 09:59 to 10:00"><br><b>11</b> Dino Runner</td>
+<td align="center"><img src="docs/img/clocks/matrix-rain.gif" width="256" alt="Matrix Rain clock changing 09:59 to 10:00"><br><b>12</b> Matrix Rain</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/clocks/tron.gif" width="256" alt="TRON clock changing 09:59 to 10:00"><br><b>16</b> TRON</td>
+<td align="center"><img src="docs/img/clocks/bomberman.gif" width="256" alt="Bomberman clock changing 09:59 to 10:00"><br><b>15</b> Bomberman</td>
+<td align="center"><img src="docs/img/clocks/doom-fire.gif" width="256" alt="Doom Fire clock changing 09:59 to 10:00"><br><b>17</b> Doom Fire</td>
+</tr>
+</table>
+
+Standard and Large have no change animation, and the Weather clock is not shown
+here. All colors above are the defaults.
 
 ## Web interface
 

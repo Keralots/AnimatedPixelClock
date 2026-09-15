@@ -14,7 +14,8 @@ monitor keeps sending in the background.
 
 ## For end users (using the .exe)
 
-1. Double-click `pc_stats_monitor_v4.exe`.
+1. Download [`pc_stats_monitor_v4.exe`](https://github.com/Keralots/AnimatedPixelClock/releases/latest/download/pc_stats_monitor_v4.exe) from the latest release, then
+   double-click it. It is not checked into the repository.
    - First time only, Windows SmartScreen may say *"Windows protected your PC"*.
      Click **More info -> Run anyway**. This is normal for unsigned tools.
    - Requires the **WebView2 runtime** (preinstalled on Windows 11; on Windows 10
