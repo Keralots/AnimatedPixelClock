@@ -66,6 +66,7 @@ int getOptimalRefreshRate();
 #include "clocks/clock_globals.h"
 #include "metrics/metrics.h"
 #include "network/network.h"
+#include "network/tls_psram.h"
 #include "notify/notify.h"
 #include "viz/visualizer.h"
 #include "weather/weather.h"
@@ -208,6 +209,9 @@ void cycleClockScreens() {
 
 // ========== setup() ==========
 void setup() {
+  // Before anything opens TLS - see network/tls_psram.cpp
+  tlsUsePsram();
+
   Serial.begin(115200);
   delay(1000);
 
