@@ -1,7 +1,7 @@
 # Firmware and companion releases
 
 Run `python release.py` from the repository root. It reads `FIRMWARE_VERSION`
-from `src/config/config.h`, builds both targets, validates the flash layout,
+from `src/config/config.h`, builds every target, validates the flash layout,
 and packages the firmware with the prebuilt Windows companion. It does not
 commit, push, or publish a GitHub Release.
 
@@ -9,6 +9,7 @@ commit, push, or publish a GitHub Release.
 | --- | --- | --- |
 | `supermini` | `matrix-s3` | ESP32-S3-Zero / Super Mini, 4 MB, native USB |
 | `wroom` | `matrix-s3-wroom` | ESP32-S3-WROOM-1 N16R8, 16 MB, USB-UART |
+| `waveshare` | `matrix-waveshare` | Waveshare ESP32-S3-RGB-Matrix (WROOM-2-N32R16V), 32 MB octal flash, 16 MB octal PSRAM, native USB |
 
 The `supermini` filename is retained for compatibility; it also covers the
 Waveshare ESP32-S3-Zero. Choose the image for your board and flash size.
@@ -40,6 +41,7 @@ The web flasher reads `docs/firmware/latest/VERSION` and selects one of:
 ```text
 AnimatedPixelClock-supermini-v<version>-Full.bin
 AnimatedPixelClock-wroom-v<version>-Full.bin
+AnimatedPixelClock-waveshare-v<version>-Full.bin
 SHA256SUMS.txt
 ```
 
@@ -51,8 +53,10 @@ The GitHub Release assets are prepared in `release/v<version>/`:
 ```text
 firmware-v<version>-supermini.bin
 firmware-v<version>-wroom.bin
+firmware-v<version>-waveshare.bin
 OTA_ONLY_firmware-v<version>-supermini.bin
 OTA_ONLY_firmware-v<version>-wroom.bin
+OTA_ONLY_firmware-v<version>-waveshare.bin
 pc_stats_monitor_v4.exe
 SHA256SUMS.txt
 ```
@@ -72,9 +76,10 @@ asset: the GitHub Release is the only place users download it from.
 
 Commit the source, flasher updates, `docs/firmware/latest` and release BINs/checksums.
 Push `main`, tag that exact commit as `v<version>`, and create a GitHub Release
-with all six assets listed above. Use a draft until every upload is complete,
+with all eight assets listed above (six BINs, the EXE and SHA256SUMS.txt). Use a draft until every upload is complete,
 then publish it and mark stable releases as latest.
 
 The flasher's Windows download points to that same tag's `pc_stats_monitor_v4.exe`.
-Keep that asset name stable. Check the public page, both BIN downloads, the EXE
-download and their SHA-256 hashes after GitHub Pages finishes deploying.
+Keep that asset name stable. After GitHub Pages finishes deploying, check the
+public page, all three published Full images, all six release BIN downloads, the
+EXE download and their SHA-256 hashes.
