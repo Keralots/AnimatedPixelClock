@@ -1,2 +1,3 @@
-371bdd70f203f415da1b024eb782d1c6fd5675c387d2057e6de4b98ae22ff9b1  AnimatedPixelClock-supermini-v2.3.0-Full.bin
-7d9476145a0bbe1e9269d6ec354f46d7e711a815bcbd917bd733256977a78330  AnimatedPixelClock-wroom-v2.3.0-Full.bin
+684e3f29d894f83a347871fbf3d9d50063e11676e5517183717f81787ac06a12  AnimatedPixelClock-supermini-v2.3.1-Full.bin
+1407538c94e74247b79d73de1d76e437eeb73f0014e114abad514d54e81122cd  AnimatedPixelClock-waveshare-v2.3.1-Full.bin
+ad8909f2422e3ed1a69628ff9a415868f6ecb2627e49e15543a4fc167de36455  AnimatedPixelClock-wroom-v2.3.1-Full.bin
