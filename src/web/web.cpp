@@ -10,6 +10,7 @@
 #include "../config/settings.h"
 #include "../network/network.h"
 #include "../utils/utils.h"
+#include "../utils/crash_report.h"
 #include "../clocks/clocks.h"
 #include "../display/display.h"
 #include "../ambient/ambient.h"
@@ -183,6 +184,7 @@ void handleDeviceInfo() {
  doc["largestHeapBlock"] = (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
  doc["freeInternalHeap"] = (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
  doc["resetReason"] = (int)esp_reset_reason();
+ crashReportToJson(doc); // "lastCrash", when the SDK saved a crash to flash
  doc["animationStorageBytes"] = (uint32_t)animFsTotal();
  doc["animationFreeBytes"] = (uint32_t)animFsFree();
  doc["animationsUsable"] = animFsUsable();

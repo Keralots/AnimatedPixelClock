@@ -24,6 +24,7 @@
 
 #include "config/config.h"
 #include "utils/utils.h"
+#include "utils/crash_report.h"
 #include "timezones.h"
 
 // ========== External Objects ==========
@@ -215,6 +216,9 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  // If the last run crashed, keep the core dump summary for /api/info
+  crashReportBegin();
+
   // Load settings from flash
   loadSettings();
 
@@ -313,6 +317,9 @@ void loop() {
 
   // Background weather fetch: starts a one-shot task when one is due
   weatherLoop();
+
+  // Crash report: note when this boot started, once the time is synced
+  crashReportLoop();
 
   // Check timeout
   if (millis() - lastReceived > TIMEOUT && metricData.online) {
