@@ -34,10 +34,10 @@ struct WeatherData {
   unsigned long fetchedAt;  // millis() of the last successful fetch
 };
 
-// Start the background fetch task (call once from setup(), after WiFi init).
-// The task idles cheaply while weather is disabled or unconfigured, so it is
-// safe to start unconditionally.
-void startWeatherTask();
+// Call from loop(). When a fetch is due it starts a task for that one fetch,
+// and the task deletes itself when done. Returns at once when weather is
+// disabled or unconfigured, so it is safe to call unconditionally.
+void weatherLoop();
 
 // Thread-safe snapshot of the latest data.
 WeatherData getWeather();
@@ -45,7 +45,7 @@ WeatherData getWeather();
 // True when the user has enabled weather and set a location.
 bool weatherConfigured();
 
-// Wake the fetch task early (call after weather settings change).
+// Fetch on the next weatherLoop() (call after weather settings change).
 void weatherSettingsChanged();
 
 // Map a WMO weather code to an icon kind.
