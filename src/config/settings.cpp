@@ -885,7 +885,7 @@ void saveSettings() {
     String key = "label" + String(i);
     if (settings.metricLabels[i][0] != '\0') {
       preferences.putString(key.c_str(), settings.metricLabels[i]);
-    } else {
+    } else if (preferences.isKey(key.c_str())) {
       preferences.remove(key.c_str()); // Remove if empty
     }
   }
@@ -895,7 +895,7 @@ void saveSettings() {
     String key = "name" + String(i);
     if (settings.metricNames[i][0] != '\0') {
       preferences.putString(key.c_str(), settings.metricNames[i]);
-    } else {
+    } else if (preferences.isKey(key.c_str())) {
       preferences.remove(key.c_str()); // Remove if empty
     }
   }
