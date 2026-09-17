@@ -290,9 +290,6 @@ void setup() {
   // Setup web server
   setupWebServer();
 
-  // Background weather fetcher (idles cheaply while weather is disabled)
-  startWeatherTask();
-
   // Show IP address for 5 seconds (configurable via web interface)
   if (displayAvailable && settings.showIPAtBoot) {
     displayConnected();
@@ -313,6 +310,9 @@ void loop() {
 
   // Handle UDP packets - always process to track PC online status accurately
   handleUDP();
+
+  // Background weather fetch: starts a one-shot task when one is due
+  weatherLoop();
 
   // Check timeout
   if (millis() - lastReceived > TIMEOUT && metricData.online) {

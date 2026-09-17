@@ -1445,7 +1445,7 @@ void handleSave() {
  settings.weatherApiKey[32] = '\0';
  }
  }
- weatherSettingsChanged(); // wake the fetch task for the new location
+ weatherSettingsChanged(); // fetch now for the new location
  }
 
  // Save ambient screensaver settings (guard on a field that always posts so
