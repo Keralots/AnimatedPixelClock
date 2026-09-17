@@ -16,9 +16,12 @@
  *
  * abort(), a failed assert and the task watchdog all end in panic_abort(), which
  * writes to address 0 on purpose, so the CPU reports StoreProhibited at 0. The
- * report names those "abort()" and "Task watchdog" instead. The task watchdog
- * aborts from its interrupt, so for it "task" and "backtrace" belong to whatever
- * the interrupt stopped, not to the task that hung.
+ * report names those "abort()" and "Task watchdog" instead. That is decided once,
+ * when the dump is found and panic_abort() is still at the address the crashed
+ * image used, and kept in the record: a later update moves the function, and the
+ * name would otherwise be lost exactly when someone updates to a fix and looks.
+ * The task watchdog aborts from its interrupt, so for it "task" and "backtrace"
+ * belong to whatever the interrupt stopped, not to the task that hung.
  *
  * To turn the addresses into source lines, take the firmware.elf whose SHA-256
  * starts with "elfSha256" (shasum -a 256 .pio/build/<env>/firmware.elf):
@@ -53,9 +56,14 @@ struct CrashRecord {
   char elfSha256[17];      // the first 16 hex digits, as the SDK keeps them
   int32_t resetReason;     // esp_reset_reason() of the boot that found it
   uint32_t bootTime;       // Unix time that boot started, 0 until the time is synced
+  uint8_t kind;            // CRASH_KIND_*, decided when the dump was found
 };
 
-#define CRASH_MAGIC 0x31525243UL
+#define CRASH_KIND_EXCEPTION 0
+#define CRASH_KIND_ABORT 1
+#define CRASH_KIND_TASK_WDT 2
+
+#define CRASH_MAGIC 0x32525243UL
 #define CRASH_NVS_NAMESPACE "crash"
 #define CRASH_NVS_KEY "last"
 
@@ -104,14 +112,21 @@ static bool crashFromRunningFirmware() {
   return strcmp(lastCrash.elfSha256, runningElfSha256) == 0;
 }
 
+// Only at the boot that found the dump: the pc can be compared with
+// panic_abort() while the crashed image is still the one running.
+static uint8_t crashKind(const CrashRecord& record) {
+  if (record.cause != EXCCAUSE_STORE_PROHIBITED || record.vaddr != 0) return CRASH_KIND_EXCEPTION;
+  if (strcmp(record.elfSha256, runningElfSha256) != 0) return CRASH_KIND_EXCEPTION;
+  if (record.pc - (uint32_t)&panic_abort >= PANIC_ABORT_CODE_BYTES) return CRASH_KIND_EXCEPTION;
+  return record.resetReason == ESP_RST_TASK_WDT ? CRASH_KIND_TASK_WDT : CRASH_KIND_ABORT;
+}
+
 static const char* crashName() {
-  // The pc can only be compared with panic_abort() when the crashed image is
-  // the one running now; in another build the function sits elsewhere.
-  if (lastCrash.cause == EXCCAUSE_STORE_PROHIBITED && lastCrash.vaddr == 0 && crashFromRunningFirmware() &&
-      lastCrash.pc - (uint32_t)&panic_abort < PANIC_ABORT_CODE_BYTES) {
-    return lastCrash.resetReason == ESP_RST_TASK_WDT ? "Task watchdog" : "abort()";
+  switch (lastCrash.kind) {
+    case CRASH_KIND_ABORT:    return "abort()";
+    case CRASH_KIND_TASK_WDT: return "Task watchdog";
+    default:                  return causeName(lastCrash.cause);
   }
-  return causeName(lastCrash.cause);
 }
 
 static bool saveCrashRecord() {
@@ -138,6 +153,7 @@ void crashReportBegin() {
   }
   const uint8_t maxDepth = sizeof(lastCrash.backtrace) / sizeof(lastCrash.backtrace[0]);
   if (lastCrash.depth > maxDepth) lastCrash.depth = maxDepth;
+  if (lastCrash.kind > CRASH_KIND_TASK_WDT) lastCrash.kind = CRASH_KIND_EXCEPTION;
   lastCrash.task[sizeof(lastCrash.task) - 1] = '\0';
   lastCrash.elfSha256[sizeof(lastCrash.elfSha256) - 1] = '\0';
   esp_ota_get_app_elf_sha256(runningElfSha256, sizeof(runningElfSha256));
@@ -180,6 +196,7 @@ void crashReportBegin() {
   record.corrupted = summary->exc_bt_info.corrupted;
   memcpy(record.elfSha256, summary->app_elf_sha256, sizeof(record.elfSha256) - 1);
   record.resetReason = (int32_t)esp_reset_reason();
+  record.kind = crashKind(record);
 
   lastCrash = record;
   crashThisBoot = true;
