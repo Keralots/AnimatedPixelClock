@@ -20,6 +20,7 @@
 #include "../viz/visualizer.h"
 #include "../weather/weather.h"
 #include "web_pages.h"
+#include "web_assets.h"
 #include <WebServer.h>
 #include <Update.h>
 #include <LittleFS.h>
@@ -784,11 +785,9 @@ static bool resolvePlaceholder(const char* n, String& out) {
   if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
   if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
   if (!strcmp(n, "BUILT")) { out = String(__DATE__); return true; }
-  if (!strcmp(n, "ASSETVER")) {
-    String s = String(__DATE__) + __TIME__;
-    s.replace(" ", ""); s.replace(":", ""); // alnum only -> safe in a query string
-    out = s; return true;
-  }
+  // The assets' own content hash (web_assets.h): a browser keeps its copy for
+  // as long as the bytes stay the same, and refetches the moment they change.
+  if (!strcmp(n, "ASSETVER")) { out = WEB_ASSET_VERSION; return true; }
   if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
   if (!strcmp(n, "DISPLAYMODEL")) { out = "HUB75 Matrix"; return true; }
   if (!strcmp(n, "BOARDNAME")) { out = "ESP32-S3"; return true; }
@@ -1226,32 +1225,36 @@ void handleRoot() {
   streamTemplate(PAGE_HTML, sizeof(PAGE_HTML) - 1);
 }
 
-// Stream a static PROGMEM asset (CSS/JS) in chunks. These contain no %TOKEN%s,
-// so they are emitted verbatim and cached hard by the browser (fetched once).
-static void streamStatic(const char* data, size_t len, const char* contentType) {
+// Stream a static PROGMEM asset (CSS/JS/icon) in chunks. These contain no
+// %TOKEN%s, so tools/web_assets_gen.py gzips them into web_assets.h at build
+// time: the panel sends the stored bytes and the browser unpacks them, which is
+// a third of the flash and a third of the time loop() spends on the transfer.
+// Cached hard by the browser (fetched once).
+static void streamStatic(const uint8_t* data, size_t len, const char* contentType) {
   netMarkHttp();
   server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
+  server.sendHeader("Content-Encoding", "gzip");
   server.setContentLength(len);
   server.send(200, contentType, "");
   // PROGMEM is memory-mapped on ESP32, so it can feed send() directly.
   WiFiClient client = server.client();
   int sock = client.fd();
   if (sock < 0 ||
-      !writeAllGuarded(sock, data, len, millis() + STREAM_TOTAL_LIMIT_MS)) {
+      !writeAllGuarded(sock, (const char*)data, len, millis() + STREAM_TOTAL_LIMIT_MS)) {
     client.stop(); // stalled client - drop it, keep the clock alive
   }
 }
 
 void handlePortalCss() {
-  streamStatic(PORTAL_CSS, sizeof(PORTAL_CSS) - 1, "text/css");
+  streamStatic(PORTAL_CSS_GZ, sizeof(PORTAL_CSS_GZ), "text/css");
 }
 
 void handlePortalJs() {
-  streamStatic(PORTAL_JS, sizeof(PORTAL_JS) - 1, "application/javascript");
+  streamStatic(PORTAL_JS_GZ, sizeof(PORTAL_JS_GZ), "application/javascript");
 }
 
 void handleFavicon() {
-  streamStatic(FAVICON_SVG, sizeof(FAVICON_SVG) - 1, "image/svg+xml");
+  streamStatic(FAVICON_SVG_GZ, sizeof(FAVICON_SVG_GZ), "image/svg+xml");
 }
 
 // Parse an "HH:MM" time-input value into hour (0-23) + minute (0-59). Returns
