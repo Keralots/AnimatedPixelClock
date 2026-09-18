@@ -232,7 +232,7 @@ struct Settings {
   uint8_t matrixRainSpeed;      // Rain fall speed, tenths (12 = 1.2)
   uint8_t matrixRainDensity;    // 0=Sparse, 1=Normal, 2=Dense
   bool matrixShowDate;          // Show date row (off = centred clock)
-  bool matrixTransparent;       // No mask behind digits, rain falls through (default: false)
+  bool matrixTransparent;       // No mask behind digits, rain falls through (default: true)
 
   // Doom Fire clock settings
   uint8_t doomFlameHeight;      // Digit plume reach above the digits, pixels (8-40)

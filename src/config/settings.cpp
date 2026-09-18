@@ -529,7 +529,7 @@ void loadSettings() {
   settings.matrixShowDate =
       preferences.getBool("mxDate", false); // Default: hidden (centred clock)
   settings.matrixTransparent =
-      preferences.getBool("mxTransp", false); // Default: solid digit plates
+      preferences.getBool("mxTransp", true); // Default: rain falls through
   settings.doomFlameHeight =
       preferences.getUChar("dmHeight", 20); // Default: 20px reach
   // Before the split one setting drove both, with the cooler ground reaching
