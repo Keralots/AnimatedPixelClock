@@ -31,6 +31,7 @@ void handleSave();
 void handleReset();
 void handleMetricsAPI();
 void handleDeviceInfo();
+void handlePortalValues();
 void handleRename();
 void handleExportConfig();
 void handleImportConfig();
