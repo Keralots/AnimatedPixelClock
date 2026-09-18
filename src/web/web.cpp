@@ -34,6 +34,8 @@
 #include "../clocks/cycle_config.h"
 static String lastAnimationError;
 static bool writeAllGuarded(int sock, const char* data, size_t len, uint32_t totalDeadline);
+static void streamStatic(const uint8_t* data, size_t len, const char* contentType,
+                         const char* cacheControl);
 static void sendJsonGuarded(int code, const String& json);
 
 // ========== Web Server Object ==========
@@ -60,6 +62,7 @@ void setupWebServer() {
  server.on("/reset", handleReset);
  server.on("/metrics", handleMetricsAPI);
  server.on("/api/info", HTTP_GET, handleDeviceInfo);
+ server.on("/api/portal", HTTP_GET, handlePortalValues);   // the page's values
  server.on("/api/diagnostics", HTTP_GET, handleDeviceInfo);
  server.on("/api/anim/play", HTTP_GET, handleAnimPlay);
  server.on("/api/export", HTTP_GET, handleExportConfig);
@@ -124,6 +127,8 @@ void setupWebServer() {
  }
  });
 
+ static const char* kCollect[] = {"If-None-Match"};   // handleRoot answers a matching one with 304
+ server.collectHeaders(kCollect, 1);
  server.begin();
 }
 
@@ -608,15 +613,9 @@ void handleAnimUploadDone() {
  }
 }
 
-// ========== Config Page (streamed PROGMEM template) ==========
-// The full HTML config page lives in web_pages.h as PAGE_HTML[] (flash).
-// resolvePlaceholder() supplies the dynamic values for each %TOKEN%, and
-// streamTemplate() walks the template emitting it through a single small
-// buffer. Peak heap during a page render is ~2 KB plus the largest single
-// placeholder value, instead of the whole ~58 KB page as one String.
-
-// Resolve a single %NAME% placeholder. Returns false for unknown names so the
-// streamer leaves the literal text untouched.
+// ========== Config page values ==========
+// The page itself is static and gzipped (web_assets.h); what it needs to show
+// is gathered here and fetched once, by /api/portal.
 
 // RGB565 -> "#rrggbb" for the web color inputs.
 static String rgb565ToHex(uint16_t c) {
@@ -689,34 +688,6 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_SCOPE_PEAK, -4, "Trace at full deflection"},
 };
 
-// One <label><input type=color></label> row for a single sprite-color slot.
-static String colorInputRow(uint8_t slot, const char* label) {
-  String s = F("<label style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0\"><span>");
-  s += label;
-  s += F("</span><input type=\"color\" name=\"color_");
-  s += String(slot);
-  s += F("\" value=\"");
-  s += rgb565ToHex(settings.spriteColors[slot]);
-  s += F("\"></label>");
-  return s;
-}
-
-// Emit <input type=color> rows for one clock style (-2 = PC stats). "" if none.
-static String buildColorRows(int style) {
-  String s;
-  for (size_t i = 0; i < sizeof(SPRITE_COLOR_ROWS) / sizeof(SPRITE_COLOR_ROWS[0]); i++) {
-    const SpriteColorRow& r = SPRITE_COLOR_ROWS[i];
-    if (r.style != style) continue;
-    s += colorInputRow(r.slot, r.label);
-  }
-  return s;
-}
-
-// The per-style time-digit + colon color row (slot COL_DIGITS_S0 + style).
-static String buildDigitRow(int style) {
-  return colorInputRow((uint8_t)(style == 17 ? COL_DIGITS_S17 : style == 16 ? COL_DIGITS_S16 : style == 15 ? COL_DIGITS_S15 : COL_DIGITS_S0 + style), "Time digits + colon");
-}
-
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
 // each style's color rows in a <div id="<panelId>Colors"> that syncClockPanels()
 // shows/hides alongside the matching subcard. panelId MUST match STYLE_PANELS[]
@@ -734,332 +705,195 @@ static const StyleCard STYLE_CARDS[] = {
 // has no picker; its digit slot still exists and defaults to white.)
 static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
 
-// The single per-page "Colors" card on the Clock page: the selected style's sprite
-// rows (in a subcard div toggled by syncClockPanels), then that style's time-digit
-// color row (class "digitc", toggled by clock style value), then reset. PC-monitor
-// stat colors live on the Display-layout page (buildPcMetricsColorCard), not here.
-static String buildColorsCard() {
-  String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
+// "HH:MM" for the page's time inputs, as the template's V_DIMSTART built it.
+static String hhmm(uint8_t hour, uint8_t minute) {
+  char buf[6];
+  snprintf(buf, sizeof(buf), "%02u:%02u", (unsigned)hour, (unsigned)minute);
+  return String(buf);
+}
+
+// The per-style time-digit color slot (as buildDigitRow picks it).
+static uint8_t digitColorSlot(int style) {
+  return (uint8_t)(style == 17 ? COL_DIGITS_S17
+                               : style == 16 ? COL_DIGITS_S16
+                                             : style == 15 ? COL_DIGITS_S15 : COL_DIGITS_S0 + style);
+}
+
+// ========== Portal values (/api/portal) ==========
+// The page itself is static and gzipped (web_assets.h), so everything that used
+// to be a %TOKEN% resolved while the page streamed comes from here instead: one
+// small JSON the browser asks for once, instead of the panel rewriting 76KB of
+// HTML out of loop() on every load. Keys in "form" are the form control names,
+// which are the same names handleSave() reads back.
+void handlePortalValues() {
+  netMarkHttp();
+  JsonDocument doc;
+  doc["ver"] = FIRMWARE_VERSION;
+  doc["built"] = __DATE__;
+  doc["board"] = "ESP32-S3";
+  doc["displayModel"] = "HUB75 Matrix";
+  doc["minBright"] = isZeroBrightnessAllowed() ? 0 : 1;
+  doc["scopeTrailMax"] = SCOPE_TRAIL_MAX;
+  doc["scopeTrailDefault"] = SCOPE_TRAIL_DEFAULT;
+
+  // The color pickers: the page builds the rows from these tables, as
+  // buildColorsCard() used to build them here.
+  JsonArray rows = doc["colorRows"].to<JsonArray>();
+  for (size_t i = 0; i < sizeof(SPRITE_COLOR_ROWS) / sizeof(SPRITE_COLOR_ROWS[0]); i++) {
+    JsonArray row = rows.add<JsonArray>();
+    row.add(SPRITE_COLOR_ROWS[i].slot);
+    row.add(SPRITE_COLOR_ROWS[i].style);
+    row.add(SPRITE_COLOR_ROWS[i].label);
+  }
+  JsonArray cards = doc["styleCards"].to<JsonArray>();
   for (size_t i = 0; i < sizeof(STYLE_CARDS) / sizeof(STYLE_CARDS[0]); i++) {
-    String rows = buildColorRows(STYLE_CARDS[i].style);
-    if (rows.length() == 0) continue;  // this style has no sprite color rows yet
-    out += F("<div id=\"");
-    out += STYLE_CARDS[i].panelId;
-    out += F("Colors\" style=\"display:none\">");
-    out += rows;
-    out += F("</div>");
+    JsonArray card = cards.add<JsonArray>();
+    card.add(STYLE_CARDS[i].style);
+    card.add(STYLE_CARDS[i].panelId);
   }
-  // Per-style time-digit color: one row per selectable style, JS reveals the one
-  // matching the current clock style (works for styles with no settings subcard).
+  JsonArray digits = doc["digitRows"].to<JsonArray>();
   for (size_t i = 0; i < sizeof(DIGIT_STYLES) / sizeof(DIGIT_STYLES[0]); i++) {
-    out += F("<div class=\"digitc\" data-ds=\"");
-    out += String(DIGIT_STYLES[i]);
-    out += F("\" style=\"display:none\">");
-    out += buildDigitRow(DIGIT_STYLES[i]);
-    out += F("</div>");
+    const int style = DIGIT_STYLES[i];
+    JsonArray digit = digits.add<JsonArray>();
+    digit.add(style);
+    digit.add(digitColorSlot(style));
   }
-  out += F("<label style=\"display:flex;align-items:center;gap:8px;margin-top:12px\"><input type=\"checkbox\" name=\"resetSpriteColors\" value=\"1\"> Reset all sprite colors to defaults on save</label>");
-  out += F("</div>");
-  return out;
-}
+  JsonArray colors = doc["spriteColors"].to<JsonArray>();
+  for (int i = 0; i < COL_COUNT; i++) colors.add(rgb565ToHex(settings.spriteColors[i]));
 
-// Visualizer bar-gradient color rows (inside the Display page's viz card).
-static String buildVizColorRows() { return buildColorRows(-3); }
-
-// Oscilloscope color rows (same card, revealed only for that style).
-static String buildScopeColorRows() { return buildColorRows(-4); }
-
-// PC-monitor stat colors as their own card (Display-layout page). "" if none.
-static String buildPcMetricsColorCard() {
-  String rows = buildColorRows(-2);
-  if (rows.length() == 0) return String();
-  String out = F("<div class=\"card\"><h2 class=\"card-title\">Colors</h2>");
-  out += rows;
-  out += F("</div>");
-  return out;
-}
-
-static bool resolvePlaceholder(const char* n, String& out) {
-  if (!strcmp(n, "V_CYCLECONFIG")) { out = settings.cycleConfig; return true; }
-  // --- Header / identity ---
-  if (!strcmp(n, "VER")) { out = String(FIRMWARE_VERSION); return true; }
-  if (!strcmp(n, "IP")) { out = WiFi.localIP().toString(); return true; }
-  if (!strcmp(n, "BUILT")) { out = String(__DATE__); return true; }
-  // The assets' own content hash (web_assets.h): a browser keeps its copy for
-  // as long as the bytes stay the same, and refetches the moment they change.
-  if (!strcmp(n, "ASSETVER")) { out = WEB_ASSET_VERSION; return true; }
-  if (!strcmp(n, "HEAP")) { out = String(ESP.getFreeHeap() / 1024.0, 1); return true; }
-  if (!strcmp(n, "DISPLAYMODEL")) { out = "HUB75 Matrix"; return true; }
-  if (!strcmp(n, "BOARDNAME")) { out = "ESP32-S3"; return true; }
-  // The Clock-page "Colors" card (selected style's pickers + its digit color).
-  if (!strcmp(n, "COLOR_GLOBAL")) { out = buildColorsCard(); return true; }
-  // PC-monitor stat colors card (Display-layout page).
-  if (!strcmp(n, "COLOR_PCMETRICS")) { out = buildPcMetricsColorCard(); return true; }
-  // Visualizer bar colors (rows only; the card lives in web_pages.h).
-  if (!strcmp(n, "COLOR_VIZ")) { out = buildVizColorRows(); return true; }
-  if (!strcmp(n, "COLOR_SCOPE")) { out = buildScopeColorRows(); return true; }
-  if (!strcmp(n, "CHK_SCOPEGRID")) { out = String(settings.scopeGrid ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_SCOPEFILL")) { out = String(settings.scopeFill ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_SCOPEFLAT")) { out = String(settings.scopeFlat ? "checked" : ""); return true; }
-  if (!strcmp(n, "V_SCOPEGAIN")) { out = String(settings.scopeGain); return true; }
-  if (!strcmp(n, "OPT_SCOPETRAIL")) {
-    for (int i = 0; i <= SCOPE_TRAIL_MAX; i++) {
-      out += "<option value=\"" + String(i) + "\"" + (settings.scopeTrail == i ? " selected" : "") + ">" + String(i);
-      if (i == SCOPE_TRAIL_DEFAULT) out += " (default)";
-      out += "</option>";
-    }
-    return true;
-  }
-  if (!strcmp(n, "CHK_VIZSHOWCLOCK")) { out = String(settings.vizShowClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "OPT_VIZSTYLE")) {
-    // Slot 4 is retired; ids stay stable for saved settings.
-    const uint8_t ids[] = {0, 1, 2, 3, 5, 6};
-    const char* names[] = {"Classic EQ", "Neon Mirror", "Phosphor Waterfall",
-                           "Purple LED Stage", "Starfield Overdrive", "Oscilloscope"};
-    for (int i = 0; i < 6; i++) {
-      out += "<option value=\"" + String(ids[i]) + "\"" + (settings.vizStyle == ids[i] ? " selected" : "") + ">" + names[i] + "</option>";
-    }
-    return true;
+  // Timezone regions, and which one is selected. A custom zone (index 255) is
+  // matched by its POSIX string, as the template's OPT_TZ did.
+  size_t tzCount;
+  const TimezoneRegion* regions = getSupportedTimezones(&tzCount);
+  JsonArray tz = doc["timezones"].to<JsonArray>();
+  int tzSelected = -1;   // none: "-- Select Region --"
+  for (size_t i = 0; i < tzCount; i++) {
+    tz.add(regions[i].name);
+    const bool match = (settings.timezoneIndex < 255)
+                           ? (i == settings.timezoneIndex)
+                           : (strcmp(settings.timezoneString, regions[i].posixString) == 0);
+    if (match) tzSelected = (int)i;
   }
 
-  // --- Brightness help text and minimum ---
-  if (!strcmp(n, "MINBRIGHT")) { out = String(isZeroBrightnessAllowed() ? 0 : 1); return true; }
-  if (!strcmp(n, "HELP_DISPBRIGHT")) {
-    out = "Brightness control (1-100%). The panel can be turned fully off via the runtime API (/api/display/off).";
-    return true;
-  }
-  if (!strcmp(n, "HELP_DIMBRIGHT")) {
-    out = "Brightness level during scheduled dim period (minimum 1%).";
-    return true;
-  }
+  JsonObject form = doc["form"].to<JsonObject>();
+  form["clockStyle"] = settings.clockStyle;
+  form["tronBikeStyle"] = settings.tronBikeStyle;
+  form["marioEncounterFreq"] = settings.marioEncounterFreq;
+  form["marioEncounterSpeed"] = settings.marioEncounterSpeed;
+  form["spaceCharacterType"] = settings.spaceCharacterType;
+  form["tetrisBlockStyle"] = settings.tetrisBlockStyle;
+  form["tetrisAnimStyle"] = settings.tetrisAnimStyle;
+  form["tetrisDotOrder"] = settings.tetrisDotOrder;
+  form["tetrisDatePosition"] = settings.tetrisDatePosition;
+  form["tetrisSmallClockPos"] = settings.tetrisSmallClockPos;
+  form["dinoCactusFreq"] = settings.dinoCactusFreq;
+  form["matrixRainDensity"] = settings.matrixRainDensity;
+  form["doomWind"] = settings.doomWind;
+  form["dateFormat"] = settings.dateFormat;
+  form["colonBlinkMode"] = settings.colonBlinkMode;
+  form["ambientStyle"] = settings.ambientStyle;
+  form["notifyPosition"] = settings.notifyPosition;
+  form["clockPosition"] = settings.clockPosition;
+  form["rowMode"] = settings.displayRowMode;
+  form["cycleConfig"] = settings.cycleConfig;
+  form["marioBounceHeight"] = settings.marioBounceHeight;
+  form["marioBounceSpeed"] = settings.marioBounceSpeed;
+  form["marioWalkSpeed"] = settings.marioWalkSpeed;
+  form["marioSmoothAnimation"] = settings.marioSmoothAnimation;
+  form["marioIdleEncounters"] = settings.marioIdleEncounters;
+  form["spacePatrolSpeed"] = settings.spacePatrolSpeed;
+  form["spaceAttackSpeed"] = settings.spaceAttackSpeed;
+  form["spaceLaserSpeed"] = settings.spaceLaserSpeed;
+  form["spaceExplosionGravity"] = settings.spaceExplosionGravity;
+  form["pongBallSpeed"] = settings.pongBallSpeed;
+  form["pongBounceStrength"] = settings.pongBounceStrength;
+  form["pongBounceDamping"] = settings.pongBounceDamping;
+  form["pongPaddleWidth"] = settings.pongPaddleWidth;
+  form["pongHorizontalBounce"] = settings.pongHorizontalBounce;
+  form["pongDigitShatter"] = settings.pongDigitShatter;
+  form["pacmanSpeed"] = settings.pacmanSpeed;
+  form["pacmanEatingSpeed"] = settings.pacmanEatingSpeed;
+  form["pacmanMouthSpeed"] = settings.pacmanMouthSpeed;
+  form["pacmanPelletCount"] = settings.pacmanPelletCount;
+  form["pacmanPelletRandomSpacing"] = settings.pacmanPelletRandomSpacing;
+  form["pacmanBounceEnabled"] = settings.pacmanBounceEnabled;
+  form["snakeSpeed"] = settings.snakeSpeed;
+  form["snakeLength"] = settings.snakeLength;
+  form["snakeWallBorder"] = settings.snakeWallBorder;
+  form["snakeShowDate"] = settings.snakeShowDate;
+  form["tetrisFallSpeed"] = settings.tetrisFallSpeed;
+  form["tetrisDotSpeed"] = settings.tetrisDotSpeed;
+  form["tetrisIdleTumble"] = settings.tetrisIdleTumble;
+  form["tetrisSmallClock"] = settings.tetrisSmallClock;
+  form["tetrisSmoothGame"] = settings.tetrisSmoothGame;
+  form["tetrisDigitBounce"] = settings.tetrisDigitBounce;
+  form["tetrisShowDate"] = settings.tetrisShowDate;
+  form["asteroidsShipSpeed"] = settings.asteroidsShipSpeed;
+  form["asteroidsRockSpeed"] = settings.asteroidsRockSpeed;
+  form["asteroidsRockCount"] = settings.asteroidsRockCount;
+  form["asteroidsShowDate"] = settings.asteroidsShowDate;
+  form["asteroidsTransparent"] = settings.asteroidsTransparent;
+  form["dinoSpeed"] = settings.dinoSpeed;
+  form["dinoShowClouds"] = settings.dinoShowClouds;
+  form["dinoShowDate"] = settings.dinoShowDate;
+  form["matrixRainSpeed"] = settings.matrixRainSpeed;
+  form["matrixShowDate"] = settings.matrixShowDate;
+  form["matrixTransparent"] = settings.matrixTransparent;
+  form["doomFlameHeight"] = settings.doomFlameHeight;
+  form["doomGroundHeight"] = settings.doomGroundHeight;
+  form["doomBurningDigits"] = settings.doomBurningDigits;
+  form["doomSmoothFire"] = settings.doomSmoothFire;
+  form["doomShowDate"] = settings.doomShowDate;
+  form["weatherEnabled"] = settings.weatherEnabled;
+  // Four decimals, as the template printed them: the input's step is 0.0001.
+  form["weatherLat"] = String(settings.weatherLat, 4);
+  form["weatherLon"] = String(settings.weatherLon, 4);
+  form["weatherFahrenheit"] = settings.weatherUseFahrenheit;
+  form["weatherApiKey"] = settings.weatherApiKey;
+  form["colonBlinkRate"] = settings.colonBlinkRate;
+  form["displayBrightness"] = settings.displayBrightness;
+  form["enableScheduledDimming"] = settings.enableScheduledDimming;
+  form["dimBrightness"] = settings.dimBrightness;
+  form["enableScheduledOff"] = settings.enableScheduledOff;
+  form["ambientShowClock"] = settings.ambientShowClock;
+  form["ambientEnabled"] = settings.ambientEnabled;
+  form["notifyEnabled"] = settings.notifyEnabled;
+  form["vizShowClock"] = settings.vizShowClock;
+  form["scopeGrid"] = settings.scopeGrid;
+  form["scopeFill"] = settings.scopeFill;
+  form["scopeFlat"] = settings.scopeFlat;
+  form["scopeGain"] = settings.scopeGain;
+  form["clockOffset"] = settings.clockOffset;
+  form["showClock"] = settings.showClock;
+  form["rpmKFormat"] = settings.useRpmKFormat;
+  form["netMBFormat"] = settings.useNetworkMBFormat;
+  form["deviceName"] = settings.deviceName;
+  form["staticIP"] = settings.staticIP;
+  form["gateway"] = settings.gateway;
+  form["subnet"] = settings.subnet;
+  form["dns1"] = settings.dns1;
+  form["dns2"] = settings.dns2;
+  form["showIPAtBoot"] = settings.showIPAtBoot;
+  form["ntpServer1"] = settings.ntpServer1;
+  form["ntpServer2"] = settings.ntpServer2;
+  // Controls whose value is not a plain settings field.
+  form["timezoneRegion"] = tzSelected;
+  form["use24Hour"] = settings.use24Hour;
+  form["useStaticIP"] = settings.useStaticIP;
+  form["vizStyle"] = settings.vizStyle;
+  form["scopeTrail"] = settings.scopeTrail;
+  form["ambientStartHour"] = settings.ambientStartHour;
+  form["ambientEndHour"] = settings.ambientEndHour;
+  form["ambientCustomFile"] = settings.ambientCustomFile;
+  form["dimStartTime"] = hhmm(settings.dimStartHour, settings.dimStartMinute);
+  form["dimEndTime"] = hhmm(settings.dimEndHour, settings.dimEndMinute);
+  form["offStartTime"] = hhmm(settings.offStartHour, settings.offStartMinute);
+  form["offEndTime"] = hhmm(settings.offEndHour, settings.offEndMinute);
 
-  // --- Ambient window hour dropdowns (whole hours) ---
-  if (!strcmp(n, "OPT_AMBSTART") || !strcmp(n, "OPT_AMBEND")) {
-    uint8_t selHour = (!strcmp(n, "OPT_AMBSTART")) ? settings.ambientStartHour
-                                                   : settings.ambientEndHour;
-    for (int i = 0; i < 24; i++) {
-      out += "<option value=\"" + String(i) + "\"" + (selHour == i ? " selected" : "") + ">" + String(i) + ":00</option>";
-    }
-    return true;
-  }
-
-  // --- Scheduled dim / power-off HH:MM values (native time inputs) ---
-  if (!strcmp(n, "V_DIMSTART") || !strcmp(n, "V_DIMEND") ||
-      !strcmp(n, "V_OFFSTART") || !strcmp(n, "V_OFFEND")) {
-    uint8_t h, m;
-    if (!strcmp(n, "V_DIMSTART"))      { h = settings.dimStartHour; m = settings.dimStartMinute; }
-    else if (!strcmp(n, "V_DIMEND"))   { h = settings.dimEndHour;   m = settings.dimEndMinute; }
-    else if (!strcmp(n, "V_OFFSTART")) { h = settings.offStartHour; m = settings.offStartMinute; }
-    else                               { h = settings.offEndHour;   m = settings.offEndMinute; }
-    char buf[6];
-    snprintf(buf, sizeof(buf), "%02u:%02u", h % 24, m % 60);
-    out = buf;
-    return true;
-  }
-
-  // --- Timezone region dropdown ---
-  if (!strcmp(n, "OPT_TZ")) {
-    size_t tzCount;
-    const TimezoneRegion* regions = getSupportedTimezones(&tzCount);
-    out += "<option value=\"\">-- Select Region --</option>\n";
-    for (size_t i = 0; i < tzCount; i++) {
-      bool isSelected = (settings.timezoneIndex < 255) ? (i == settings.timezoneIndex)
-                                                       : (strcmp(settings.timezoneString, regions[i].posixString) == 0);
-      out += "<option value=\"" + String(i) + "\"" + (isSelected ? " selected" : "") + ">" + String(regions[i].name) + "</option>\n";
-    }
-    return true;
-  }
-
-  // --- Per-setting placeholders (auto-generated, see gen_template.py) ---
-  if (!strcmp(n, "SEL_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_1")) { out = String(settings.clockStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_2")) { out = String(settings.clockStyle == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_3")) { out = String(settings.clockStyle == 3 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_5")) { out = String(settings.clockStyle == 5 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_6")) { out = String(settings.clockStyle == 6 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_7")) { out = String(settings.clockStyle == 7 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_8")) { out = String(settings.clockStyle == 8 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_9")) { out = String(settings.clockStyle == 9 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_16")) { out = String(settings.clockStyle == 16 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_17")) { out = String(settings.clockStyle == 17 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TRONBIKESTYLE_0")) { out = String(settings.tronBikeStyle == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TRONBIKESTYLE_1")) { out = String(settings.tronBikeStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_15")) { out = String(settings.clockStyle == 15 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "selected" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_0")) { out = String(settings.clockStyle == 0 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight); return true; }
-  if (!strcmp(n, "F_MARIOBOUNCEHEIGHT")) { out = String(settings.marioBounceHeight / 10.0, 1); return true; }
-  if (!strcmp(n, "V_MARIOBOUNCESPEED")) { out = String(settings.marioBounceSpeed); return true; }
-  if (!strcmp(n, "F_MARIOBOUNCESPEED")) { out = String(settings.marioBounceSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_MARIOWALKSPEED")) { out = String(settings.marioWalkSpeed); return true; }
-  if (!strcmp(n, "F_MARIOWALKSPEED")) { out = String(settings.marioWalkSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "CHK_MARIOSMOOTHANIMATION")) { out = String(settings.marioSmoothAnimation ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_MARIOIDLEENCOUNTERS")) { out = String(settings.marioIdleEncounters ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_MARIOIDLEENCOUNTERS")) { out = String(settings.marioIdleEncounters ? "block" : "none"); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_0")) { out = String(settings.marioEncounterFreq == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_1")) { out = String(settings.marioEncounterFreq == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_2")) { out = String(settings.marioEncounterFreq == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERFREQ_3")) { out = String(settings.marioEncounterFreq == 3 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_0")) { out = String(settings.marioEncounterSpeed == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_1")) { out = String(settings.marioEncounterSpeed == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MARIOENCOUNTERSPEED_2")) { out = String(settings.marioEncounterSpeed == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_5")) { out = String(settings.clockStyle == 5 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_PONGBALLSPEED")) { out = String(settings.pongBallSpeed); return true; }
-  if (!strcmp(n, "V_PONGBOUNCESTRENGTH")) { out = String(settings.pongBounceStrength); return true; }
-  if (!strcmp(n, "F_PONGBOUNCESTRENGTH")) { out = String(settings.pongBounceStrength / 10.0, 1); return true; }
-  if (!strcmp(n, "V_PONGBOUNCEDAMPING")) { out = String(settings.pongBounceDamping); return true; }
-  if (!strcmp(n, "F2_PONGBOUNCEDAMPING")) { out = String(settings.pongBounceDamping / 100.0, 2); return true; }
-  if (!strcmp(n, "V_PONGPADDLEWIDTH")) { out = String(settings.pongPaddleWidth); return true; }
-  if (!strcmp(n, "CHK_PONGHORIZONTALBOUNCE")) { out = String(settings.pongHorizontalBounce ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_PONGDIGITSHATTER")) { out = String(settings.pongDigitShatter ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_6")) { out = String(settings.clockStyle == 6 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_PACMANSPEED")) { out = String(settings.pacmanSpeed); return true; }
-  if (!strcmp(n, "F_PACMANSPEED")) { out = String(settings.pacmanSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_PACMANEATINGSPEED")) { out = String(settings.pacmanEatingSpeed); return true; }
-  if (!strcmp(n, "F_PACMANEATINGSPEED")) { out = String(settings.pacmanEatingSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_PACMANMOUTHSPEED")) { out = String(settings.pacmanMouthSpeed); return true; }
-  if (!strcmp(n, "F_PACMANMOUTHSPEED")) { out = String(settings.pacmanMouthSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_PACMANPELLETCOUNT")) { out = String(settings.pacmanPelletCount); return true; }
-  if (!strcmp(n, "CHK_PACMANPELLETRANDOMSPACING")) { out = String(settings.pacmanPelletRandomSpacing ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_PACMANBOUNCEENABLED")) { out = String(settings.pacmanBounceEnabled ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_34")) { out = String((settings.clockStyle == 3 || settings.clockStyle == 4) ? "block" : "none"); return true; }
-  if (!strcmp(n, "SEL_SPACECHARACTERTYPE_0")) { out = String(settings.spaceCharacterType == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_SPACECHARACTERTYPE_1")) { out = String(settings.spaceCharacterType == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "V_SPACEPATROLSPEED")) { out = String(settings.spacePatrolSpeed); return true; }
-  if (!strcmp(n, "F_SPACEPATROLSPEED")) { out = String(settings.spacePatrolSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_SPACEATTACKSPEED")) { out = String(settings.spaceAttackSpeed); return true; }
-  if (!strcmp(n, "F_SPACEATTACKSPEED")) { out = String(settings.spaceAttackSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_SPACELASERSPEED")) { out = String(settings.spaceLaserSpeed); return true; }
-  if (!strcmp(n, "F_SPACELASERSPEED")) { out = String(settings.spaceLaserSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_SPACEEXPLOSIONGRAVITY")) { out = String(settings.spaceExplosionGravity); return true; }
-  if (!strcmp(n, "F_SPACEEXPLOSIONGRAVITY")) { out = String(settings.spaceExplosionGravity / 10.0, 1); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_7")) { out = String(settings.clockStyle == 7 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_SNAKESPEED")) { out = String(settings.snakeSpeed); return true; }
-  if (!strcmp(n, "F_SNAKESPEED")) { out = String(settings.snakeSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_SNAKELENGTH")) { out = String(settings.snakeLength); return true; }
-  if (!strcmp(n, "CHK_SNAKEWALLBORDER")) { out = String(settings.snakeWallBorder ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_SNAKESHOWDATE")) { out = String(settings.snakeShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_8")) { out = String(settings.clockStyle == 8 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_TETRISFALLSPEED")) { out = String(settings.tetrisFallSpeed); return true; }
-  if (!strcmp(n, "F_TETRISFALLSPEED")) { out = String(settings.tetrisFallSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_TETRISBLOCKSTYLE_0")) { out = String(settings.tetrisBlockStyle == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISBLOCKSTYLE_1")) { out = String(settings.tetrisBlockStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_TETRISIDLETUMBLE")) { out = String(settings.tetrisIdleTumble ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_TETRISDIGITBOUNCE")) { out = String(settings.tetrisDigitBounce ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_TETRISSMOOTHGAME")) { out = String(settings.tetrisSmoothGame ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISANIMSTYLE_0")) { out = String(settings.tetrisAnimStyle == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISANIMSTYLE_1")) { out = String(settings.tetrisAnimStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "V_TETRISDOTSPEED")) { out = String(settings.tetrisDotSpeed); return true; }
-  if (!strcmp(n, "F_TETRISDOTSPEED")) { out = String(settings.tetrisDotSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_TETRISDOTORDER_0")) { out = String(settings.tetrisDotOrder == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISDOTORDER_1")) { out = String(settings.tetrisDotOrder == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_TETRISSHOWDATE")) { out = String(settings.tetrisShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISDATEPOSITION_0")) { out = String(settings.tetrisDatePosition == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISDATEPOSITION_1")) { out = String(settings.tetrisDatePosition == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_TETRISSMALLCLOCK")) { out = String(settings.tetrisSmallClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISSMALLCLOCKPOS_0")) { out = String(settings.tetrisSmallClockPos == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_TETRISSMALLCLOCKPOS_1")) { out = String(settings.tetrisSmallClockPos == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_10")) { out = String(settings.clockStyle == 10 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_ASTEROIDSSHIPSPEED")) { out = String(settings.asteroidsShipSpeed); return true; }
-  if (!strcmp(n, "F_ASTEROIDSSHIPSPEED")) { out = String(settings.asteroidsShipSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "V_ASTEROIDSROCKCOUNT")) { out = String(settings.asteroidsRockCount); return true; }
-  if (!strcmp(n, "V_ASTEROIDSROCKSPEED")) { out = String(settings.asteroidsRockSpeed); return true; }
-  if (!strcmp(n, "F_ASTEROIDSROCKSPEED")) { out = String(settings.asteroidsRockSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "CHK_ASTEROIDSSHOWDATE")) { out = String(settings.asteroidsShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_ASTEROIDSTRANSPARENT")) { out = String(settings.asteroidsTransparent ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_11")) { out = String(settings.clockStyle == 11 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_DINOSPEED")) { out = String(settings.dinoSpeed); return true; }
-  if (!strcmp(n, "F_DINOSPEED")) { out = String(settings.dinoSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_DINOCACTUSFREQ_0")) { out = String(settings.dinoCactusFreq == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DINOCACTUSFREQ_1")) { out = String(settings.dinoCactusFreq == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DINOCACTUSFREQ_2")) { out = String(settings.dinoCactusFreq == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_DINOSHOWCLOUDS")) { out = String(settings.dinoShowClouds ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_DINOSHOWDATE")) { out = String(settings.dinoShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_12")) { out = String(settings.clockStyle == 12 ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_MATRIXRAINSPEED")) { out = String(settings.matrixRainSpeed); return true; }
-  if (!strcmp(n, "F_MATRIXRAINSPEED")) { out = String(settings.matrixRainSpeed / 10.0, 1); return true; }
-  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_0")) { out = String(settings.matrixRainDensity == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_1")) { out = String(settings.matrixRainDensity == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_MATRIXRAINDENSITY_2")) { out = String(settings.matrixRainDensity == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_MATRIXSHOWDATE")) { out = String(settings.matrixShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_MATRIXTRANSPARENT")) { out = String(settings.matrixTransparent ? "checked" : ""); return true; }
-  if (!strcmp(n, "V_DOOMFLAMEHEIGHT")) { out = String(settings.doomFlameHeight); return true; }
-  if (!strcmp(n, "V_DOOMGROUNDHEIGHT")) { out = String(settings.doomGroundHeight); return true; }
-  if (!strcmp(n, "SEL_DOOMWIND_0")) { out = String(settings.doomWind == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DOOMWIND_1")) { out = String(settings.doomWind == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DOOMWIND_2")) { out = String(settings.doomWind == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_DOOMSHOWDATE")) { out = String(settings.doomShowDate ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_DOOMBURNINGDIGITS")) { out = String(settings.doomBurningDigits ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_DOOMSMOOTHFIRE")) { out = String(settings.doomSmoothFire ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_14")) { out = String(settings.clockStyle == 14 ? "block" : "none"); return true; }
-  if (!strcmp(n, "DSP_CLOCKSTYLE_17")) { out = String(settings.clockStyle == 17 ? "block" : "none"); return true; }
-  if (!strcmp(n, "CHK_WEATHERENABLED")) { out = String(settings.weatherEnabled ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_WEATHERF")) { out = String(settings.weatherUseFahrenheit ? "checked" : ""); return true; }
-  if (!strcmp(n, "V_WEATHERLAT")) { out = String(settings.weatherLat, 4); return true; }
-  if (!strcmp(n, "V_WEATHERLON")) { out = String(settings.weatherLon, 4); return true; }
-  if (!strcmp(n, "V_WEATHERKEY")) { out = String(settings.weatherApiKey); return true; }
-  if (!strcmp(n, "SEL_USE24HOUR")) { out = String(settings.use24Hour ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_USE24HOUR_NOT")) { out = String(!settings.use24Hour ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DATEFORMAT_0")) { out = String(settings.dateFormat == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DATEFORMAT_1")) { out = String(settings.dateFormat == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DATEFORMAT_2")) { out = String(settings.dateFormat == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DATEFORMAT_3")) { out = String(settings.dateFormat == 3 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_COLONBLINKMODE_0")) { out = String(settings.colonBlinkMode == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_COLONBLINKMODE_1")) { out = String(settings.colonBlinkMode == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_COLONBLINKMODE_2")) { out = String(settings.colonBlinkMode == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "V_COLONBLINKRATE")) { out = String(settings.colonBlinkRate); return true; }
-  if (!strcmp(n, "F_COLONBLINKRATE")) { out = String(settings.colonBlinkRate / 10.0, 1); return true; }
-  if (!strcmp(n, "V_DISPLAYBRIGHTNESS")) { out = String(settings.displayBrightness); return true; }
-  if (!strcmp(n, "PCT_DISPLAYBRIGHTNESS")) { out = String((settings.displayBrightness * 100) / 255); return true; }
-  if (!strcmp(n, "CHK_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_ENABLESCHEDULEDDIMMING")) { out = String(settings.enableScheduledDimming ? "block" : "none"); return true; }
-  if (!strcmp(n, "CHK_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_ENABLESCHEDULEDOFF")) { out = String(settings.enableScheduledOff ? "block" : "none"); return true; }
-  if (!strcmp(n, "CHK_NOTIFYENABLED")) { out = String(settings.notifyEnabled ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_NOTIFYPOSITION_0")) { out = String(settings.notifyPosition == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_NOTIFYPOSITION_1")) { out = String(settings.notifyPosition == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "checked" : ""); return true; }
-  if (!strcmp(n, "DSP_AMBIENTENABLED")) { out = String(settings.ambientEnabled ? "block" : "none"); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_0")) { out = String(settings.ambientStyle == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_1")) { out = String(settings.ambientStyle == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_3")) { out = String(settings.ambientStyle == 3 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_4")) { out = String(settings.ambientStyle == 4 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_5")) { out = String(settings.ambientStyle == 5 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_AMBIENTSTYLE_6")) { out = String(settings.ambientStyle == 6 ? "selected" : ""); return true; }
-  if (!strcmp(n, "V_AMBIENTCUSTOMFILE")) { out = String(settings.ambientCustomFile); return true; }
-  if (!strcmp(n, "CHK_AMBIENTSHOWCLOCK")) { out = String(settings.ambientShowClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "V_DIMBRIGHTNESS")) { out = String(settings.dimBrightness); return true; }
-  if (!strcmp(n, "PCT_DIMBRIGHTNESS")) { out = String((settings.dimBrightness * 100) / 255); return true; }
-  if (!strcmp(n, "V_DEVICENAME")) { out = String(settings.deviceName); return true; }
-  if (!strcmp(n, "SEL_USESTATICIP_NOT")) { out = String(!settings.useStaticIP ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_USESTATICIP")) { out = String(settings.useStaticIP ? "selected" : ""); return true; }
-  if (!strcmp(n, "DSP_USESTATICIP")) { out = String(settings.useStaticIP ? "block" : "none"); return true; }
-  if (!strcmp(n, "V_STATICIP")) { out = String(settings.staticIP); return true; }
-  if (!strcmp(n, "V_GATEWAY")) { out = String(settings.gateway); return true; }
-  if (!strcmp(n, "V_SUBNET")) { out = String(settings.subnet); return true; }
-  if (!strcmp(n, "V_DNS1")) { out = String(settings.dns1); return true; }
-  if (!strcmp(n, "V_DNS2")) { out = String(settings.dns2); return true; }
-  if (!strcmp(n, "V_NTPSERVER1")) { out = String(settings.ntpServer1); return true; }
-  if (!strcmp(n, "V_NTPSERVER2")) { out = String(settings.ntpServer2); return true; }
-  if (!strcmp(n, "CHK_SHOWIPATBOOT")) { out = String(settings.showIPAtBoot ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKPOSITION_0")) { out = String(settings.clockPosition == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKPOSITION_1")) { out = String(settings.clockPosition == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_CLOCKPOSITION_2")) { out = String(settings.clockPosition == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "V_CLOCKOFFSET")) { out = String(settings.clockOffset); return true; }
-  if (!strcmp(n, "CHK_SHOWCLOCK")) { out = String(settings.showClock ? "checked" : ""); return true; }
-  if (!strcmp(n, "SEL_DISPLAYROWMODE_0")) { out = String(settings.displayRowMode == 0 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DISPLAYROWMODE_1")) { out = String(settings.displayRowMode == 1 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DISPLAYROWMODE_2")) { out = String(settings.displayRowMode == 2 ? "selected" : ""); return true; }
-  if (!strcmp(n, "SEL_DISPLAYROWMODE_3")) { out = String(settings.displayRowMode == 3 ? "selected" : ""); return true; }
-  if (!strcmp(n, "CHK_USERPMKFORMAT")) { out = String(settings.useRpmKFormat ? "checked" : ""); return true; }
-  if (!strcmp(n, "CHK_USENETWORKMBFORMAT")) { out = String(settings.useNetworkMBFormat ? "checked" : ""); return true; }
-  if (!strcmp(n, "JS_MAXROWS")) { out = String(settings.displayRowMode==0?5:settings.displayRowMode==1?6:settings.displayRowMode==2?2:3); return true; }
-  if (!strcmp(n, "JS_ISLARGE")) { out = String(settings.displayRowMode>=2?"true":"false"); return true; }
-
-  return false;
+  String json;
+  serializeJson(doc, json);
+  doc.clear();   // the document is the larger half: let it go before sending
+  sendJsonGuarded(200, json);
 }
 
 // ---- Guarded response streaming ----
@@ -1116,113 +950,19 @@ static void sendJsonGuarded(int code, const String& json) {
   }
 }
 
-// sendContent() stand-in for the chunked template stream: same chunk framing,
-// bounded blocking. The whole chunk (size line + payload + trailer) goes out
-// as ONE send so the wire sees full segments - writing the tiny framing
-// pieces separately triggered Nagle/delayed-ACK ping-pong that made page
-// loads erratic. frame points at the buffer start; the payload must sit at
-// frame+6 and leave two spare bytes after it (see streamTemplate's malloc).
-static bool sendChunkGuarded(char* frame, size_t payloadLen, uint32_t totalDeadline) {
-  if (payloadLen == 0) return true;
-  WiFiClient client = server.client();
-  int sock = client.fd();
-  if (sock < 0 || !client.connected()) return false;
-  char head[8];
-  snprintf(head, sizeof(head), "%04x\r\n", (unsigned)payloadLen); // leading zeros are valid HEXDIG
-  memcpy(frame, head, 6);
-  frame[6 + payloadLen] = '\r';
-  frame[6 + payloadLen + 1] = '\n';
-  return writeAllGuarded(sock, frame, payloadLen + 8, totalDeadline);
-}
-
-// Stream PAGE_HTML from flash, resolving %TOKEN% placeholders on the fly.
-// Literal HTML and resolved values flow through one fixed buffer that is
-// flushed to the client only when full (HTTP chunked transfer).
-static void streamTemplate(const char* tmpl, size_t tmplLen) {
-  netMarkHttp();
-  static const size_t BUF_SIZE = 4096;
-  // Chunk frame layout: [6B size line][payload, up to BUF_SIZE][2B trailer].
-  // sendChunkGuarded() fills the framing in place around the payload.
-  char* buf = (char*)malloc(6 + BUF_SIZE + 2);
-  if (!buf) {
-    server.send(503, "text/plain", "Out of memory");
+// The page is the same bytes for every browser now, so it carries an ETag: a
+// reload costs a 304 and no transfer at all. Not "immutable" like the assets -
+// the page changes with the firmware, and its URL cannot carry a version.
+void handleRoot() {
+  if (server.header("If-None-Match") == WEB_INDEX_ETAG) {
+    netMarkHttp();
+    server.sendHeader("ETag", WEB_INDEX_ETAG);
+    server.sendHeader("Cache-Control", "no-cache");
+    server.send(304, "text/html", "");
     return;
   }
-  char* payload = buf + 6;
-  size_t bufLen = 0;
-
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html", "");
-  const uint32_t deadline = millis() + STREAM_TOTAL_LIMIT_MS;
-  bool clientOk = true;
-
-  auto flush = [&]() {
-    if (clientOk && bufLen > 0) clientOk = sendChunkGuarded(buf, bufLen, deadline);
-    bufLen = 0;
-  };
-
-  auto emit = [&](const char* data, size_t len) {
-    while (len > 0 && clientOk) {
-      size_t space = BUF_SIZE - bufLen;
-      size_t take = len < space ? len : space;
-      memcpy(payload + bufLen, data, take);
-      bufLen += take;
-      data += take;
-      len -= take;
-      if (bufLen >= BUF_SIZE) flush();
-    }
-  };
-
-  // On ESP32 PROGMEM is memory-mapped, so the template is readable directly.
-  const char* end = tmpl + tmplLen;
-  const char* pos = tmpl;
-  const char* literalStart = tmpl;
-
-  while (pos < end && clientOk) {
-    if (*pos != '%') { pos++; continue; }
-    if (pos + 1 >= end || !(pos[1] >= 'A' && pos[1] <= 'Z')) { pos++; continue; }
-
-    const char* pEnd = pos + 1;
-    while (pEnd < end && *pEnd != '%' && (pEnd - pos) < 40) pEnd++;
-    if (pEnd >= end || *pEnd != '%') { pos++; continue; }
-
-    bool valid = true;
-    for (const char* c = pos + 1; c < pEnd; c++) {
-      if (!((*c >= 'A' && *c <= 'Z') || (*c >= '0' && *c <= '9') || *c == '_')) { valid = false; break; }
-    }
-    if (!valid) { pos++; continue; }
-
-    size_t nameLen = pEnd - pos - 1;
-    char name[40];
-    if (nameLen >= sizeof(name)) { pos++; continue; }
-    memcpy(name, pos + 1, nameLen);
-    name[nameLen] = '\0';
-
-    String value;
-    if (resolvePlaceholder(name, value)) {
-      if (pos > literalStart) emit(literalStart, pos - literalStart);
-      if (value.length() > 0) emit(value.c_str(), value.length());
-      pos = pEnd + 1;
-      literalStart = pos;
-    } else {
-      pos++;
-    }
-  }
-
-  if (clientOk) {
-    if (end > literalStart) emit(literalStart, end - literalStart);
-    flush();
-  }
-  if (clientOk) {
-    server.sendContent(""); // terminating 0-length chunk
-  } else {
-    server.client().stop(); // stalled client - drop it, keep the clock alive
-  }
-  free(buf);
-}
-
-void handleRoot() {
-  streamTemplate(PAGE_HTML, sizeof(PAGE_HTML) - 1);
+  server.sendHeader("ETag", WEB_INDEX_ETAG);
+  streamStatic(PAGE_HTML_GZ, sizeof(PAGE_HTML_GZ), "text/html", "no-cache");
 }
 
 // Stream a static PROGMEM asset (CSS/JS/icon) in chunks. These contain no
@@ -1230,9 +970,10 @@ void handleRoot() {
 // time: the panel sends the stored bytes and the browser unpacks them, which is
 // a third of the flash and a third of the time loop() spends on the transfer.
 // Cached hard by the browser (fetched once).
-static void streamStatic(const uint8_t* data, size_t len, const char* contentType) {
+static void streamStatic(const uint8_t* data, size_t len, const char* contentType,
+                         const char* cacheControl) {
   netMarkHttp();
-  server.sendHeader("Cache-Control", "public, max-age=31536000, immutable");
+  server.sendHeader("Cache-Control", cacheControl);
   server.sendHeader("Content-Encoding", "gzip");
   server.setContentLength(len);
   server.send(200, contentType, "");
@@ -1246,15 +987,18 @@ static void streamStatic(const uint8_t* data, size_t len, const char* contentTyp
 }
 
 void handlePortalCss() {
-  streamStatic(PORTAL_CSS_GZ, sizeof(PORTAL_CSS_GZ), "text/css");
+  streamStatic(PORTAL_CSS_GZ, sizeof(PORTAL_CSS_GZ), "text/css",
+               "public, max-age=31536000, immutable");
 }
 
 void handlePortalJs() {
-  streamStatic(PORTAL_JS_GZ, sizeof(PORTAL_JS_GZ), "application/javascript");
+  streamStatic(PORTAL_JS_GZ, sizeof(PORTAL_JS_GZ), "application/javascript",
+               "public, max-age=31536000, immutable");
 }
 
 void handleFavicon() {
-  streamStatic(FAVICON_SVG_GZ, sizeof(FAVICON_SVG_GZ), "image/svg+xml");
+  streamStatic(FAVICON_SVG_GZ, sizeof(FAVICON_SVG_GZ), "image/svg+xml",
+               "public, max-age=31536000, immutable");
 }
 
 // Parse an "HH:MM" time-input value into hour (0-23) + minute (0-59). Returns
