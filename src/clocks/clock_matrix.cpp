@@ -8,6 +8,14 @@
  * shimmers continuously. The time floats over the rain as solid digits on
  * masked plates.
  *
+ * Two fall modes. Both leave the trail in fixed character cells, the way the
+ * film does: a character that has been passed stays where it is, fades, and
+ * keeps flipping. They differ in the leading character. By default it lands on
+ * one whole row at a time with the rest of the column. With "Smooth fall" it
+ * is a separate bright glyph that falls a pixel at a time and drops a green
+ * character into each cell it leaves behind, so the motion is continuous while
+ * the trail stays on the grid.
+ *
  * At the top of each minute the changed digits "decode": the digit box
  * cycles bright random glyphs for a moment before locking onto the new
  * value, while the rain columns crossing that digit speed up as if the
@@ -18,6 +26,8 @@
  * resetMatrixRainAnimation() (called from resetClockAnimationState)
  * returns everything to a clean baseline.
  */
+
+#include <math.h>
 
 #include "../config/config.h"
 #include "../display/display.h"
@@ -39,17 +49,21 @@
 #define MX_DECODE_TIME 2.2f      // seconds a changed digit spends decoding
 #define MX_DECODE_SWAP 0.08f     // seconds between decode glyph swaps
 #define MX_MUTATE_RATE 1.2f      // avg glyph mutations per visible cell per second
+#define MX_MUTATE_SMOOTH 3.5f    // smooth fall churns harder, as the film does
 #define MX_FADE_LEVELS 32
 
 struct MxColumn {
   bool active;
-  float headRow;    // fractional head row; glyphs snap to whole rows
+  float headRow;    // fractional head row
   float speed;      // rows/s
   uint8_t trailLen; // visible tail rows behind the head
   float respawn;    // seconds until this column restarts (while inactive)
+  uint8_t headGlyph; // the falling character (smooth fall only)
 };
 
 static MxColumn mx_cols[MX_COLS];
+// One glyph per screen cell. Both modes lay the trail down in this fixed
+// grid; a smooth fall adds the one character still on its way down.
 static uint8_t mx_glyphs[MX_COLS][MX_ROWS];
 
 // Digit decode state (slot 2 = colon, never decodes)
@@ -79,7 +93,9 @@ static void mxDrawGlyph(int16_t x, int16_t y, uint8_t g, uint16_t color,
     for (uint8_t gy = 0; gy < MX_GLYPH_H; gy++) {
       if (!(bits & (1 << gy))) continue;
       if (size == 1) {
-        display.drawPixel(x + gx, y + gy, color);
+        int16_t py = y + gy;
+        if (py < 0 || py >= SCREEN_HEIGHT) continue;
+        display.drawPixel(x + gx, py, color);
       } else {
         display.fillRect(x + gx * size, y + gy * size, size, size, color);
       }
@@ -117,12 +133,35 @@ static float mxRespawnDelay() {
   }
 }
 
-static void mxSpawnColumn(MxColumn &c) {
+static void mxSpawnColumn(int idx) {
+  MxColumn &c = mx_cols[idx];
   c.active = true;
   c.headRow = 0.0f;
   c.speed = mxBaseSpeed() * mxRandf(0.6f, 1.6f);
   c.trailLen = (uint8_t)random(3, 8);  // 3-7 rows of tail
   c.respawn = 0.0f;
+  c.headGlyph = mxRandGlyph();
+  mx_glyphs[idx][0] = mxRandGlyph();  // the row the head starts on
+}
+
+// Linear blend between two RGB565 colors, t = 0 keeps a, t = 1 keeps b
+static uint16_t mxBlend(uint16_t a, uint16_t b, float t) {
+  int ar = (a >> 11) & 0x1F, ag = (a >> 5) & 0x3F, ab = a & 0x1F;
+  int br = (b >> 11) & 0x1F, bg = (b >> 5) & 0x3F, bb = b & 0x1F;
+  int r = ar + (int)((br - ar) * t);
+  int g = ag + (int)((bg - ag) * t);
+  int bl = ab + (int)((bb - ab) * t);
+  return (uint16_t)((r << 11) | (g << 5) | bl);
+}
+
+static void mxRestartColumns() {
+  for (int c = 0; c < MX_COLS; c++) {
+    mx_cols[c].active = false;
+    mx_cols[c].respawn = mxRandf(0.0f, 1.5f);  // staggered first wave
+    for (int r = 0; r < MX_ROWS; r++) {
+      mx_glyphs[c][r] = mxRandGlyph();
+    }
+  }
 }
 
 // Fade LUT derived from the user's rain color every frame, so color edits
@@ -141,13 +180,7 @@ static void mxBuildFade(uint16_t lut[MX_FADE_LEVELS]) {
 
 // ========== Reset ==========
 void resetMatrixRainAnimation() {
-  for (int c = 0; c < MX_COLS; c++) {
-    mx_cols[c].active = false;
-    mx_cols[c].respawn = mxRandf(0.0f, 1.5f);  // staggered first wave
-    for (int r = 0; r < MX_ROWS; r++) {
-      mx_glyphs[c][r] = mxRandGlyph();
-    }
-  }
+  mxRestartColumns();
   for (int i = 0; i < 5; i++) {
     mx_decode[i] = false;
     mx_decode_t[i] = 0.0f;
@@ -211,13 +244,15 @@ static void updateMatrixAnimation(struct tm *timeinfo) {
   }
 
   // ----- Rain columns -----
-  int mutateChance = (int)(MX_MUTATE_RATE * dt * 1000.0f);  // per-cell, of 1000
+  float mutateRate =
+      settings.matrixSmoothScroll ? MX_MUTATE_SMOOTH : MX_MUTATE_RATE;
+  int mutateChance = (int)(mutateRate * dt * 1000.0f);  // per-cell, of 1000
 
   for (int c = 0; c < MX_COLS; c++) {
     MxColumn &col = mx_cols[c];
     if (!col.active) {
       col.respawn -= dt;
-      if (col.respawn <= 0.0f) mxSpawnColumn(col);
+      if (col.respawn <= 0.0f) mxSpawnColumn(c);
       continue;
     }
 
@@ -238,9 +273,16 @@ static void updateMatrixAnimation(struct tm *timeinfo) {
     col.headRow += speed * dt;
     int head = (int)col.headRow;
 
-    // Fresh glyph on every row the head newly enters
-    for (int r = prevHead + 1; r <= head && r < MX_ROWS; r++) {
-      if (r >= 0) mx_glyphs[c][r] = mxRandGlyph();
+    // Every row the head newly enters gets a character. A smooth head leaves
+    // the one it was carrying in the cell it just fell out of and picks up a
+    // new one, so what lands in the trail is what the eye followed down.
+    for (int r = prevHead + 1; r <= head; r++) {
+      if (settings.matrixSmoothScroll) {
+        if (r >= 1 && r - 1 < MX_ROWS) mx_glyphs[c][r - 1] = col.headGlyph;
+        col.headGlyph = mxRandGlyph();
+      } else if (r >= 0 && r < MX_ROWS) {
+        mx_glyphs[c][r] = mxRandGlyph();
+      }
     }
 
     // Column is done once the whole tail has left the bottom
@@ -265,11 +307,37 @@ static void drawMatrixRain() {
   mxBuildFade(fade);
   uint16_t headCol = SPRITE_COLOR(COL_MATRIX_HEAD);
 
+  bool smooth = settings.matrixSmoothScroll;
+
   for (int c = 0; c < MX_COLS; c++) {
     const MxColumn &col = mx_cols[c];
     if (!col.active) continue;
     int head = (int)col.headRow;
     int x = MX_X_OFF + c * MX_CELL_W;
+
+    if (smooth) {
+      // Trail first: the cells the head has already dropped a character into.
+      // A cell keeps the head's white for the one cell of travel after the
+      // handover and fades to rain green from there, so the brightness moves
+      // on continuously instead of switching when a row index changes.
+      for (int k = 1; k <= col.trailLen; k++) {
+        int r = head - k;
+        if (r < 0 || r >= MX_ROWS) continue;
+        float d = col.headRow - r;  // cells behind the head, fractional
+        float level = 1.0f - (d - 1.0f) / col.trailLen;
+        if (level <= 0.0f) continue;
+        if (level > 1.0f) level = 1.0f;
+        uint16_t color = fade[(int)(level * (MX_FADE_LEVELS - 1))];
+        if (d < 2.0f) color = mxBlend(color, headCol, 2.0f - d);
+        mxDrawGlyph(x, r * MX_CELL_H, mx_glyphs[c][r], color, 1);
+      }
+      // Then the falling character itself, at its own fractional height
+      int hy = (int)floorf(col.headRow * MX_CELL_H + 0.5f);
+      if (hy > -MX_GLYPH_H && hy < SCREEN_HEIGHT) {
+        mxDrawGlyph(x, hy, col.headGlyph, headCol, 1);
+      }
+      continue;
+    }
 
     for (int k = 0; k <= col.trailLen; k++) {
       int r = head - k;
