@@ -1727,6 +1727,10 @@ void handleExportConfig() {
  json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
  json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
  json += "\"tronBikeStyle\":" + String(settings.tronBikeStyle) + ",";
+ json += "\"matrixRainSpeed\":" + String(settings.matrixRainSpeed) + ",";
+ json += "\"matrixRainDensity\":" + String(settings.matrixRainDensity) + ",";
+ json += "\"matrixShowDate\":" + String(settings.matrixShowDate ? "true" : "false") + ",";
+ json += "\"matrixTransparent\":" + String(settings.matrixTransparent ? "true" : "false") + ",";
  json += "\"doomFlameHeight\":" + String(settings.doomFlameHeight) + ",";
  json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
  json += "\"doomWind\":" + String(settings.doomWind) + ",";
@@ -1963,6 +1967,16 @@ void handleImportConfig() {
  if (!doc["doomShowDate"].isNull()) settings.doomShowDate = doc["doomShowDate"];
  if (!doc["doomBurningDigits"].isNull()) settings.doomBurningDigits = doc["doomBurningDigits"];
  if (!doc["doomSmoothFire"].isNull()) settings.doomSmoothFire = doc["doomSmoothFire"];
+ if (doc["matrixRainSpeed"].is<int>()) {
+   int v = doc["matrixRainSpeed"].as<int>();
+   if (v >= 5 && v <= 30) settings.matrixRainSpeed = (uint8_t)v;
+ }
+ if (doc["matrixRainDensity"].is<int>()) {
+   int v = doc["matrixRainDensity"].as<int>();
+   if (v >= 0 && v <= 2) settings.matrixRainDensity = (uint8_t)v;
+ }
+ if (!doc["matrixShowDate"].isNull()) settings.matrixShowDate = doc["matrixShowDate"];
+ if (!doc["matrixTransparent"].isNull()) settings.matrixTransparent = doc["matrixTransparent"];
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];
