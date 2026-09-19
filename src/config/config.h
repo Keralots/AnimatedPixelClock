@@ -234,6 +234,7 @@ struct Settings {
   bool matrixShowDate;          // Show date row (off = centred clock)
   bool matrixTransparent;       // No mask behind digits, rain falls through (default: true)
   bool matrixSmoothScroll;      // Leading character falls a pixel at a time, not a row at a time
+  bool matrixSmallClock;        // Small clock in the top-right corner instead of the big centred one
 
   // Doom Fire clock settings
   uint8_t doomFlameHeight;      // Digit plume reach above the digits, pixels (8-40)

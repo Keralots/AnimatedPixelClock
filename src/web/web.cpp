@@ -840,6 +840,7 @@ void handlePortalValues() {
   form["matrixShowDate"] = settings.matrixShowDate;
   form["matrixTransparent"] = settings.matrixTransparent;
   form["matrixSmoothScroll"] = settings.matrixSmoothScroll;
+  form["matrixSmallClock"] = settings.matrixSmallClock;
   form["doomFlameHeight"] = settings.doomFlameHeight;
   form["doomGroundHeight"] = settings.doomGroundHeight;
   form["doomBurningDigits"] = settings.doomBurningDigits;
@@ -1388,6 +1389,7 @@ void handleSave() {
  settings.matrixShowDate = server.hasArg("matrixShowDate");
  settings.matrixTransparent = server.hasArg("matrixTransparent");
  settings.matrixSmoothScroll = server.hasArg("matrixSmoothScroll");
+ settings.matrixSmallClock = server.hasArg("matrixSmallClock");
  if (server.hasArg("doomFlameHeight")) {
  settings.doomFlameHeight = server.arg("doomFlameHeight").toInt();
  }
@@ -1734,6 +1736,7 @@ void handleExportConfig() {
  json += "\"matrixShowDate\":" + String(settings.matrixShowDate ? "true" : "false") + ",";
  json += "\"matrixTransparent\":" + String(settings.matrixTransparent ? "true" : "false") + ",";
  json += "\"matrixSmoothScroll\":" + String(settings.matrixSmoothScroll ? "true" : "false") + ",";
+ json += "\"matrixSmallClock\":" + String(settings.matrixSmallClock ? "true" : "false") + ",";
  json += "\"doomFlameHeight\":" + String(settings.doomFlameHeight) + ",";
  json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
  json += "\"doomWind\":" + String(settings.doomWind) + ",";
@@ -1981,6 +1984,7 @@ void handleImportConfig() {
  if (!doc["matrixShowDate"].isNull()) settings.matrixShowDate = doc["matrixShowDate"];
  if (!doc["matrixTransparent"].isNull()) settings.matrixTransparent = doc["matrixTransparent"];
  if (!doc["matrixSmoothScroll"].isNull()) settings.matrixSmoothScroll = doc["matrixSmoothScroll"];
+ if (!doc["matrixSmallClock"].isNull()) settings.matrixSmallClock = doc["matrixSmallClock"];
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];

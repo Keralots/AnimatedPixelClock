@@ -16,6 +16,9 @@
  * character into each cell it leaves behind, so the motion is continuous while
  * the trail stays on the grid.
  *
+ * The clock can also shrink into the top-right corner ("Small clock"), which
+ * leaves the rain the whole panel while keeping the decode animation.
+ *
  * At the top of each minute the changed digits "decode": the digit box
  * cycles bright random glyphs for a moment before locking onto the new
  * value, while the rain columns crossing that digit speed up as if the
@@ -44,8 +47,9 @@
 #define MX_TIME_Y_TOP 16         // digit top when the date row is shown
 #define MX_TIME_Y_CENTER 21      // digit top when centred (date off)
 #define MX_TRIGGER_SECOND 56
-#define MX_DIGIT_W 16            // size-3 digit box width
-#define MX_DIGIT_H 21            // size-3 digit box height
+#define MX_SMALL_SIZE 1          // text size of the corner clock
+#define MX_SMALL_X 96            // left edge of the corner clock's first digit
+#define MX_SMALL_Y 1             // top edge of the corner clock (plate reaches row 0)
 #define MX_DECODE_TIME 2.2f      // seconds a changed digit spends decoding
 #define MX_DECODE_SWAP 0.08f     // seconds between decode glyph swaps
 #define MX_MUTATE_RATE 1.2f      // avg glyph mutations per visible cell per second
@@ -107,7 +111,25 @@ static float mxRandf(float lo, float hi) {
   return lo + (hi - lo) * (random(0, 1001) / 1000.0f);
 }
 
+// Digit geometry. A digit box is (5 glyph columns + 1 gap) x 7 rows scaled by
+// the text size, and digits advance 6 columns apart, which is what the shared
+// DIGIT_X table encodes for size 3. The small clock applies the same rules at
+// size 2 and right-aligns the block in the top-right corner.
+static uint8_t mxDigitSize() {
+  return settings.matrixSmallClock ? MX_SMALL_SIZE : 3;
+}
+
+static int mxDigitX(int i) {
+  if (settings.matrixSmallClock) return MX_SMALL_X + i * (MX_SMALL_SIZE * 6);
+  return DIGIT_X[i];
+}
+
+static int mxDigitW() { return mxDigitSize() * 5 + 1; }
+
+static int mxDigitH() { return mxDigitSize() * 7; }
+
 static int mxTimeY() {
+  if (settings.matrixSmallClock) return MX_SMALL_Y;
   return settings.matrixShowDate ? MX_TIME_Y_TOP : MX_TIME_Y_CENTER;
 }
 
@@ -261,8 +283,8 @@ static void updateMatrixAnimation(struct tm *timeinfo) {
     if (mxDecodeActive()) {
       int colX = MX_X_OFF + c * MX_CELL_W + MX_CELL_W / 2;
       for (int i = 0; i < 5; i++) {
-        if (mx_decode[i] && colX >= DIGIT_X[i] - 1 &&
-            colX <= DIGIT_X[i] + MX_DIGIT_W + 1) {
+        if (mx_decode[i] && colX >= mxDigitX(i) - 1 &&
+            colX <= mxDigitX(i) + mxDigitW() + 1) {
           speed *= 2.0f;
           break;
         }
@@ -377,10 +399,13 @@ void displayClockWithMatrixRain() {
   drawMatrixRain();
 
   int gy = mxTimeY();
+  uint8_t dsize = mxDigitSize();
+  int dw = mxDigitW();
+  int dh = mxDigitH();
 
-  // Time digits (size 3) on solid plates so they stay readable over the busy
-  // rain; transparent mode skips every mask and lets the rain fall through.
-  display.setTextSize(3);
+  // Time digits on solid plates so they stay readable over the busy rain;
+  // transparent mode skips every mask and lets the rain fall through.
+  display.setTextSize(dsize);
   display.setTextColor(digitColor());
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
@@ -390,14 +415,14 @@ void displayClockWithMatrixRain() {
   dch[4] = '0' + displayed_min % 10;
 
   for (int i = 0; i < 5; i++) {
-    int dx = DIGIT_X[i];
+    int dx = mxDigitX(i);
     if (!settings.matrixTransparent) {
-      display.fillRect(dx - 1, gy - 1, MX_DIGIT_W + 2, MX_DIGIT_H + 2,
-                       DISPLAY_BLACK);
+      display.fillRect(dx - 1, gy - 1, dw + 2, dh + 2, DISPLAY_BLACK);
     }
     if (mx_decode[i]) {
       // Bright code glyphs until the new value locks in
-      mxDrawGlyph(dx, gy, mx_decode_glyph[i], SPRITE_COLOR(COL_MATRIX_HEAD), 3);
+      mxDrawGlyph(dx, gy, mx_decode_glyph[i], SPRITE_COLOR(COL_MATRIX_HEAD),
+                  dsize);
     } else {
       display.setCursor(dx, gy);
       display.print(dch[i]);
@@ -415,7 +440,9 @@ void displayClockWithMatrixRain() {
       case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
       case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
     }
-    int dateX = (SCREEN_WIDTH - 60) / 2;
+    // The corner clock takes the right half of the top row, so the date moves
+    // out of its way instead of being centred under it.
+    int dateX = settings.matrixSmallClock ? 2 : (SCREEN_WIDTH - 60) / 2;
     if (!settings.matrixTransparent) {
       display.fillRect(dateX - 1, 3, 62, 9, DISPLAY_BLACK);
     }
@@ -423,10 +450,14 @@ void displayClockWithMatrixRain() {
     display.print(dateStr);
   }
   if (!settings.use24Hour) {
+    // AM/PM normally sits in the top-right corner, which is where the small
+    // clock goes, so it drops below the digits there
+    int mrx = settings.matrixSmallClock ? 112 : 110;
+    int mry = settings.matrixSmallClock ? gy + dh + 3 : 4;
     if (!settings.matrixTransparent) {
-      display.fillRect(109, 3, 14, 10, DISPLAY_BLACK);
+      display.fillRect(mrx - 1, mry - 1, 14, 10, DISPLAY_BLACK);
     }
-    drawMeridiemIndicator(110, 4, displayed_is_pm);
+    drawMeridiemIndicator(mrx, mry, displayed_is_pm);
   }
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);

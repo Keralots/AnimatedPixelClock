@@ -619,6 +619,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-box" aria-hidden="true"></span>
                 <span class="check-text"><strong>Smooth fall</strong><span class="ct-hint">The leading character falls a pixel at a time instead of a whole row. Default off.</span></span>
               </label>
+              <label class="check-row standalone" style="margin-top:12px">
+                <input type="checkbox" name="matrixSmallClock" id="matrixSmallClock">
+                <span class="check-box" aria-hidden="true"></span>
+                <span class="check-text"><strong>Small clock</strong><span class="ct-hint">Small clock in the top-right corner, date on the left, so the rain keeps the panel. Default off.</span></span>
+              </label>
             </div>
 
             <!-- Doom Fire (style 17) -->

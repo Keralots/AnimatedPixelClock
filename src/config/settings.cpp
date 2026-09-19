@@ -532,6 +532,8 @@ void loadSettings() {
       preferences.getBool("mxTransp", true); // Default: rain falls through
   settings.matrixSmoothScroll =
       preferences.getBool("mxSmooth", false); // Default: classic row-stepped rain
+  settings.matrixSmallClock =
+      preferences.getBool("mxSmall", false); // Default: full-size clock
   settings.doomFlameHeight =
       preferences.getUChar("dmHeight", 20); // Default: 20px reach
   // Before the split one setting drove both, with the cooler ground reaching
@@ -836,6 +838,7 @@ void saveSettings() {
   preferences.putBool("mxDate", settings.matrixShowDate);
   preferences.putBool("mxTransp", settings.matrixTransparent);
   preferences.putBool("mxSmooth", settings.matrixSmoothScroll);
+  preferences.putBool("mxSmall", settings.matrixSmallClock);
   preferences.putUChar("dmHeight", settings.doomFlameHeight);
   preferences.putUChar("dmGround", settings.doomGroundHeight);
   preferences.putUChar("dmWind", settings.doomWind);
