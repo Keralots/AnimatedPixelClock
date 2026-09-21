@@ -319,6 +319,7 @@ static const char* netRecoverReason = "";
 static esp_ping_handle_t netPing = nullptr;
 static volatile bool netPingReplied = false;
 static volatile bool netPingDone = false;
+static volatile uint32_t netPingSent = 0;   // requests the socket actually took
 
 static void netMarkAlive() {
   netLastTrafficMs = millis();
@@ -342,7 +343,16 @@ uint32_t netRecoveryCount() { return netRecoverCount; }
 const char* netLastRecoveryReason() { return netRecoverReason; }
 
 static void netPingSuccess(esp_ping_handle_t, void*) { netPingReplied = true; }
-static void netPingEnd(esp_ping_handle_t, void*) { netPingDone = true; }
+static void netPingEnd(esp_ping_handle_t hdl, void*) {
+  // How many of the probes actually left the board. ESP-IDF only counts a
+  // request once the socket has taken it - in ping_sock.c, `transmitted++`
+  // sits in the *else* of the send-failure branch - so zero here means nothing
+  // was sent, and the silence that follows says nothing about the gateway.
+  uint32_t sent = 0;
+  esp_ping_get_profile(hdl, ESP_PING_PROF_REQUEST, &sent, sizeof(sent));
+  netPingSent = sent;
+  netPingDone = true;
+}
 
 static void netPingRelease() {
   if (!netPing) return;
@@ -374,6 +384,7 @@ static bool netStartProbe() {
   cb.on_ping_end = netPingEnd;
 
   netPingReplied = false;
+  netPingSent = 0;
   netPingDone = false;
   if (esp_ping_new_session(&cfg, &cb, &netPing) != ESP_OK) {
     netPing = nullptr;
@@ -428,10 +439,18 @@ static void netHealthTick() {
   if (netPing) {
     if (!netPingDone) return;
     bool replied = netPingReplied;
+    const uint32_t sent = netPingSent;
     netPingRelease();
     netNextProbeMs = now + NET_PROBE_RETRY_MS;
     if (replied) {
       netMarkAlive();
+    } else if (!sent) {
+      // Nothing left the board: the Wi-Fi driver had no buffer for it. That is
+      // a local shortage, not an unreachable gateway, and counting it as one
+      // made this watchdog the outage it exists to prevent - it restarted the
+      // radio while the radio was merely short of memory, taking the panel off
+      // the network for minutes at a time. Try again later; never restart on it.
+      Serial.println("Link probe could not be sent (no buffer): not counted against the gateway");
     } else if (++netProbeFails >= NET_PROBE_FAILS_BEFORE_RECOVERY && !cooling) {
       netRecover("gateway unreachable");
     }
