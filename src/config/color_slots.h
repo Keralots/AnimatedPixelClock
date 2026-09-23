@@ -103,6 +103,8 @@ enum ColorSlot {
   COL_DOOM_FLAME,      // mid heat
   COL_DOOM_CORE,       // white-hot core (digits and the ground line)
   COL_DIGITS_S17,      // Doom Fire (separate from the historical contiguous slots)
+  COL_LED_STRIP,       // WS2812B accent strip, one color for the whole strip
+  COL_LED_SECONDS,     // WS2812B strip: the Hour sweep seconds dot
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

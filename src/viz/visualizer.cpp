@@ -162,6 +162,7 @@ bool vizIngest(const uint8_t* buf, int len) {
   return true;
 }
 
+const uint8_t* vizBandLevels() { return vizBands; }
 const uint8_t* vizWaveform() { return vizWaveEver ? vizWave : nullptr; }
 uint32_t vizWaveSerial() { return vizWaveserial; }
 

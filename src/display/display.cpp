@@ -167,6 +167,11 @@ bool isDisplayForcedOff() {
   return displayForcedOff;
 }
 
+// Current panel level: 0 when off for any reason, dim level when dimmed.
+uint8_t getAppliedBrightness() {
+  return lastAppliedBrightness;
+}
+
 // Force the panel off (off=true) or restore normal/scheduled brightness (off=false).
 void setDisplayForcedOff(bool off) {
   displayForcedOff = off;

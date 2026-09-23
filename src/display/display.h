@@ -41,6 +41,7 @@ bool isDisplayScheduledOff();
 // Runtime display control (HTTP API) - not persisted to flash
 void setDisplayForcedOff(bool off);
 bool isDisplayForcedOff();
+uint8_t getAppliedBrightness();
 void setDisplayBrightnessPercent(uint8_t percent);
 
 #endif // DISPLAY_H

@@ -6,6 +6,7 @@
 
 #include "settings.h"
 #include "../config/config.h"
+#include "../led/led_strip.h"
 #include "../timezones.h"
 #include <Preferences.h>
 
@@ -79,6 +80,8 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DOOM_FLAME     */ 0xCB61,  // orange, classic Doom ramp middle
     /* COL_DOOM_CORE      */ 0xFFFF,  // white-hot
     /* COL_DIGITS_S17     */ 0xFFFF,  // white
+    /* COL_LED_STRIP      */ 0xFD20,  // warm amber
+    /* COL_LED_SECONDS    */ 0x07FF,  // cyan, reads against the amber bar
 };
 void applyScopeDefaults() {
   settings.scopeGrid = true;
@@ -549,6 +552,41 @@ void loadSettings() {
       preferences.getBool("dmBurn", true); // Default: digits throw flames
   settings.doomSmoothFire =
       preferences.getBool("dmSmooth", false); // Default: blocky retro flames
+  settings.ledEnabled =
+      preferences.getBool("ledEn", false); // Default: no strip fitted
+  settings.ledPin =
+      preferences.getUChar("ledPin", LED_STRIP_DEFAULT_PIN);
+  settings.ledCount =
+      preferences.getUShort("ledCount", LED_STRIP_DEFAULT_COUNT);
+  settings.ledMaxMilliamps =
+      preferences.getUShort("ledMaxMa", LED_STRIP_DEFAULT_MA);
+  settings.ledBrightness =
+      preferences.getUChar("ledBright", 160); // Default: not full tilt
+  settings.ledEffect =
+      preferences.getUChar("ledEffect", LED_EFFECT_SOLID);
+  settings.ledSpeed =
+      preferences.getUChar("ledSpeed", 10); // Default: 1.0
+  settings.ledIntensity =
+      preferences.getUChar("ledInten", LED_INTENSITY_DEFAULT);
+  settings.ledVuMirror =
+      preferences.getBool("ledVuMirror", true); // Default: grow from the centre
+  settings.ledVuGain =
+      preferences.getUChar("ledVuGain", LED_VU_GAIN_DEFAULT);
+  settings.ledVuIdle =
+      preferences.getUChar("ledVuIdle", LED_VU_IDLE_DEFAULT);
+  settings.ledVuStartS =
+      preferences.getUChar("ledVuOn", LED_VU_START_DEFAULT);
+  settings.ledVuStopS =
+      preferences.getUChar("ledVuOff", LED_VU_STOP_DEFAULT);
+  // Includes the retired Breathe id.
+  if (!ledEffectValid(settings.ledEffect)) settings.ledEffect = LED_EFFECT_SOLID;
+  if (settings.ledIntensity > 100) settings.ledIntensity = LED_INTENSITY_DEFAULT;
+  if (settings.ledVuGain < LED_VU_GAIN_MIN || settings.ledVuGain > LED_VU_GAIN_MAX)
+    settings.ledVuGain = LED_VU_GAIN_DEFAULT;
+  if (!ledVuIdleValid(settings.ledVuIdle)) settings.ledVuIdle = LED_VU_IDLE_DEFAULT;
+  if (settings.ledVuStartS > LED_VU_START_MAX) settings.ledVuStartS = LED_VU_START_DEFAULT;
+  if (settings.ledVuStopS < LED_VU_STOP_MIN || settings.ledVuStopS > LED_VU_STOP_MAX)
+    settings.ledVuStopS = LED_VU_STOP_DEFAULT;
   settings.mcMissileSpeed =
       preferences.getUChar("mcSpeed", 12); // Default: 1.2
   settings.mcMissileFreq =
@@ -845,6 +883,19 @@ void saveSettings() {
   preferences.putBool("dmDate", settings.doomShowDate);
   preferences.putBool("dmBurn", settings.doomBurningDigits);
   preferences.putBool("dmSmooth", settings.doomSmoothFire);
+  preferences.putBool("ledEn", settings.ledEnabled);
+  preferences.putUChar("ledPin", settings.ledPin);
+  preferences.putUShort("ledCount", settings.ledCount);
+  preferences.putUShort("ledMaxMa", settings.ledMaxMilliamps);
+  preferences.putUChar("ledBright", settings.ledBrightness);
+  preferences.putUChar("ledEffect", settings.ledEffect);
+  preferences.putUChar("ledSpeed", settings.ledSpeed);
+  preferences.putUChar("ledInten", settings.ledIntensity);
+  preferences.putBool("ledVuMirror", settings.ledVuMirror);
+  preferences.putUChar("ledVuGain", settings.ledVuGain);
+  preferences.putUChar("ledVuIdle", settings.ledVuIdle);
+  preferences.putUChar("ledVuOn", settings.ledVuStartS);
+  preferences.putUChar("ledVuOff", settings.ledVuStopS);
   preferences.putUChar("mcSpeed", settings.mcMissileSpeed);
   preferences.putUChar("mcFreq", settings.mcMissileFreq);
   preferences.putBool("mcDate", settings.mcShowDate);

@@ -289,6 +289,131 @@ flash/storage capacity, heap usage, reset reason, time/weather state and animati
 errors. **Download diagnostics** saves the same information as JSON, without WiFi
 credentials. It is also available at `GET /api/diagnostics`.
 
+## LED strip (optional)
+
+A WS2812B strip on one spare GPIO, for a glow under or behind the panel. It is off
+until you enable it, and it is driven from the RMT peripheral so its bit timing never
+competes with the panel's DMA scan.
+
+### Wiring
+
+Take the strip's **5V and ground from the same terminals that feed the panels**, as a
+parallel branch from one node. Do not run strip current through the board's pin header,
+its 3V3 pin or the HUB75 ribbon: the voltage drop along a shared wire dims the panels,
+and the ground offset shifts the strip's data threshold.
+
+```
+  5V  --+-------------------- panels
+        |
+        +--- D1 --- D2 --+--- strip +5V   (two series Schottky, ~4.1V)
+                         |
+                         +--- 1000uF --- GND
+
+  GND --+-------------------- panels
+        +-------------------- strip GND
+        +-------------------- board GND
+
+  GPIO --[ 330R ]------------ strip DIN
+```
+
+A 330R resistor in the data line and a short data wire are usually enough: the reference
+build runs 38 LEDs straight from the 3.3V GPIO. Strictly, a WS2812B expects 0.7 x its
+supply on DIN, which is 3.5V at 5V, so if the strip flickers or shows wrong colours, add
+margin. Two series Schottky diodes (1N5822 or similar) drop the strip to about 4.1V, which
+brings its threshold down to roughly 2.9V and puts the 3.3V data line back inside spec.
+A 74AHCT1G125 on the data line does the same job the other way round. One diode is not
+enough: its forward drop falls with current, so a dimmed strip loses the margin again.
+The diagram above shows the diode option.
+
+### Which pin
+
+Anything that is not a HUB75 signal, the flash and PSRAM bus (GPIO26-37), the native
+USB pair (GPIO19/20), the UART0 serial pins (GPIO43/44, which carry the boot log),
+GPIO0 or GPIO45. The portal marks those as taken and lists the free pins; a saved one switches the
+strip off rather than breaking the panel.
+
+| Board | Default | Where it is |
+|-------|---------|-------------|
+| Waveshare ESP32-S3-RGB-Matrix | GPIO46 | the `GND / 3V3 / IO46 / IO45` header |
+| Hand-wired boards | GPIO21 | free in the hand-wired HUB75 map; on a Waveshare ESP32-S3-Zero it is the onboard RGB LED, so pick another free pin there |
+
+On the Waveshare board GPIO46 is the better of the two header pins: it carries a fitted
+10K pull-down, so the data line sits at the strip's idle level through reset instead of
+floating, and its strapping role (download boot, together with GPIO0) is unaffected by a
+line that idles low. GPIO45 is the flash-voltage strap, so the portal refuses it.
+
+### Settings
+
+**LED strip** in the web portal:
+
+| Setting | What it does |
+|---------|--------------|
+| Enable the strip | Off leaves the strip dark and holds its data pin low |
+| Data GPIO | The pin driving DIN |
+| LEDs on the strip | Up to 300; the hint quotes the full-white draw for that many |
+| Current limit at 5V | Dims the whole strip whenever a frame would exceed it; 0 removes the cap |
+| Effect | Solid, Wave (a soft band drifts along it), Rainbow, Fire, Meteor, Scanner, Hour sweep, Weather or Audio VU (see below) |
+| Effect speed | 0.1 to 2.0; 1.0 is the calm default pace |
+| Rainbow size / Sparking / Tail length | The second knob of Rainbow (0 turns the whole strip through the colours together, 50 lays one rainbow along it, 100 two), Fire (how often new sparks feed the flame) and Meteor or Scanner (how far the tail trails) |
+| Grow from the centre | Rainbow, Fire, Meteor, Scanner, Hour sweep and Audio VU run both ways from the middle as a mirror image; off runs left to right |
+| Brightness | Applied before the current limit |
+| Strip color | The colour of Solid, Wave, Meteor, Scanner and the Hour sweep bar |
+| Hour sweep seconds dot | The colour of the Hour sweep seconds dot |
+
+The strip follows the panel: it fades out whenever the panel is off, whether the night
+schedule, `/api/display/off` or a brightness of 0 put it out, and inside the night dimming
+window it dims by the same ratio as the panel.
+
+**Fire** is the classic Fire 2012 simulation: the flame starts at LED 0, or in the middle
+with Grow from the centre on, and ignores the strip colour.
+
+**Hour sweep** fills the strip in the strip colour over each hour, over a faint glow for the
+rest of the hour, and on the hour the full bar drains back to the start. A seconds dot runs
+the length of the strip once a minute and fades out at the end. Until the clock has the time the strip shows the plain strip colour.
+
+**Weather** ignores the strip colour and shows the outside temperature instead: blue below
+-10C, cyan at 0C, green at 10C, yellow at 20C, orange at 28C and red from 35C. Clouds drift
+over it as a slow dimming wave, rain and snow twinkle, and a storm flashes now and then. It
+uses the panel's weather settings: pick the Weather clock style once to reveal them, turn
+weather on, set a location and save. Fetching carries on after you switch the clock back to
+another style. Until the first forecast arrives it shows the plain strip colour.
+
+Set the current limit to what is **left over after the panels**, not to what the strip
+could draw. A 5V/3A supply running the panels at around 0.7A leaves roughly 2A, and 28
+LEDs need 1.4A at full white. All of it is included in configuration export and import.
+
+### Audio VU on the strip
+
+With the companion app streaming audio, effect **Audio VU** turns the strip into a level
+meter. It runs off the same `FFT1` packets as the panel visualizer but is independent of it:
+the meter works while the panel carries on showing the clock, so you are not choosing between
+seeing the time and seeing the music.
+
+| Setting | What it does |
+|---------|--------------|
+| Grow from the centre | The bar opens both ways from the middle. Suits a strip mounted symmetrically under the panel; off fills left to right |
+| Sensitivity | 25 to 250%. Raise it if the bar barely moves, lower it if it sits pinned at the ends. Default 100; heavily compressed music usually wants less |
+| Without music | The effect the strip runs until music plays: Off or any effect above. Default Solid |
+| Start after | Seconds sound has to last, with no gap over a second, before the meter takes the strip. Default 3; 0 reacts to every sound |
+| Stop after | Seconds of quiet before the strip goes back to the effect above. Default 5, long enough to ride out the pause between tracks |
+
+The companion streams audio all the time, silence included, so the meter arms itself the way
+the companion's visualizer auto-start does: a notification chime or a message pop is over
+long before the start delay, and never lights the bar. When the companion has already
+switched the panel to the visualizer, sound starts the meter at once. The two crossfade, so
+the hand-over never snaps.
+
+The meter uses the three **Audio visualizer** bar colours rather than the strip colour, so the
+panel EQ and the strip stay one palette.
+
+**It is a compressed meter, not an absolute one.** The level comes from the RMS of the
+waveform in each packet, and the companion normalises that against a reference that follows
+recent peaks and decays over roughly a second. So the meter tracks the music closely but
+auto-levels across volume changes: turning the system volume down drops it only briefly.
+A companion too old to send a waveform falls back to the frequency bands, which are
+normalised far harder and give a much lazier meter.
+
+
 ## PC monitor mode (optional)
 
 With the companion app running on your PC, the display switches to live hardware

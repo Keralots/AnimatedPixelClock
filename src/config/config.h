@@ -144,6 +144,21 @@ struct Settings {
   uint8_t scopeTrail;           // Oscilloscope: ghost traces behind the live one (0-4)
   uint8_t scopeGain;            // Oscilloscope: trace height percent (50-200)
 
+  // WS2812B accent strip (optional, one spare GPIO)
+  bool ledEnabled;              // Master toggle for the strip
+  uint8_t ledPin;               // Data GPIO, see ledPinUsable()
+  uint16_t ledCount;            // LEDs on the strip (0-300)
+  uint16_t ledMaxMilliamps;     // Cap on the strip's 5V draw (0 = uncapped)
+  uint8_t ledBrightness;        // Strip brightness 1-255
+  uint8_t ledEffect;            // LED_EFFECT_* in led_strip.h
+  uint8_t ledSpeed;             // Effect speed, tenths (10 = 1.0)
+  uint8_t ledIntensity;         // Rainbow size, fire sparking or tail length (0-100)
+  bool ledVuMirror;             // Audio VU grows from the centre out, not left to right
+  uint8_t ledVuGain;            // Audio VU sensitivity percent (25-250)
+  uint8_t ledVuIdle;            // Effect while no music plays; 255 = dark
+  uint8_t ledVuStartS;          // Seconds of sound before the VU takes the strip (0-30)
+  uint8_t ledVuStopS;           // Seconds of quiet before it hands the strip back (1-120)
+
   // Format options
   bool useRpmKFormat;       // Show RPM as K (e.g., 1.2K instead of 1200)
   bool useNetworkMBFormat;  // Show network as MB/s instead of KB/s

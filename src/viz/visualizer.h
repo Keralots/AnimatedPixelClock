@@ -32,6 +32,10 @@ void vizNoteForced();
 // Show the visualizer? True while fed (10s tolerance) or in the grace window.
 bool vizShouldDisplay();
 
+// Latest 32-band amplitudes, 0-255, already display-scaled by the companion.
+// Always readable; vizRecentEnough() says whether they are still current.
+const uint8_t* vizBandLevels();
+
 // Latest waveform, 128 samples centred on 128. Null if the latest packet has none.
 const uint8_t* vizWaveform();
 uint32_t vizWaveSerial();

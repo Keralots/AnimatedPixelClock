@@ -68,6 +68,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <div class="nav-label">Configuration</div>
         <button type="button" class="nav-item active" data-nav="clock">Clock</button>
         <button type="button" class="nav-item" data-nav="display">Display</button>
+        <button type="button" class="nav-item" data-nav="led">LED strip</button>
         <button type="button" class="nav-item" data-nav="viz">Audio visualizer<span class="nv-tag">Audio</span></button>
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
@@ -977,6 +978,109 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
         </section>
 
+        <section class="page" data-page="led">
+          <div class="page-header">
+            <h1 class="page-h1">LED strip</h1>
+            <p class="page-lede">An optional WS2812B strip on a spare GPIO, for a glow under or behind the panel. Feed its 5V and ground from the same terminals as the panels, never through the board's pin header.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Hardware</h2>
+            <label class="check-row standalone">
+              <input type="checkbox" name="ledEnabled" id="ledEnabled">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Enable the strip</strong><span class="ct-hint">Off leaves the strip dark.</span></span>
+            </label>
+            <div id="ledFields">
+              <div class="field" style="margin-top:18px">
+                <label class="field-label" for="ledPin">Data GPIO</label>
+                <input type="number" name="ledPin" id="ledPin" min="1" max="48" step="1" value="">
+                <p class="field-hint" id="ledPinErr" style="display:none;color:var(--err)"></p>
+                <p class="field-hint">Drives the strip's DIN through a 330R resistor. Pins the panel, flash, USB or serial port use are refused. On a Waveshare ESP32-S3-Zero GPIO21 is the onboard RGB LED.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="ledCount">LEDs on the strip</label>
+                <input type="number" name="ledCount" id="ledCount" min="0" max="300" step="1" value="">
+                <p class="field-hint" id="ledCountHint">How many WS2812B on the chain.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="ledMaxMilliamps">Current limit at 5V (mA)</label>
+                <input type="number" name="ledMaxMilliamps" id="ledMaxMilliamps" min="0" max="10000" step="50" value="">
+                <p class="field-hint">The strip is dimmed as a whole whenever a frame would draw more than this, so a shared supply is never asked for more than it has. 0 removes the cap. Set it to what is left over after the panels, not to what the strip could take.</p>
+              </div>
+              <div class="note warn">
+                <span class="note-k">Data</span>
+                <span>A 330R resistor and a short data wire are usually enough for the 3.3V GPIO. If the strip flickers or shows wrong colours, fit a level shifter on the data line or drop the strip's 5V through two series Schottky diodes.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="ledLightCard">
+            <h2 class="card-title">Light</h2>
+            <div class="field">
+              <label class="field-label" for="ledEffect">Effect</label>
+              <div class="select-wrap"><select name="ledEffect" id="ledEffect"><option value="0">Solid</option><option value="2">Wave</option><option value="6">Rainbow</option><option value="7">Fire</option><option value="8">Meteor</option><option value="9">Scanner</option><option value="4">Hour sweep</option><option value="5">Weather</option><option value="3">Audio VU</option></select></div>
+              <p class="field-hint" id="ledEffectHint"></p>
+            </div>
+            <label class="check-row standalone" id="ledMirrorField" style="margin-top:4px;display:none">
+              <input type="checkbox" name="ledVuMirror" id="ledVuMirror">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Grow from the centre</strong><span class="ct-hint">The effect runs both ways from the middle of the strip as a mirror image, which suits one mounted symmetrically under the panel. Off runs left to right.</span></span>
+            </label>
+            <div id="ledVuFields" style="display:none">
+              <div class="field" style="margin-top:16px">
+                <label class="field-label" for="ledVuGain">Sensitivity (%)</label>
+                <input type="number" name="ledVuGain" id="ledVuGain" min="25" max="250" step="5" value="">
+                <p class="field-hint">Raise it if the bar barely moves on quiet material, lower it if it sits pinned at the ends. Default 100. Heavily compressed music usually wants less.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="ledVuIdle">Without music</label>
+                <div class="select-wrap"><select name="ledVuIdle" id="ledVuIdle"><option value="255">Off</option><option value="0">Solid</option><option value="2">Wave</option><option value="6">Rainbow</option><option value="7">Fire</option><option value="8">Meteor</option><option value="9">Scanner</option><option value="4">Hour sweep</option><option value="5">Weather</option></select></div>
+                <p class="field-hint">What the strip shows until music plays, in the strip colour below. The meter fades in over it once sound has lasted the start delay.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="ledVuStartS">Start after (seconds)</label>
+                <input type="number" name="ledVuStartS" id="ledVuStartS" min="0" max="30" step="1" value="">
+                <p class="field-hint">Sound has to last this long, with no gap over a second, before the meter takes the strip, so notification chimes never light it. Default 3. 0 reacts to every sound. If the companion has already switched the panel to the visualizer, the meter starts at once.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="ledVuStopS">Stop after (seconds)</label>
+                <input type="number" name="ledVuStopS" id="ledVuStopS" min="1" max="120" step="1" value="">
+                <p class="field-hint">Quiet this long hands the strip back to the effect above. Default 5, which rides out the pause between tracks.</p>
+              </div>
+              <div class="note plain">
+                <span class="note-k">Colours</span>
+                <span>The meter uses the three <strong>Audio visualizer</strong> bar colours, not the strip colour below, so the panel EQ and the strip stay one palette. The strip colour is used by the effect it shows without music.</span>
+              </div>
+            </div>
+            <div class="field" id="ledSpeedField">
+              <label class="field-label" for="ledSpeed">Effect speed</label>
+              <div class="range-row">
+                <input type="range" name="ledSpeed" id="ledSpeed" min="1" max="20" step="1" value="" data-div="10" data-fixed="1">
+                <span class="range-val" data-for="ledSpeed"></span>
+              </div>
+              <p class="field-hint">1.0 is the calm default pace. Higher is faster.</p>
+            </div>
+            <div class="field" id="ledIntensityField">
+              <label class="field-label" for="ledIntensity" id="ledIntensityLabel">Intensity</label>
+              <div class="range-row">
+                <input type="range" name="ledIntensity" id="ledIntensity" min="0" max="100" step="5" value="" data-suffix="%">
+                <span class="range-val" data-for="ledIntensity"></span>
+              </div>
+              <p class="field-hint" id="ledIntensityHint"></p>
+            </div>
+            <div class="field">
+              <label class="field-label" for="ledBrightness">Brightness</label>
+              <div class="range-row">
+                <input type="range" name="ledBrightness" id="ledBrightness" min="1" max="255" step="1" value="" data-pct="1">
+                <span class="range-val" data-for="ledBrightness"></span>
+              </div>
+              <p class="field-hint">Applied before the current limit, so lowering it also lowers the draw. The strip follows the panel: it goes dark whenever the panel is off, on schedule or otherwise, and dims by the same ratio inside the night dimming window.</p>
+            </div>
+            <div id="colorsLed"></div>
+          </div>
+        </section>
+
         <!-- DISPLAY LAYOUT -->
         <section class="page" data-page="layout">
           <div class="page-header">
@@ -1300,6 +1404,75 @@ var nightChk = $('#enableScheduledDimming');
 if (nightChk) { var fn = function () { toggle($('#nightFields'), nightChk.checked); }; nightChk.addEventListener('change', fn); syncs.push(fn); }
 var offChk = $('#enableScheduledOff');
 if (offChk) { var fo = function () { toggle($('#offFields'), offChk.checked); }; offChk.addEventListener('change', fo); syncs.push(fo); }
+var ledChk = $('#ledEnabled'), ledFx = $('#ledEffect'), ledIdle = $('#ledVuIdle'), ledSlots = [-1, -1];
+function syncLed() {
+ toggle($('#ledFields'), !ledChk || ledChk.checked);
+ toggle($('#ledLightCard'), !ledChk || ledChk.checked);
+ var fx = ledFx ? ledFx.value : '0';
+ var shown = fx === '3' && ledIdle ? ledIdle.value : fx;
+ toggle($('#ledSpeedField'), ['2', '5', '6', '7', '8', '9'].indexOf(shown) >= 0);
+ toggle($('#ledMirrorField'), fx === '3' || ['4', '6', '7', '8', '9'].indexOf(shown) >= 0);
+ toggle($('#ledVuFields'), fx === '3');
+ // Each colour row only where the effect on show uses it.
+ var slotRow = function (slot) { var c = form.elements.namedItem('color_' + slot); return c ? c.parentNode : null; };
+ toggle(slotRow(ledSlots[0]), ['0', '2', '4', '8', '9'].indexOf(shown) >= 0);
+ toggle(slotRow(ledSlots[1]), shown === '4');
+ var fxHint = $('#ledEffectHint');
+ if (fxHint) fxHint.textContent = {
+  '0': 'Holds the strip colour steady.',
+  '2': 'A soft bright band drifts slowly along the strip.',
+  '6': 'The colour wheel scrolls along the strip.',
+  '7': 'A flickering flame burns from one end, or from the middle outwards.',
+  '8': 'A bright head with a fading tail runs along the strip, again and again.',
+  '9': 'A bright dot with a short tail bounces between the ends.',
+  '4': 'Fills the strip over each hour, with a seconds dot running its length once a minute.',
+  '5': 'Outside temperature as colour with clouds, rain, snow or lightning on top; set up weather under the Weather clock style first.',
+  '3': 'A loudness meter fed by the companion app, while the panel keeps showing the clock.'
+ }[fx] || '';
+ var inten = {
+  '6': ['Rainbow size', '0 turns the whole strip through the colours together, 50 lays one rainbow along it, 100 two.'],
+  '7': ['Sparking', 'How often new sparks feed the flame. Low is a quiet ember, high a roaring fire.'],
+  '8': ['Tail length', 'How far the tail trails behind the head, as a share of the strip.'],
+  '9': ['Tail length', 'How far the tail trails behind the head, as a share of the strip.']
+ }[shown];
+ toggle($('#ledIntensityField'), !!inten);
+ if (inten) { $('#ledIntensityLabel').textContent = inten[0]; $('#ledIntensityHint').textContent = inten[1]; }
+}
+if (ledChk) ledChk.addEventListener('change', syncLed);
+if (ledFx) ledFx.addEventListener('change', syncLed);
+if (ledIdle) ledIdle.addEventListener('change', syncLed);
+if (ledChk || ledFx) syncs.push(syncLed);
+var ledCnt = $('#ledCount'), ledMaxCount = 300, ledMaPerLed = 50;
+function syncLedCount() {
+ var hint = $('#ledCountHint');
+ if (!hint || !ledCnt) return;
+ var n = parseInt(ledCnt.value || '0', 10) || 0;
+ hint.textContent = 'Up to ' + ledMaxCount + '. At full white ' + n + ' LEDs draw about ' +
+  (n * ledMaPerLed) + ' mA, measured on a reference strip.';
+}
+if (ledCnt) { ledCnt.addEventListener('input', syncLedCount); syncs.push(syncLedCount); }
+var ledPinEl = $('#ledPin'), ledPins = null;
+function ledPinRanges() {
+ var out = [], i = 0;
+ while (i < ledPins.length) {
+  var j = i;
+  while (j + 1 < ledPins.length && ledPins[j + 1] === ledPins[j] + 1) j++;
+  out.push(j > i ? ledPins[i] + '-' + ledPins[j] : String(ledPins[i]));
+  i = j + 1;
+ }
+ return out.join(', ');
+}
+function syncLedPin() {
+ if (!ledPinEl || !ledPins) return;
+ var n = parseInt(ledPinEl.value, 10);
+ var bad = ledChk && ledChk.checked && ledPinEl.value !== '' && ledPins.indexOf(n) < 0;
+ var msg = bad ? 'GPIO' + n + ' is not free on this board. Free: ' + ledPinRanges() + '.' : '';
+ ledPinEl.setCustomValidity(msg);
+ var err = $('#ledPinErr');
+ if (err) { err.textContent = msg; toggle(err, bad); }
+}
+if (ledPinEl) { ledPinEl.addEventListener('input', syncLedPin); syncs.push(syncLedPin); }
+if (ledChk) ledChk.addEventListener('change', syncLedPin);
 var ambChk = $('#ambientEnabled');
 if (ambChk) { var fa = function () { toggle($('#ambientFields'), ambChk.checked); }; ambChk.addEventListener('change', fa); syncs.push(fa); }
 function ambCall(path, okMsg) {
@@ -1954,6 +2127,7 @@ function buildColors(d) {
  place('colorsPc', pc ? '<div class="card"><h2 class="card-title">Colors</h2>' + pc + '</div>' : '');
  place('colorsViz', colorRows(d, -3));
  place('colorsScope', colorRows(d, -4));
+ place('colorsLed', colorRows(d, -5));
 }
 function fillOptions(sel, list) {
  if (!sel) return;
@@ -1964,6 +2138,23 @@ function applyValues(d) {
  var el = form.elements, v = d.form, i, hours = [], trail = [];
  // The minimum first: a range clamps a value below it.
  if (el.namedItem('displayBrightness')) el.namedItem('displayBrightness').min = d.minBright;
+ if (typeof d.ledMaxCount === 'number') {
+  ledMaxCount = d.ledMaxCount;
+  if (el.namedItem('ledCount')) el.namedItem('ledCount').max = d.ledMaxCount;
+ }
+ if (typeof d.ledMaxMa === 'number' && el.namedItem('ledMaxMilliamps')) el.namedItem('ledMaxMilliamps').max = d.ledMaxMa;
+ if (typeof d.ledMaPerLed === 'number') ledMaPerLed = d.ledMaPerLed;
+ if (Array.isArray(d.ledPins)) ledPins = d.ledPins;
+ if (typeof d.ledStripSlot === 'number') ledSlots = [d.ledStripSlot, d.ledSecondsSlot];
+ if (typeof d.ledVuGainMin === 'number' && el.namedItem('ledVuGain')) {
+  el.namedItem('ledVuGain').min = d.ledVuGainMin;
+  el.namedItem('ledVuGain').max = d.ledVuGainMax;
+ }
+ if (typeof d.ledVuStartMax === 'number' && el.namedItem('ledVuStartS')) el.namedItem('ledVuStartS').max = d.ledVuStartMax;
+ if (typeof d.ledVuStopMax === 'number' && el.namedItem('ledVuStopS')) {
+  el.namedItem('ledVuStopS').min = d.ledVuStopMin;
+  el.namedItem('ledVuStopS').max = d.ledVuStopMax;
+ }
  if (el.namedItem('dimBrightness')) el.namedItem('dimBrightness').min = d.minBright;
  for (i = 0; i < 24; i++) hours.push([i, i + ':00']);
  fillOptions(el.namedItem('ambientStartHour'), hours);
@@ -2009,7 +2200,8 @@ function loadValues() {
   loadMetrics();
  }).catch(function (err) {
   saveMeta.classList.remove('clean');
-  $('.txt', saveMeta).textContent = 'Settings did not load (' + (err && err.message ? err.message : err) + ') - reload the page';
+  $('.txt', saveMeta).textContent = 'Settings did not load (' + (err && err.message ? err.message : err) + ') - retrying';
+  setTimeout(loadValues, 3000);
  });
 }
 loadValues();

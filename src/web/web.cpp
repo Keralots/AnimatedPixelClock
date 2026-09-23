@@ -13,6 +13,7 @@
 #include "../utils/crash_report.h"
 #include "../clocks/clocks.h"
 #include "../display/display.h"
+#include "../led/led_strip.h"
 #include "../ambient/ambient.h"
 #include "../ambient/anim_store.h"
 #include "../notify/notify.h"
@@ -686,6 +687,8 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_SCOPE_GRID, -4, "Graticule"},
     {COL_SCOPE_TRACE, -4, "Trace"},
     {COL_SCOPE_PEAK, -4, "Trace at full deflection"},
+    {COL_LED_STRIP, -5, "Strip color"},
+    {COL_LED_SECONDS, -5, "Hour sweep seconds dot"},
 };
 
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
@@ -734,6 +737,20 @@ void handlePortalValues() {
   doc["displayModel"] = "HUB75 Matrix";
   doc["minBright"] = isZeroBrightnessAllowed() ? 0 : 1;
   doc["scopeTrailMax"] = SCOPE_TRAIL_MAX;
+  doc["ledMaxCount"] = LED_STRIP_MAX_COUNT;
+  doc["ledMaxMa"] = LED_STRIP_MAX_MA;
+  doc["ledMaPerLed"] = LED_MA_FULL_WHITE;
+  doc["ledStripSlot"] = COL_LED_STRIP;
+  doc["ledSecondsSlot"] = COL_LED_SECONDS;
+  doc["ledVuGainMin"] = LED_VU_GAIN_MIN;
+  doc["ledVuGainMax"] = LED_VU_GAIN_MAX;
+  doc["ledVuStartMax"] = LED_VU_START_MAX;
+  doc["ledVuStopMin"] = LED_VU_STOP_MIN;
+  doc["ledVuStopMax"] = LED_VU_STOP_MAX;
+  JsonArray ledPins = doc["ledPins"].to<JsonArray>();
+  for (int p = 1; p <= 48; p++) {
+    if (ledPinUsable(p)) ledPins.add(p);
+  }
   doc["scopeTrailDefault"] = SCOPE_TRAIL_DEFAULT;
 
   // The color pickers: the page builds the rows from these tables, as
@@ -846,6 +863,19 @@ void handlePortalValues() {
   form["doomBurningDigits"] = settings.doomBurningDigits;
   form["doomSmoothFire"] = settings.doomSmoothFire;
   form["doomShowDate"] = settings.doomShowDate;
+  form["ledEnabled"] = settings.ledEnabled;
+  form["ledPin"] = settings.ledPin;
+  form["ledCount"] = settings.ledCount;
+  form["ledMaxMilliamps"] = settings.ledMaxMilliamps;
+  form["ledBrightness"] = settings.ledBrightness;
+  form["ledEffect"] = settings.ledEffect;
+  form["ledSpeed"] = settings.ledSpeed;
+  form["ledIntensity"] = settings.ledIntensity;
+  form["ledVuMirror"] = settings.ledVuMirror;
+  form["ledVuGain"] = settings.ledVuGain;
+  form["ledVuIdle"] = settings.ledVuIdle;
+  form["ledVuStartS"] = settings.ledVuStartS;
+  form["ledVuStopS"] = settings.ledVuStopS;
   form["weatherEnabled"] = settings.weatherEnabled;
   // Four decimals, as the template printed them: the input's step is 0.0001.
   form["weatherLat"] = String(settings.weatherLat, 4);
@@ -1013,6 +1043,21 @@ static bool parseHHMM(const String &v, uint8_t &hour, uint8_t &minute) {
  if (h < 0 || h > 23 || m < 0 || m > 59) return false;
  hour = (uint8_t)h;
  minute = (uint8_t)m;
+ return true;
+}
+
+// Whole number in [lo, hi]. Empty or garbled is false, not toInt()'s 0.
+static bool argIntInRange(const char* name, int lo, int hi, int &out) {
+ if (!server.hasArg(name)) return false;
+ String v = server.arg(name);
+ v.trim();
+ if (v.length() == 0 || v.length() > 6) return false;
+ for (unsigned int i = 0; i < v.length(); i++) {
+ if (!isDigit(v[i])) return false;
+ }
+ int n = v.toInt();
+ if (n < lo || n > hi) return false;
+ out = n;
  return true;
 }
 
@@ -1390,6 +1435,26 @@ void handleSave() {
  settings.matrixTransparent = server.hasArg("matrixTransparent");
  settings.matrixSmoothScroll = server.hasArg("matrixSmoothScroll");
  settings.matrixSmallClock = server.hasArg("matrixSmallClock");
+ if (server.hasArg("ledEffect")) {
+ // Empty or garbled fields keep the stored value.
+ int v;
+ settings.ledEnabled = server.hasArg("ledEnabled");
+ if (argIntInRange("ledPin", 0, 255, v)) {
+ if (ledPinUsable(v)) settings.ledPin = (uint8_t)v;
+ else settings.ledEnabled = false;
+ }
+ if (argIntInRange("ledCount", 0, LED_STRIP_MAX_COUNT, v)) settings.ledCount = (uint16_t)v;
+ if (argIntInRange("ledMaxMilliamps", 0, LED_STRIP_MAX_MA, v)) settings.ledMaxMilliamps = (uint16_t)v;
+ if (argIntInRange("ledBrightness", 1, 255, v)) settings.ledBrightness = (uint8_t)v;
+ if (argIntInRange("ledEffect", 0, 255, v) && ledEffectValid(v)) settings.ledEffect = (uint8_t)v;
+ if (argIntInRange("ledSpeed", 1, 20, v)) settings.ledSpeed = (uint8_t)v;
+ if (argIntInRange("ledIntensity", 0, 100, v)) settings.ledIntensity = (uint8_t)v;
+ settings.ledVuMirror = server.hasArg("ledVuMirror");
+ if (argIntInRange("ledVuGain", LED_VU_GAIN_MIN, LED_VU_GAIN_MAX, v)) settings.ledVuGain = (uint8_t)v;
+ if (argIntInRange("ledVuIdle", 0, 255, v) && ledVuIdleValid(v)) settings.ledVuIdle = (uint8_t)v;
+ if (argIntInRange("ledVuStartS", 0, LED_VU_START_MAX, v)) settings.ledVuStartS = (uint8_t)v;
+ if (argIntInRange("ledVuStopS", LED_VU_STOP_MIN, LED_VU_STOP_MAX, v)) settings.ledVuStopS = (uint8_t)v;
+ }
  if (server.hasArg("doomFlameHeight")) {
  settings.doomFlameHeight = server.arg("doomFlameHeight").toInt();
  }
@@ -1679,6 +1744,7 @@ void handleSave() {
  }
 
  saveSettings();
+ ledApplySettings();
  applyTimezone();
  ntpSynced = false; // Force NTP resync after timezone change
 
@@ -1737,6 +1803,19 @@ void handleExportConfig() {
  json += "\"matrixTransparent\":" + String(settings.matrixTransparent ? "true" : "false") + ",";
  json += "\"matrixSmoothScroll\":" + String(settings.matrixSmoothScroll ? "true" : "false") + ",";
  json += "\"matrixSmallClock\":" + String(settings.matrixSmallClock ? "true" : "false") + ",";
+ json += "\"ledEnabled\":" + String(settings.ledEnabled ? "true" : "false") + ",";
+ json += "\"ledPin\":" + String(settings.ledPin) + ",";
+ json += "\"ledCount\":" + String(settings.ledCount) + ",";
+ json += "\"ledMaxMilliamps\":" + String(settings.ledMaxMilliamps) + ",";
+ json += "\"ledBrightness\":" + String(settings.ledBrightness) + ",";
+ json += "\"ledEffect\":" + String(settings.ledEffect) + ",";
+ json += "\"ledSpeed\":" + String(settings.ledSpeed) + ",";
+ json += "\"ledIntensity\":" + String(settings.ledIntensity) + ",";
+ json += "\"ledVuMirror\":" + String(settings.ledVuMirror ? "true" : "false") + ",";
+ json += "\"ledVuGain\":" + String(settings.ledVuGain) + ",";
+ json += "\"ledVuIdle\":" + String(settings.ledVuIdle) + ",";
+ json += "\"ledVuStartS\":" + String(settings.ledVuStartS) + ",";
+ json += "\"ledVuStopS\":" + String(settings.ledVuStopS) + ",";
  json += "\"doomFlameHeight\":" + String(settings.doomFlameHeight) + ",";
  json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
  json += "\"doomWind\":" + String(settings.doomWind) + ",";
@@ -1985,6 +2064,54 @@ void handleImportConfig() {
  if (!doc["matrixTransparent"].isNull()) settings.matrixTransparent = doc["matrixTransparent"];
  if (!doc["matrixSmoothScroll"].isNull()) settings.matrixSmoothScroll = doc["matrixSmoothScroll"];
  if (!doc["matrixSmallClock"].isNull()) settings.matrixSmallClock = doc["matrixSmallClock"];
+ if (!doc["ledEnabled"].isNull()) settings.ledEnabled = doc["ledEnabled"];
+ if (doc["ledPin"].is<int>()) {
+   int v = doc["ledPin"].as<int>();
+   if (ledPinUsable(v)) settings.ledPin = (uint8_t)v; else settings.ledEnabled = false;
+ }
+ if (doc["ledCount"].is<int>()) {
+   int v = doc["ledCount"].as<int>();
+   if (v >= 0 && v <= LED_STRIP_MAX_COUNT) settings.ledCount = (uint16_t)v;
+ }
+ if (doc["ledMaxMilliamps"].is<int>()) {
+   int v = doc["ledMaxMilliamps"].as<int>();
+   if (v >= 0 && v <= LED_STRIP_MAX_MA) settings.ledMaxMilliamps = (uint16_t)v;
+ }
+ if (doc["ledBrightness"].is<int>()) {
+   int v = doc["ledBrightness"].as<int>();
+   if (v >= 1 && v <= 255) settings.ledBrightness = (uint8_t)v;
+ }
+ if (doc["ledEffect"].is<int>()) {
+   int v = doc["ledEffect"].as<int>();
+   if (ledEffectValid(v)) settings.ledEffect = (uint8_t)v;
+   else if (v == LED_EFFECT_RETIRED_BREATHE) settings.ledEffect = LED_EFFECT_SOLID;
+ }
+ if (doc["ledSpeed"].is<int>()) {
+   int v = doc["ledSpeed"].as<int>();
+   if (v >= 1 && v <= 20) settings.ledSpeed = (uint8_t)v;
+ }
+ if (doc["ledIntensity"].is<int>()) {
+   int v = doc["ledIntensity"].as<int>();
+   if (v >= 0 && v <= 100) settings.ledIntensity = (uint8_t)v;
+ }
+ if (!doc["ledVuMirror"].isNull()) settings.ledVuMirror = doc["ledVuMirror"];
+ if (doc["ledVuGain"].is<int>()) {
+   int v = doc["ledVuGain"].as<int>();
+   if (v >= LED_VU_GAIN_MIN && v <= LED_VU_GAIN_MAX) settings.ledVuGain = (uint8_t)v;
+ }
+ if (doc["ledVuIdle"].is<int>()) {
+   int v = doc["ledVuIdle"].as<int>();
+   if (ledVuIdleValid(v)) settings.ledVuIdle = (uint8_t)v;
+   else if (v == LED_EFFECT_RETIRED_BREATHE) settings.ledVuIdle = LED_EFFECT_SOLID;
+ }
+ if (doc["ledVuStartS"].is<int>()) {
+   int v = doc["ledVuStartS"].as<int>();
+   if (v >= 0 && v <= LED_VU_START_MAX) settings.ledVuStartS = (uint8_t)v;
+ }
+ if (doc["ledVuStopS"].is<int>()) {
+   int v = doc["ledVuStopS"].as<int>();
+   if (v >= LED_VU_STOP_MIN && v <= LED_VU_STOP_MAX) settings.ledVuStopS = (uint8_t)v;
+ }
  if (!doc["clockStyle"].isNull()) settings.clockStyle = doc["clockStyle"];
  if (!doc["timezoneString"].isNull()) {
  const char* tz = doc["timezoneString"];
@@ -2184,6 +2311,7 @@ void handleImportConfig() {
 
  // Save imported settings
  saveSettings();
+ ledApplySettings();
  applyTimezone();
  ntpSynced = false; // Force NTP resync after config import
  weatherSettingsChanged(); // imported location may differ - refetch now
