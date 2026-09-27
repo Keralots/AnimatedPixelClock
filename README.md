@@ -27,6 +27,7 @@ sent by a desktop companion app.
 | Alternative: [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix) | Purpose-built HUB75 driver board (ESP32-S3-WROOM-2-N32R16V, 32MB flash, 16MB PSRAM). Carries the HUB75 header and output buffers, so no per-GPIO wiring is needed; ribbon cables and panel power still get connected, per [Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use). Uses its own pin map - see below |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | 5V power | Two options - see below |
+| Enclosure (optional) | 3D-printable case for the clock. Stands on its own, hangs on a wall or a Multiboard: [MakerWorld model 3363461](https://makerworld.com/en/models/3363461) |
 | Panel joiner (optional) | 3D-printable bracket that locks the two panels into one flat 128x64 frame: [MakerWorld model 3264534](https://makerworld.com/en/models/3264534) |
 
 The tested build runs directly from the ESP32's 3.3V GPIO signals. Keep signal
