@@ -665,6 +665,41 @@ rest_command:
     url: "http://pixelclock.local/api/display/on"
 ```
 
+### Panel options
+
+Panels from other batches may use a different driver chip or need a faster
+refresh. Set them in the web portal under **Maintenance > Display panel**, which
+also shows the measured refresh rate and offers test patterns. The options are
+applied at boot, so saving them reboots the clock. They are part of the settings
+export; an import stores them for the next reboot.
+
+The NONDK P2.5 128x64 panel (DP5125 chips) needs driver 0. It also needs 5V
+logic levels: driven straight from 3.3V GPIO its left half corrupts, so use a
+board with buffers (the Waveshare driver board works) or add 74AHCT245 buffers.
+
+The same options are available over HTTP:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/panel` | Current options plus the measured refresh rate (`refreshHz`) |
+| `POST /api/panel?<option>=<value>` | Save any of the options below, then reboot |
+| `GET /api/panel/test?pattern=0-8` | Test pattern until reboot: 1 white, 2 grey, 3 dim grey, 4 red, 5 green, 6 blue, 7 ramps, 8 checkerboard, 0 off |
+
+| Option | Values | Default |
+|--------|--------|---------|
+| `driver` | 0 plain shift register (ICN2037, DP5125 and similar), 1 FM6124, 2 FM6126A, 3 ICN2038S, 4 MBI5124, 5 DP3246 | 2 |
+| `clockMHz` | 8, 16, 20 | 8 |
+| `latchBlanking` | 1-4 | 2 |
+| `clkPhase` | 0, 1 | 0 |
+| `colorDepth` | 4-8 bits | 8 |
+| `minRefresh` | 30-200 Hz; higher trades the lowest colour bits for less flicker | 60 |
+
+```bash
+curl -X POST "http://pixelclock.local/api/panel?driver=0&minRefresh=200"
+```
+
+A wrong driver can leave the panel dark. Set `driver=2` to go back to the default.
+
 ## Notifications API
 
 Push a message banner onto the display from anything that can send an HTTP request.

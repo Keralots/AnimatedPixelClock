@@ -13,6 +13,7 @@
 #include "../utils/crash_report.h"
 #include "../clocks/clocks.h"
 #include "../display/display.h"
+#include "../display/panel_config.h"
 #include "../led/led_strip.h"
 #include "../ambient/ambient.h"
 #include "../ambient/anim_store.h"
@@ -89,6 +90,9 @@ void setupWebServer() {
  server.on("/api/mode/viz", HTTP_GET, handleModeViz);
  server.on("/api/clock/style", HTTP_GET, handleSetClockStyle);
  server.on("/api/reboot", HTTP_GET, handleReboot);
+ server.on("/api/panel", HTTP_GET, handlePanelGet);
+ server.on("/api/panel", HTTP_POST, handlePanelSave);
+ server.on("/api/panel/test", HTTP_GET, handlePanelTest);
 
  // OTA Firmware Update handlers
  server.on("/update", HTTP_POST, []() {
@@ -341,6 +345,54 @@ void handleReboot() {
  server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting\"}");
  delay(500);
  ESP.restart();
+}
+
+static void sendPanelJson() {
+ JsonDocument doc;
+ doc["driver"] = panelOptions.driver;
+ doc["clockMHz"] = panelOptions.clockMHz;
+ doc["latchBlanking"] = panelOptions.latchBlanking;
+ doc["clkPhase"] = panelOptions.clkPhase;
+ doc["colorDepth"] = panelOptions.colorDepth;
+ doc["minRefresh"] = panelOptions.minRefresh;
+ doc["refreshHz"] = panelRefreshRate();
+ doc["testPattern"] = panelTestPattern;
+ String json;
+ serializeJson(doc, json);
+ server.send(200, "application/json", json);
+}
+
+// GET /api/panel - current panel options and the measured refresh rate
+void handlePanelGet() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ sendPanelJson();
+}
+
+// POST /api/panel - save panel options (form or query args), then reboot
+void handlePanelSave() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ PanelOptions o = panelOptions;
+ if (server.hasArg("driver")) o.driver = server.arg("driver").toInt();
+ if (server.hasArg("clockMHz")) o.clockMHz = server.arg("clockMHz").toInt();
+ if (server.hasArg("latchBlanking")) o.latchBlanking = server.arg("latchBlanking").toInt();
+ if (server.hasArg("clkPhase")) o.clkPhase = server.arg("clkPhase").toInt() != 0;
+ if (server.hasArg("colorDepth")) o.colorDepth = server.arg("colorDepth").toInt();
+ if (server.hasArg("minRefresh")) o.minRefresh = server.arg("minRefresh").toInt();
+ if (!savePanelOptions(o)) {
+   server.send(500, "application/json", "{\"error\":\"Could not save panel options\"}");
+   return;
+ }
+ server.send(200, "application/json", "{\"success\":true,\"message\":\"Rebooting\"}");
+ delay(500);
+ ESP.restart();
+}
+
+// GET /api/panel/test?pattern=0-8 - show a test pattern (0 = off, not saved)
+void handlePanelTest() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ int pattern = server.arg("pattern").toInt();
+ panelTestPattern = (pattern >= 0 && pattern <= 8) ? pattern : 0;
+ sendPanelJson();
 }
 
 void handleRename() {
@@ -1941,6 +1993,13 @@ void handleExportConfig() {
  }
  json += "]";
 
+ json += ",\"panel\":{\"driver\":" + String(panelOptions.driver);
+ json += ",\"clockMHz\":" + String(panelOptions.clockMHz);
+ json += ",\"latchBlanking\":" + String(panelOptions.latchBlanking);
+ json += ",\"clkPhase\":" + String(panelOptions.clkPhase ? "true" : "false");
+ json += ",\"colorDepth\":" + String(panelOptions.colorDepth);
+ json += ",\"minRefresh\":" + String(panelOptions.minRefresh) + "}";
+
  json += "}";
 
  server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -2321,8 +2380,24 @@ void handleImportConfig() {
  // override + queue residue into the new style.
  resetClockAnimationState();
 
+ // Panel options only take effect at boot, so they are stored for the next one.
+ bool panelChanged = false;
+ JsonObject panel = doc["panel"];
+ if (!panel.isNull()) {
+   PanelOptions o = panelOptions;
+   if (panel["driver"].is<int>()) o.driver = panel["driver"].as<int>();
+   if (panel["clockMHz"].is<int>()) o.clockMHz = panel["clockMHz"].as<int>();
+   if (panel["latchBlanking"].is<int>()) o.latchBlanking = panel["latchBlanking"].as<int>();
+   if (panel["clkPhase"].is<bool>()) o.clkPhase = panel["clkPhase"].as<bool>();
+   if (panel["colorDepth"].is<int>()) o.colorDepth = panel["colorDepth"].as<int>();
+   if (panel["minRefresh"].is<int>()) o.minRefresh = panel["minRefresh"].as<int>();
+   panelChanged = memcmp(&o, &panelOptions, sizeof(o)) != 0 && savePanelOptions(o);
+ }
+
  server.sendHeader("Access-Control-Allow-Origin", "*");
- server.send(200, "application/json", "{\"success\":true,\"message\":\"Configuration imported successfully\"}");
+ server.send(200, "application/json", panelChanged
+   ? "{\"success\":true,\"panelChanged\":true,\"message\":\"Configuration imported successfully\"}"
+   : "{\"success\":true,\"message\":\"Configuration imported successfully\"}");
  } else {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(400, "application/json", "{\"success\":false,\"message\":\"No data received\"}");

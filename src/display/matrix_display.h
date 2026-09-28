@@ -66,6 +66,7 @@ public:
   // (Pong's digit shatter reads the 5x7 glyph font instead), kept only so any
   // future caller fails safe on a null check rather than a build error.
   inline uint8_t *getBuffer() { return nullptr; }
+  inline int refreshRate() const { return calculated_refresh_rate; }
 private:
   uint32_t lastFlipUs = 0;
   bool hasFlipped = false;

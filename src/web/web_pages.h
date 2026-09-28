@@ -1286,6 +1286,64 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             </div>
           </div>
 
+          <div class="card" id="panelCard">
+            <h2 class="card-title">Display panel <span class="tag" id="panelHz"></span></h2>
+            <p class="field-hint" style="margin:0 0 14px">Driver chip and timing for HUB75 panels from other batches. The defaults suit the Waveshare P2.5 panels.</p>
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelDriver">Driver chip</label><div class="select-wrap"><select id="panelDriver">
+                <option value="0">Plain shift register (ICN2037, DP5125)</option>
+                <option value="1">FM6124</option>
+                <option value="2">FM6126A</option>
+                <option value="3">ICN2038S</option>
+                <option value="4">MBI5124</option>
+                <option value="5">DP3246</option>
+              </select></div></div>
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelMinRefresh">Minimum refresh (Hz)</label><input type="number" id="panelMinRefresh" min="30" max="200"></div>
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelClock">Data clock</label><div class="select-wrap"><select id="panelClock">
+                <option value="8">8 MHz</option>
+                <option value="16">16 MHz</option>
+                <option value="20">20 MHz</option>
+              </select></div></div>
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelDepth">Color depth</label><div class="select-wrap"><select id="panelDepth">
+                <option value="8">8 bits</option>
+                <option value="7">7 bits</option>
+                <option value="6">6 bits</option>
+                <option value="5">5 bits</option>
+                <option value="4">4 bits</option>
+              </select></div></div>
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelLatch">Latch blanking</label><div class="select-wrap"><select id="panelLatch">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select></div></div>
+              <div class="field" style="margin-bottom:0"><label class="field-label" for="panelTest">Test pattern</label><div class="select-wrap"><select id="panelTest">
+                <option value="0">Off</option>
+                <option value="1">White</option>
+                <option value="2">Grey</option>
+                <option value="3">Dim grey</option>
+                <option value="4">Red</option>
+                <option value="5">Green</option>
+                <option value="6">Blue</option>
+                <option value="7">Brightness ramps</option>
+                <option value="8">Checkerboard</option>
+              </select></div></div>
+            </div>
+            <label class="check-row standalone" style="margin-top:16px">
+              <input type="checkbox" id="panelClkPhase">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Clock on rising edge</strong><span class="ct-hint">Only for panels that show pixels shifted by one column.</span></span>
+            </label>
+            <div class="note warn">
+              <span class="note-k">restart</span>
+              <div>Applying reboots the device. A higher minimum refresh stops flicker but makes the darkest shades brighter. A wrong driver can leave the panel dark - Defaults brings it back.</div>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="btn" id="panelApplyBtn"><span class="gl"></span> Apply &amp; reboot</button>
+              <button type="button" class="btn" id="panelDefaultsBtn">Defaults</button>
+            </div>
+          </div>
+
           <div class="card">
             <h2 class="card-title">Configuration backup</h2>
             <p class="field-hint" style="margin:0 0 14px">Save all settings to a JSON file, or restore them on this or another device.</p>
@@ -2003,6 +2061,38 @@ else lines.push('<span style="color:#f85149">no response</span> ' + j.label + ' 
 }
 run(0);
 });
+var panelCard = $('#panelCard');
+var PANEL_DEFAULTS = { driver: 2, clockMHz: 8, latchBlanking: 2, clkPhase: false, colorDepth: 8, minRefresh: 60 };
+function panelFill(p) {
+$('#panelDriver').value = p.driver; $('#panelClock').value = p.clockMHz; $('#panelLatch').value = p.latchBlanking;
+$('#panelDepth').value = p.colorDepth; $('#panelMinRefresh').value = p.minRefresh; $('#panelClkPhase').checked = !!p.clkPhase;
+}
+function panelLoad() {
+fetch('/api/panel', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (p) {
+panelFill(p); $('#panelTest').value = p.testPattern || 0;
+$('#panelHz').textContent = p.refreshHz + ' Hz';
+}).catch(function () {});
+}
+if (panelCard) {
+// Panel options save on their own button, never through the main form.
+['input', 'change'].forEach(function (t) { panelCard.addEventListener(t, function (ev) { ev.stopPropagation(); }); });
+$('#panelTest').addEventListener('change', function () { fetch('/api/panel/test?pattern=' + this.value).catch(function () {}); });
+$('#panelDefaultsBtn').addEventListener('click', function () { panelFill(PANEL_DEFAULTS); });
+$('#panelApplyBtn').addEventListener('click', function () {
+var mr = parseInt($('#panelMinRefresh').value, 10);
+if (!(mr >= 30 && mr <= 200)) { alert('Minimum refresh must be 30-200 Hz.'); return; }
+if (!confirm('Apply the panel options? The device reboots.')) return;
+var body = new URLSearchParams({ driver: $('#panelDriver').value, clockMHz: $('#panelClock').value,
+latchBlanking: $('#panelLatch').value, clkPhase: $('#panelClkPhase').checked ? 1 : 0,
+colorDepth: $('#panelDepth').value, minRefresh: mr });
+var btn = this; btn.disabled = true;
+fetch('/api/panel', { method: 'POST', body: body }).then(function (r) { return r.json(); }).then(function (d) {
+if (!d.success) { btn.disabled = false; alert('Could not save panel options.'); return; }
+markClean('Rebooting...');
+setTimeout(function () { location.reload(); }, 10000);
+}).catch(function (err) { btn.disabled = false; alert('Error saving panel options: ' + err); });
+});
+}
 $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
 $('#importFile').addEventListener('change', function (ev) {
 var file = ev.target.files[0]; if (!file) return;
@@ -2013,7 +2103,7 @@ try { cfg = JSON.parse(e.target.result); } catch (err) { alert('Invalid configur
 fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
 .then(function (r) { return r.json(); })
 .then(function (d) {
-if (d.success) { alert('Configuration imported. Reloading...'); location.reload(); }
+if (d.success) { alert('Configuration imported.' + (d.panelChanged ? ' Panel options apply after the next reboot.' : '') + ' Reloading...'); location.reload(); }
 else { alert('Error importing configuration: ' + d.message); }
 })
 .catch(function (err) { alert('Error importing configuration: ' + err); });
@@ -2198,6 +2288,7 @@ function loadValues() {
   markClean();
   animRefresh();
   loadMetrics();
+  panelLoad();
  }).catch(function (err) {
   saveMeta.classList.remove('clean');
   $('.txt', saveMeta).textContent = 'Settings did not load (' + (err && err.message ? err.message : err) + ') - retrying';

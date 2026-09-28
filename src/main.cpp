@@ -16,6 +16,7 @@
 #include <WiFiManager.h>
 
 #include "display/matrix_display.h" // HUB75 RGB matrix (ESP32-S3)
+#include "display/panel_config.h"
 #include <ArduinoJson.h>
 #include <Update.h>
 #include <esp_task_wdt.h>
@@ -227,6 +228,8 @@ void setup() {
   animStoreInit();
 
   // Initialize display
+  loadPanelOptions();
+  applyPanelOptions();
   displayAvailable = initDisplay();
 
   // Apply saved brightness setting
@@ -416,7 +419,9 @@ void loop() {
     if (showViz && settings.vizStyle == 5) display.waitForScanCompletion();
     if (!animFullRepaint && !doomFullRepaint) display.clearDisplay();
 
-    if (showViz) {
+    if (panelTestPattern) {
+      drawPanelTestPattern();
+    } else if (showViz) {
       displayVisualizer();
     } else
     // Show error status if PC is connected but LHM has issues

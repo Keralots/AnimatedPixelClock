@@ -59,5 +59,8 @@ void handleModeAmbient();
 void handleModeViz();
 void handleSetClockStyle();
 void handleReboot();
+void handlePanelGet();
+void handlePanelSave();
+void handlePanelTest();
 
 #endif // WEB_H
