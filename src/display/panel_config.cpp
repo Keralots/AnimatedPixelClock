@@ -77,10 +77,12 @@ void drawPanelTestPattern() {
     case 5: display.fillScreenRGB888(0, 255, 0); break;
     case 6: display.fillScreenRGB888(0, 0, 255); break;
     case 7:  // grey ramp left to right: white, red, green, blue bands
+      // Starts at 5, the first input the library's CIE1931 table lights;
+      // lower values map to off and left the first columns dark.
       for (int y = 0; y < h; y++) {
         const int band = y * 4 / h;
         for (int x = 0; x < w; x++) {
-          const uint8_t v = (uint8_t)(x * 255 / (w - 1));
+          const uint8_t v = (uint8_t)(5 + x * 250 / (w - 1));
           display.drawPixelRGB888(x, y, band == 0 || band == 1 ? v : 0,
                                   band == 0 || band == 2 ? v : 0,
                                   band == 0 || band == 3 ? v : 0);
@@ -88,7 +90,6 @@ void drawPanelTestPattern() {
       }
       break;
     case 8:  // one-pixel checkerboard
-      display.fillScreenRGB888(0, 0, 0);
       for (int y = 0; y < h; y++)
         for (int x = (y & 1); x < w; x += 2)
           display.drawPixelRGB888(x, y, 255, 255, 255);
