@@ -414,9 +414,10 @@ void loop() {
     // where the brightest rows are drawn last.
     uint8_t styleNow = settings.clockStyle == 9 ? cycleActiveStyle : settings.clockStyle;
     bool doomFullRepaint = !showViz && !showStats && !ambientActive() && styleNow == 17;
-    // Bright starfield details make partial scans visible. Do not clear/reuse
-    // the previous front buffer until the queued flip has settled.
-    if (showViz && settings.vizStyle == 5) display.waitForScanCompletion();
+    // Do not clear/reuse the previous front buffer until the queued flip has
+    // settled. Free when the frame interval already exceeds one panel scan;
+    // otherwise (panel refresh near the frame rate) it prevents dark flashes.
+    display.waitForScanCompletion();
     if (!animFullRepaint && !doomFullRepaint) display.clearDisplay();
 
     if (panelTestPattern) {
