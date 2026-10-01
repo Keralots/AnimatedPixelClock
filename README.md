@@ -554,6 +554,10 @@ prebuilt firmware image straight from the browser, then walks you through joinin
 WiFi and connecting the PC companion. Nothing to install, no PlatformIO, no drivers
 beyond the ones your OS already ships.
 
+The web flasher always erases the whole board first: WiFi credentials, settings and
+uploaded animations are all wiped. It is meant for first installs; to update a clock
+that already runs AnimatedPixelClock, use [OTA updates](#ota-updates) instead.
+
 Board choices on that page:
 
 - **ESP32-S3-Zero / Super Mini (4MB)** - the compact build. Native USB: if the serial

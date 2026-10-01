@@ -51,7 +51,9 @@ function buildManifest(boardId, version) {
   return {
     name: 'AnimatedPixelClock',
     version,
-    new_install_prompt_erase: true,
+    // No new_install_prompt_erase: without it ESP Web Tools always erases the
+    // whole flash. Keeping data is pointless here - the merged image fills the
+    // NVS gap with 0xFF anyway - and existing clocks update via OTA instead.
     // After flashing, wait up to 15s for the device to boot, then probe for
     // Improv-Serial. The firmware exposes Improv only on first boot (no stored
     // WiFi credentials), so this kicks in for fresh installs and lets ESP Web
