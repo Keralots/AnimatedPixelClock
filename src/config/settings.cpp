@@ -27,13 +27,13 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_INVADER        */ 0x07E0,  // green
     /* COL_LASER          */ 0xF800,  // red
     /* COL_SNAKE_FOOD     */ 0xF800,  // red
-    /* COL_TET_I          */ 0x07FF,  // cyan
-    /* COL_TET_O          */ 0xFFE0,  // yellow
-    /* COL_TET_T          */ 0x8010,  // purple
-    /* COL_TET_S          */ 0x07E0,  // green
-    /* COL_TET_Z          */ 0xF800,  // red
-    /* COL_TET_J          */ 0x001F,  // blue
-    /* COL_TET_L          */ 0xFC00,  // orange
+    /* COL_TET_I          */ 0xF81F,  // magenta
+    /* COL_TET_O          */ 0x07FF,  // cyan
+    /* COL_TET_T          */ 0xFFE0,  // yellow
+    /* COL_TET_S          */ 0xFC00,  // orange
+    /* COL_TET_Z          */ 0x07E0,  // green
+    /* COL_TET_J          */ 0xF800,  // red
+    /* COL_TET_L          */ 0x041F,  // sky blue
     /* COL_DINO           */ 0xFFFF,  // white
     /* COL_DINO_CACTUS    */ 0x07E0,  // green
     /* COL_DINO_PTERO     */ 0xFFFF,  // white
