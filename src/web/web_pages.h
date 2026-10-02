@@ -1024,6 +1024,11 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <span class="check-box" aria-hidden="true"></span>
               <span class="check-text"><strong>Falling Blocks: stick up hard-drops</strong><span class="ct-hint">Off: only d-pad up drops, so a nudge on the stick never slams a piece down.</span></span>
             </label>
+            <label class="check-row standalone" style="margin-top:8px">
+              <input type="checkbox" name="blocksGhost" id="blocksGhost">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Falling Blocks: landing preview</strong><span class="ct-hint">Dots mark where the falling piece will land. Default off.</span></span>
+            </label>
             <div class="field" style="margin-top:12px">
               <label class="field-label" for="gameIdleExitMin">Leave game mode after no input for</label>
               <div class="select-wrap"><select name="gameIdleExitMin" id="gameIdleExitMin"><option value="2">2 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="0">Never</option></select></div>

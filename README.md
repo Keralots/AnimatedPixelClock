@@ -574,7 +574,8 @@ Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
 `/api/display/off`, an OTA update, 2 minutes without a pad, 60 seconds after
 the pad is lost, or after the idle time set on the page (default 5 minutes
 without input, or never). The same page sets rumble on or off, the Falling Blocks
-starting level and whether stick up hard-drops, and has **Forget paired pad**.
+starting level, whether stick up hard-drops and an optional landing preview (off by
+default), and has **Forget paired pad**.
 Best scores are kept on the device, listed on the same page with a reset button
 per game and one for all of them (`GET /api/game/hiscores?reset=<game>` or
 `?reset=all`), and travel with the configuration export and import.

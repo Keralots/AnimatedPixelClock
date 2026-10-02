@@ -1032,6 +1032,7 @@ void handlePortalValues() {
   form["gameRumble"] = settings.gameRumble;
   form["blocksStartLevel"] = settings.blocksStartLevel;
   form["blocksStickDrop"] = settings.blocksStickDrop;
+  form["blocksGhost"] = settings.blocksGhost;
   form["ledEnabled"] = settings.ledEnabled;
   form["ledPin"] = settings.ledPin;
   form["ledCount"] = settings.ledCount;
@@ -1643,6 +1644,7 @@ void handleSave() {
  }
  settings.gameRumble = server.hasArg("gameRumble");
  settings.blocksStickDrop = server.hasArg("blocksStickDrop");
+ settings.blocksGhost = server.hasArg("blocksGhost");
 
  // Save network configuration
  if (server.hasArg("deviceName")) {
@@ -2000,6 +2002,7 @@ void handleExportConfig() {
  json += "\"gameRumble\":" + String(settings.gameRumble ? "true" : "false") + ",";
  json += "\"blocksStartLevel\":" + String(settings.blocksStartLevel) + ",";
  json += "\"blocksStickDrop\":" + String(settings.blocksStickDrop ? "true" : "false") + ",";
+ json += "\"blocksGhost\":" + String(settings.blocksGhost ? "true" : "false") + ",";
  json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
  json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
@@ -2258,6 +2261,7 @@ void handleImportConfig() {
  }
  if (!doc["gameRumble"].isNull()) settings.gameRumble = doc["gameRumble"];
  if (!doc["blocksStickDrop"].isNull()) settings.blocksStickDrop = doc["blocksStickDrop"];
+ if (!doc["blocksGhost"].isNull()) settings.blocksGhost = doc["blocksGhost"];
  if (doc["matrixRainSpeed"].is<int>()) {
    int v = doc["matrixRainSpeed"].as<int>();
    if (v >= 5 && v <= 30) settings.matrixRainSpeed = (uint8_t)v;

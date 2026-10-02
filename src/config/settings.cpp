@@ -181,6 +181,7 @@ void loadSettings() {
     settings.gameRumble = true;
     settings.blocksStartLevel = 1;
     settings.blocksStickDrop = true;
+    settings.blocksGhost = false;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -560,6 +561,7 @@ void loadSettings() {
   settings.gameRumble = preferences.getBool("gameRumble", true);
   settings.blocksStartLevel = preferences.getUChar("blkStartLvl", 1);
   settings.blocksStickDrop = preferences.getBool("blkStickDrop", true);
+  settings.blocksGhost = preferences.getBool("blkGhost", false);
   if (settings.gameIdleExitMin > 60) settings.gameIdleExitMin = 5;
   settings.blocksStartLevel = constrain(settings.blocksStartLevel, 1, 10);
   settings.ledEnabled =
@@ -897,6 +899,7 @@ void saveSettings() {
   preferences.putBool("gameRumble", settings.gameRumble);
   preferences.putUChar("blkStartLvl", settings.blocksStartLevel);
   preferences.putBool("blkStickDrop", settings.blocksStickDrop);
+  preferences.putBool("blkGhost", settings.blocksGhost);
   preferences.putBool("ledEn", settings.ledEnabled);
   preferences.putUChar("ledPin", settings.ledPin);
   preferences.putUShort("ledCount", settings.ledCount);
