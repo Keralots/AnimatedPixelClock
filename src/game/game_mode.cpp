@@ -38,17 +38,18 @@ static unsigned long lastInputAt = 0;
 static uint16_t lastButtons = 0;
 
 struct GameDef {
+  const char *id;  // API / export name
   const char *name;
   const char *hiKey;
   void (*reset)();
   bool (*frame)(const GamepadState &, bool);
 };
 static const GameDef GAMES[] = {
-    {"Falling Blocks", "blocksHi", blocksReset, blocksFrame},
-    {"Snake", "snakeHi", snakeReset, snakeFrame},
-    {"Bricks", "bricksHi", bricksReset, bricksFrame},
-    {"Space Rocks", "rocksHi", rocksReset, rocksFrame},
-    {"Runner", "runnerHi", runnerReset, runnerFrame},
+    {"blocks", "Falling Blocks", "blocksHi", blocksReset, blocksFrame},
+    {"snake", "Snake", "snakeHi", snakeReset, snakeFrame},
+    {"bricks", "Bricks", "bricksHi", bricksReset, bricksFrame},
+    {"rocks", "Space Rocks", "rocksHi", rocksReset, rocksFrame},
+    {"runner", "Runner", "runnerHi", runnerReset, runnerFrame},
 };
 static const uint8_t GAME_COUNT = sizeof(GAMES) / sizeof(GAMES[0]);
 
@@ -59,6 +60,16 @@ static uint32_t menuHi[GAME_COUNT];
 static void openMenu() {
   current = -1;
   for (uint8_t i = 0; i < GAME_COUNT; i++) menuHi[i] = gameLoadHi(GAMES[i].hiKey);
+}
+
+uint8_t gameCount() { return GAME_COUNT; }
+const char *gameId(uint8_t i) { return GAMES[i].id; }
+const char *gameName(uint8_t i) { return GAMES[i].name; }
+uint32_t gameHiScore(uint8_t i) { return gameLoadHi(GAMES[i].hiKey); }
+
+void gameSetHiScore(uint8_t i, uint32_t score) {
+  gameStoreHi(GAMES[i].hiKey, score);
+  menuHi[i] = score;
 }
 
 static void launchGame(uint8_t i) {
@@ -135,6 +146,24 @@ static void drawPairingScreen(GamepadLink link, unsigned long now) {
   display.print("s");
 }
 
+// Pad battery between the title and the clock: red and blinking when low.
+static void drawMenuBattery() {
+  uint8_t b = gamepadBattery();
+  if (!b) return;
+  bool low = gameBatteryLow();
+  if (low && (millis() / 500) % 2) return;
+  uint16_t c = low ? GC_RED : b <= 50 ? GC_YELLOW : GC_GREEN;
+  const int x = 35, y = 2;
+  display.drawRect(x, y, 11, 6, c);
+  display.drawFastVLine(x + 11, y + 2, 2, c);
+  int w = (b * 9 + 99) / 100;
+  if (w) display.fillRect(x + 1, y + 1, w, 4, c);
+  display.setTextColor(c);
+  display.setCursor(x + 15, 1);
+  display.print(b);
+  display.print(low ? "% LOW" : "%");
+}
+
 // Game list under the band; d-pad picks, A starts, View leaves game mode.
 static bool menuFrame(const GamepadState &in, bool padLost) {
   if (!padLost) {
@@ -151,7 +180,8 @@ static bool menuFrame(const GamepadState &in, bool padLost) {
   display.setTextColor(GC_YELLOW);
   display.setCursor(0, 1);
   display.print("GAMES");
-  gameDrawClock();
+  drawMenuBattery();
+  gameDrawClock(false);
   display.drawFastHLine(0, 10, SCREEN_WIDTH, GC_DIM);
   for (uint8_t i = 0; i < GAME_COUNT; i++) {
     int y = 12 + i * 10;

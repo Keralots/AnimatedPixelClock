@@ -20,6 +20,9 @@
 #include "game_mode.h"
 #include "game_common.h"
 
+// Controls card on the READY screen.
+static const char HELP[] = "\x1b\x1a turn  \x18/RT thrust\nA or RB fire";
+
 #define RK_MAX 18
 #define RK_VERTS 8
 #define SHOTS 4
@@ -292,7 +295,7 @@ bool rocksFrame(const GamepadState &in, bool padLost) {
   char info[16];
   snprintf(info, sizeof(info), phase == G_READY ? "HI %lu" : "%lu pts",
            (unsigned long)(phase == G_READY ? hiScore : score));
-  gameDrawOverlay(phase, padLost, "SPACE ROCKS", phase == G_PAUSED ? nullptr : info, newHi);
+  gameDrawOverlay(phase, padLost, "SPACE ROCKS", phase == G_PAUSED ? nullptr : info, newHi, HELP);
   return true;
 }
 

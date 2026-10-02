@@ -62,6 +62,7 @@ void handleGameStart();
 void handleGameStop();
 void handleGameStatus();
 void handleGameForget();
+void handleGameHiscores();
 #endif
 void handleSetClockStyle();
 void handleReboot();

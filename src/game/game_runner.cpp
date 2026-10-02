@@ -19,6 +19,9 @@
 #include "game_mode.h"
 #include "game_common.h"
 
+// Controls card on the READY screen.
+static const char HELP[] = "A or \x18 jump\n\x19 duck / drop fast";
+
 #define GROUND_Y 58          // feet rest here
 #define RUN_X 14
 #define RUN_W 8
@@ -216,7 +219,7 @@ bool runnerFrame(const GamepadState &in, bool padLost) {
   char info[16];
   snprintf(info, sizeof(info), phase == G_READY ? "HI %lu" : "%lu m",
            (unsigned long)(phase == G_READY ? hiScore : score()));
-  gameDrawOverlay(phase, padLost, "RUNNER", phase == G_PAUSED ? nullptr : info, newHi);
+  gameDrawOverlay(phase, padLost, "RUNNER", phase == G_PAUSED ? nullptr : info, newHi, HELP);
   return true;
 }
 

@@ -19,6 +19,9 @@
 #include "game_mode.h"
 #include "game_common.h"
 
+// Controls card on the READY screen.
+static const char HELP[] = "\x18\x19\x1b\x1a steer\navoid walls & tail";
+
 #define SN_W 32
 #define SN_H 13
 #define SN_CELL 4
@@ -175,7 +178,7 @@ bool snakeFrame(const GamepadState &in, bool padLost) {
   char info[16];
   snprintf(info, sizeof(info), phase == G_READY ? "HI %lu" : "%lu pts",
            (unsigned long)(phase == G_READY ? hiScore : score));
-  gameDrawOverlay(phase, padLost, "SNAKE", phase == G_PAUSED ? nullptr : info, newHi);
+  gameDrawOverlay(phase, padLost, "SNAKE", phase == G_PAUSED ? nullptr : info, newHi, HELP);
   return true;
 }
 

@@ -556,8 +556,9 @@ Xbox Accessories app over USB.
    (or `GET /api/game/start`).
 2. A new pad: hold its pair button for 3 seconds. A pad paired before reconnects
    with the Xbox button. A pad paired to another device must be paired again.
-3. Pick a game with the d-pad and A. Menu pauses, View in the pause screen goes
-   back to the game list, View in the list leaves game mode.
+3. Pick a game with the d-pad and A. Each game opens on a card with its
+   controls; A starts it. Menu pauses, View in the pause screen goes back to the
+   game list, View in the list leaves game mode.
 
 | Game | Controls |
 |---|---|
@@ -572,7 +573,12 @@ Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
 the pad is lost, or after the idle time set on the page (default 5 minutes
 without input, or never). The same page sets rumble on or off, the Falling Blocks
 starting level and whether stick up hard-drops, and has **Forget paired pad**.
-Best scores are kept on the device.
+Best scores are kept on the device, listed on the same page with a reset button
+per game and one for all of them (`GET /api/game/hiscores?reset=<game>` or
+`?reset=all`), and travel with the configuration export and import.
+
+The game list shows the pad's battery level. At 20% or less it turns red, and a
+blinking battery mark appears next to the clock in every game.
 
 While a game runs, the panel drops to 5 bits per colour and the night
 schedule is paused. Bluetooth needs about 45KB of internal memory that the
@@ -687,6 +693,7 @@ the device on a trusted LAN.
 | `/api/game/start` / `/api/game/stop` | Enter / leave game mode (see [Game mode](#game-mode-optional)) |
 | `/api/game/status` | Game mode and gamepad link as JSON |
 | `/api/game/forget` | Forget every paired gamepad |
+| `/api/game/hiscores` | High scores as JSON; `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` clears them |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
 | `/api/reboot` | Soft-restart (settings kept) |

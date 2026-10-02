@@ -25,6 +25,13 @@ void gameModeLoop();
 // Draws one frame into the display buffer (caller clears and pushes it).
 void displayGameMode();
 
+// The game list, for the web UI and config export: high scores live in NVS.
+uint8_t gameCount();
+const char *gameId(uint8_t i);
+const char *gameName(uint8_t i);
+uint32_t gameHiScore(uint8_t i);
+void gameSetHiScore(uint8_t i, uint32_t score);  // 0 clears it
+
 // Each game: reset to its READY screen; run one frame, false = back to the menu.
 void blocksReset();
 bool blocksFrame(const GamepadState &in, bool padLost);

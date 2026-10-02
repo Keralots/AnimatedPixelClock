@@ -997,6 +997,15 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
 
           <div class="card">
+            <h2 class="card-title">High scores</h2>
+            <p class="field-hint" style="margin-top:0">Kept on the clock and included in the configuration export.</p>
+            <div id="gameHiscores" style="margin-top:8px"></div>
+            <div class="btn-row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button type="button" class="btn btn-danger" id="gameHiResetAll">Reset all high scores</button>
+            </div>
+          </div>
+
+          <div class="card">
             <h2 class="card-title">Game settings</h2>
             <div class="field">
               <label class="field-label" for="blocksStartLevel">Falling Blocks starting level</label>
@@ -1651,8 +1660,38 @@ if (!gameStatusEl || !gamePage || !gamePage.classList.contains('active')) return
 fetch('/api/game/status').then(function (r) { return r.json(); }).then(function (d) {
 var t = 'Pad status: ' + d.link + (d.link === 'connected' ? ' (battery ' + d.battery + '%)' : '');
 gameStatusEl.textContent = t + ' - ' + (d.paired ? 'a pad is paired' : 'no pad paired') + ' - game mode ' + (d.active ? 'on' : 'off');
+if (d.hiscores) renderHiscores(d.hiscores);
 }).catch(function () {});
 }
+var gameHiEl = $('#gameHiscores'), gameHiKey = '';
+function renderHiscores(list) {
+var key = JSON.stringify(list);
+if (!gameHiEl || key === gameHiKey) return;
+gameHiKey = key;
+gameHiEl.textContent = '';
+list.forEach(function (g) {
+var row = document.createElement('div');
+row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0';
+var name = document.createElement('span');
+name.style.flex = '1';
+name.textContent = g.name;
+var hi = document.createElement('strong');
+hi.textContent = g.hi ? g.hi : '-';
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.className = 'btn';
+btn.textContent = 'Reset';
+btn.disabled = !g.hi;
+btn.addEventListener('click', function () { resetHiscore(g.id, 'Reset the ' + g.name + ' high score?'); });
+row.appendChild(name); row.appendChild(hi); row.appendChild(btn);
+gameHiEl.appendChild(row);
+});
+}
+function resetHiscore(id, msg) {
+if (confirm(msg)) fetch('/api/game/hiscores?reset=' + encodeURIComponent(id)).then(function () { gameHiKey = ''; pollGameStatus(); });
+}
+var gameHiResetAll = $('#gameHiResetAll');
+if (gameHiResetAll) gameHiResetAll.addEventListener('click', function () { resetHiscore('all', 'Reset every high score?'); });
 var gameStartBtn = $('#gameStart'), gameStopBtn = $('#gameStop'), gameForgetBtn = $('#gameForget');
 if (gameStartBtn) gameStartBtn.addEventListener('click', function () { fetch('/api/game/start').then(pollGameStatus); });
 if (gameStopBtn) gameStopBtn.addEventListener('click', function () { fetch('/api/game/stop').then(pollGameStatus); });

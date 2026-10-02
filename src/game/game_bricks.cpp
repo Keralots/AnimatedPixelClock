@@ -19,6 +19,9 @@
 #include "game_mode.h"
 #include "game_common.h"
 
+// Controls card on the READY screen.
+static const char HELP[] = "\x1b\x1a or stick: paddle\nA or \x18 launch";
+
 #define BR_COLS 14
 #define BR_ROWS 5
 #define BR_W 8
@@ -218,7 +221,7 @@ bool bricksFrame(const GamepadState &in, bool padLost) {
   char info[16];
   snprintf(info, sizeof(info), phase == G_READY ? "HI %lu" : "%lu pts",
            (unsigned long)(phase == G_READY ? hiScore : score));
-  gameDrawOverlay(phase, padLost, "BRICKS", phase == G_PAUSED ? nullptr : info, newHi);
+  gameDrawOverlay(phase, padLost, "BRICKS", phase == G_PAUSED ? nullptr : info, newHi, HELP);
   return true;
 }
 

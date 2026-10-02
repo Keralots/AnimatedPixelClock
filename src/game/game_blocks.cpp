@@ -28,6 +28,9 @@
 #include "game_mode.h"
 #include "game_common.h"
 
+// Controls card on the READY screen.
+static const char HELP[] = "\x1b\x1a move \x19soft \x18" "drop\nA B turn  LB RB hold";
+
 #define TW 32
 #define TH 13
 #define CELL 4
@@ -380,7 +383,7 @@ bool blocksFrame(const GamepadState &in, bool padLost) {
   if (phase == G_READY) snprintf(info, sizeof(info), "HI %lu", (unsigned long)hiScore);
   else if (phase == G_PAUSED) snprintf(info, sizeof(info), "%u ln  pad %u%%", lines, gamepadBattery());
   else snprintf(info, sizeof(info), "%u lines", lines);
-  gameDrawOverlay(phase, padLost, "FALLING BLOCKS", info, newHi);
+  gameDrawOverlay(phase, padLost, "FALLING BLOCKS", info, newHi, HELP);
   return true;
 }
 

@@ -101,6 +101,7 @@ void setupWebServer() {
  server.on("/api/game/stop", HTTP_GET, handleGameStop);
  server.on("/api/game/status", HTTP_GET, handleGameStatus);
  server.on("/api/game/forget", HTTP_GET, handleGameForget);
+ server.on("/api/game/hiscores", HTTP_GET, handleGameHiscores);
 #endif
 
  // OTA Firmware Update handlers
@@ -382,9 +383,40 @@ void handleGameStatus() {
  doc["link"] = LINKS[gamepadLink()];
  doc["battery"] = gamepadBattery();
  doc["paired"] = gamepadHasBond();
+ JsonArray his = doc["hiscores"].to<JsonArray>();
+ for (uint8_t i = 0; i < gameCount(); i++) {
+   JsonObject g = his.add<JsonObject>();
+   g["id"] = gameId(i);
+   g["name"] = gameName(i);
+   g["hi"] = gameHiScore(i);
+ }
  String json;
  serializeJson(doc, json);
  server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", json);
+}
+
+// GET /api/game/hiscores[?reset=all|<game id>] - list the high scores, optionally clearing some.
+void handleGameHiscores() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (server.hasArg("reset")) {
+   String which = server.arg("reset");
+   bool found = false;
+   for (uint8_t i = 0; i < gameCount(); i++) {
+     if (which == "all" || which == gameId(i)) {
+       gameSetHiScore(i, 0);
+       found = true;
+     }
+   }
+   if (!found) {
+     server.send(400, "application/json", "{\"error\":\"Unknown game\"}");
+     return;
+   }
+ }
+ JsonDocument doc;
+ for (uint8_t i = 0; i < gameCount(); i++) doc[gameId(i)] = gameHiScore(i);
+ String json;
+ serializeJson(doc, json);
  server.send(200, "application/json", json);
 }
 
@@ -2096,6 +2128,15 @@ void handleExportConfig() {
  json += ",\"colorDepth\":" + String(panelOptions.colorDepth);
  json += ",\"minRefresh\":" + String(panelOptions.minRefresh) + "}";
 
+#if GAMEPAD_ENABLED
+ json += ",\"gameHiscores\":{";
+ for (uint8_t i = 0; i < gameCount(); i++) {
+   if (i > 0) json += ",";
+   json += "\"" + String(gameId(i)) + "\":" + String(gameHiScore(i));
+ }
+ json += "}";
+#endif
+
  json += "}";
 
  server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -2485,6 +2526,15 @@ void handleImportConfig() {
  // state so a previous in-flight animation doesn't carry stale time
  // override + queue residue into the new style.
  resetClockAnimationState();
+
+#if GAMEPAD_ENABLED
+ // High scores live in their own NVS namespace; only the games named are touched.
+ JsonObject his = doc["gameHiscores"];
+ for (uint8_t i = 0; !his.isNull() && i < gameCount(); i++) {
+   JsonVariant v = his[gameId(i)];
+   if (v.is<uint32_t>()) gameSetHiScore(i, v.as<uint32_t>());
+ }
+#endif
 
  // Panel options only take effect at boot, so they are stored for the next one.
  bool panelChanged = false;
