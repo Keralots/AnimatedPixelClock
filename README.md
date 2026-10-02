@@ -546,11 +546,11 @@ after detecting its new uptime (checked every 10 seconds).
 
 ## Game mode (optional)
 
-Play Falling Blocks, Snake, Bricks, Space Rocks, Runner or Defenders on the
-panel with a Bluetooth gamepad. The supported pad is the Xbox Wireless
-Controller, model 1708 or newer, on controller firmware 5.x. The ESP32-S3 speaks Bluetooth LE only, so
-an older pad that has not been updated never shows up; update it once in the
-Xbox Accessories app over USB.
+Play Falling Blocks, Snake, Bricks, Space Rocks, Runner, Defenders or Light
+Cycles on the panel with a Bluetooth gamepad. The supported pad is the Xbox
+Wireless Controller, model 1708 or newer, on controller firmware 5.x. The
+ESP32-S3 speaks Bluetooth LE only, so an older pad that has not been updated
+never shows up; update it once in the Xbox Accessories app over USB.
 
 1. In the web portal open **Game mode** and press **Start game mode**
    (or `GET /api/game/start`).
@@ -568,6 +568,7 @@ Xbox Accessories app over USB.
 | Space Rocks | left / right turn, up or RT thrust, A or RB fire |
 | Runner | A or up jump (hold for height), down duck |
 | Defenders | stick (analog) or d-pad move the cannon, A / RB / RT fire |
+| Light Cycles | d-pad or stick steer; beat the computer's cycle, three lives |
 
 Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
 `/api/display/off`, an OTA update, 2 minutes without a pad, 60 seconds after
@@ -694,7 +695,7 @@ the device on a trusted LAN.
 | `/api/game/start` / `/api/game/stop` | Enter / leave game mode (see [Game mode](#game-mode-optional)) |
 | `/api/game/status` | Game mode and gamepad link as JSON |
 | `/api/game/forget` | Forget every paired gamepad |
-| `/api/game/hiscores` | High scores as JSON; `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` / `defenders` clears them |
+| `/api/game/hiscores` | High scores as JSON; `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` / `defenders` / `cycles` clears them |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
 | `/api/reboot` | Soft-restart (settings kept) |

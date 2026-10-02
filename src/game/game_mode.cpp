@@ -51,6 +51,7 @@ static const GameDef GAMES[] = {
     {"rocks", "Space Rocks", "rocksHi", rocksReset, rocksFrame},
     {"runner", "Runner", "runnerHi", runnerReset, runnerFrame},
     {"defenders", "Defenders", "defendersHi", defendersReset, defendersFrame},
+    {"cycles", "Light Cycles", "cyclesHi", cyclesReset, cyclesFrame},
 };
 static const uint8_t GAME_COUNT = sizeof(GAMES) / sizeof(GAMES[0]);
 #define MENU_ROWS 5  // list rows under the band; more games scroll

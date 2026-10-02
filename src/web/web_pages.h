@@ -987,7 +987,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
           <div class="card">
             <h2 class="card-title">Games</h2>
-            <p class="field-hint" style="margin-top:0">Falling Blocks, Snake, Bricks, Space Rocks, Runner and Defenders, played with an Xbox Wireless Controller over Bluetooth LE (model 1708 or newer, controller firmware 5.x). Start game mode here, then hold the pad's pair button for 3 seconds; a paired pad reconnects with the Xbox button. Pick a game with the d-pad and A. Menu pauses, View in the pause screen returns to the game list, View in the list leaves game mode. While a game runs the panel uses fewer colour levels to make room for Bluetooth, and notifications are refused.</p>
+            <p class="field-hint" style="margin-top:0">Falling Blocks, Snake, Bricks, Space Rocks, Runner, Defenders and Light Cycles, played with an Xbox Wireless Controller over Bluetooth LE (model 1708 or newer, controller firmware 5.x). Start game mode here, then hold the pad's pair button for 3 seconds; a paired pad reconnects with the Xbox button. Pick a game with the d-pad and A. Menu pauses, View in the pause screen returns to the game list, View in the list leaves game mode. While a game runs the panel uses fewer colour levels to make room for Bluetooth, and notifications are refused.</p>
             <div class="btn-row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
               <button type="button" class="btn" id="gameStart">Start game mode</button>
               <button type="button" class="btn" id="gameStop">Stop</button>
