@@ -50,8 +50,10 @@ static const GameDef GAMES[] = {
     {"bricks", "Bricks", "bricksHi", bricksReset, bricksFrame},
     {"rocks", "Space Rocks", "rocksHi", rocksReset, rocksFrame},
     {"runner", "Runner", "runnerHi", runnerReset, runnerFrame},
+    {"defenders", "Defenders", "defendersHi", defendersReset, defendersFrame},
 };
 static const uint8_t GAME_COUNT = sizeof(GAMES) / sizeof(GAMES[0]);
+#define MENU_ROWS 5  // list rows under the band; more games scroll
 
 static int8_t current = -1;  // running game, -1 = menu
 static uint8_t selected = 0;
@@ -183,10 +185,12 @@ static bool menuFrame(const GamepadState &in, bool padLost) {
   drawMenuBattery();
   gameDrawClock(false);
   display.drawFastHLine(0, 10, SCREEN_WIDTH, GC_DIM);
-  for (uint8_t i = 0; i < GAME_COUNT; i++) {
-    int y = 12 + i * 10;
+  uint8_t first = selected < MENU_ROWS ? 0 : selected - MENU_ROWS + 1;
+  for (uint8_t r = 0; r < MENU_ROWS && first + r < GAME_COUNT; r++) {
+    uint8_t i = first + r;
+    int y = 12 + r * 10;
     bool sel = i == selected;
-    if (sel) display.fillRect(0, y, SCREEN_WIDTH, 10, GC_NAVY);
+    if (sel) display.fillRect(0, y, SCREEN_WIDTH - 3, 10, GC_NAVY);
     display.setTextColor(sel ? GC_WHITE : GC_GREY);
     display.setCursor(3, y + 1);
     display.print(GAMES[i].name);
@@ -194,9 +198,15 @@ static bool menuFrame(const GamepadState &in, bool padLost) {
       char hi[11];
       snprintf(hi, sizeof(hi), "%lu", (unsigned long)menuHi[i]);
       display.setTextColor(sel ? GC_YELLOW : GC_DIM);
-      display.setCursor(SCREEN_WIDTH - 3 - strlen(hi) * 6, y + 1);
+      display.setCursor(SCREEN_WIDTH - 6 - strlen(hi) * 6, y + 1);
       display.print(hi);
     }
+  }
+  if (GAME_COUNT > MENU_ROWS) {
+    int h = 50 * MENU_ROWS / GAME_COUNT;
+    int y = 12 + (50 - h) * first / (GAME_COUNT - MENU_ROWS);
+    display.fillRect(SCREEN_WIDTH - 2, 12, 2, 50, GC_NAVY);
+    display.fillRect(SCREEN_WIDTH - 2, y, 2, h, GC_GREY);
   }
   display.setTextColor(DISPLAY_WHITE);
   if (padLost) gameDrawOverlay(G_PAUSED, true, nullptr, nullptr, false);

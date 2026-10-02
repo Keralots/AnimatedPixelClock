@@ -43,5 +43,7 @@ void rocksReset();
 bool rocksFrame(const GamepadState &in, bool padLost);
 void runnerReset();
 bool runnerFrame(const GamepadState &in, bool padLost);
+void defendersReset();
+bool defendersFrame(const GamepadState &in, bool padLost);
 
 #endif // GAME_MODE_H
