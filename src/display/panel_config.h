@@ -26,6 +26,9 @@ void loadPanelOptions();
 bool savePanelOptions(const PanelOptions &opts);
 void applyPanelOptions();  // must run before display.begin()
 int panelRefreshRate();    // measured by the driver after begin()
+// Restarts the running panel at a lower colour depth (capped at the saved
+// one), which frees internal SRAM held by the DMA buffers and descriptors.
+bool setPanelColorDepth(uint8_t colorDepth);
 
 // Test pattern overlay: 0 = off, otherwise replaces the normal screen.
 extern uint8_t panelTestPattern;

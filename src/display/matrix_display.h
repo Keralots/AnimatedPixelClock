@@ -67,9 +67,15 @@ public:
   // future caller fails safe on a null check rather than a build error.
   inline uint8_t *getBuffer() { return nullptr; }
   inline int refreshRate() const { return calculated_refresh_rate; }
+  // Stops output and frees what the driver's own teardown leaks.
+  void releaseDma();
 private:
   uint32_t lastFlipUs = 0;
   bool hasFlipped = false;
 };
+
+// Restarts a running panel with a new configuration, freeing the old DMA
+// memory first. Drawing state (cursor, text colour, brightness) starts over.
+bool rebuildMatrixDisplay(MatrixDisplay &panel, const HUB75_I2S_CFG &cfg);
 
 #endif  // MATRIX_DISPLAY_H
