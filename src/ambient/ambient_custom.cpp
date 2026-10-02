@@ -3,9 +3,8 @@
  *
  * Plays a user-uploaded .pca animation (see anim_store.h) selected by
  * settings.ambientCustomFile. Header, palette and the per-frame delay table
- * are cached at open. Rendering matches the This-is-fine player: equal-color
- * runs become single HLine calls. Missing or corrupt files fall back to the
- * Space Invaders effect.
+ * are cached at open. Equal-color runs become single HLine calls. Missing
+ * or corrupt files fall back to the Space Invaders effect.
  *
  * Two hardware-earned rules shape this file:
  *

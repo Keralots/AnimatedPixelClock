@@ -59,7 +59,7 @@ void displayAmbient() {
     // 2 values are normalized to 0 on load/import (see settings.cpp).
     case 3: ambientStarsFrame(); break;
     case 4: ambientAquariumFrame(); break;
-    case 5: ambientThisIsFineFrame(); break;
+    // case 5 (burning room) removed; stored 5 values are normalized to 0 too.
     case 6: ambientCustomFrame(); break;
     default: ambientInvadersFrame(); break;
   }
