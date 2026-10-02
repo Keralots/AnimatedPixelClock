@@ -177,6 +177,10 @@ void loadSettings() {
     settings.vizStyle = 0;
     applyScopeDefaults();
     settings.tronBikeStyle = 0;
+    settings.gameIdleExitMin = 5;
+    settings.gameRumble = true;
+    settings.blocksStartLevel = 1;
+    settings.blocksStickDrop = true;
     settings.marioBounceHeight = 35; // Default: 3.5 (35 = 3.5 in tenths)
     settings.marioBounceSpeed = 6;   // Default: 0.6 (6 = 0.6 in tenths)
     settings.marioSmoothAnimation = false; // Default: 2-frame animation
@@ -552,6 +556,12 @@ void loadSettings() {
       preferences.getBool("dmBurn", true); // Default: digits throw flames
   settings.doomSmoothFire =
       preferences.getBool("dmSmooth", false); // Default: blocky retro flames
+  settings.gameIdleExitMin = preferences.getUChar("gameIdleExit", 5);
+  settings.gameRumble = preferences.getBool("gameRumble", true);
+  settings.blocksStartLevel = preferences.getUChar("blkStartLvl", 1);
+  settings.blocksStickDrop = preferences.getBool("blkStickDrop", true);
+  if (settings.gameIdleExitMin > 60) settings.gameIdleExitMin = 5;
+  settings.blocksStartLevel = constrain(settings.blocksStartLevel, 1, 10);
   settings.ledEnabled =
       preferences.getBool("ledEn", false); // Default: no strip fitted
   settings.ledPin =
@@ -883,6 +893,10 @@ void saveSettings() {
   preferences.putBool("dmDate", settings.doomShowDate);
   preferences.putBool("dmBurn", settings.doomBurningDigits);
   preferences.putBool("dmSmooth", settings.doomSmoothFire);
+  preferences.putUChar("gameIdleExit", settings.gameIdleExitMin);
+  preferences.putBool("gameRumble", settings.gameRumble);
+  preferences.putUChar("blkStartLvl", settings.blocksStartLevel);
+  preferences.putBool("blkStickDrop", settings.blocksStickDrop);
   preferences.putBool("ledEn", settings.ledEnabled);
   preferences.putUChar("ledPin", settings.ledPin);
   preferences.putUShort("ledCount", settings.ledCount);

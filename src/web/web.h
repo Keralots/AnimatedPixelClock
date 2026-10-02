@@ -57,6 +57,12 @@ void handleModeClock();
 void handleModeAuto();
 void handleModeAmbient();
 void handleModeViz();
+#if GAMEPAD_ENABLED
+void handleGameStart();
+void handleGameStop();
+void handleGameStatus();
+void handleGameForget();
+#endif
 void handleSetClockStyle();
 void handleReboot();
 void handlePanelGet();

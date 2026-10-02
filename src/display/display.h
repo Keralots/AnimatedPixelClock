@@ -34,6 +34,8 @@ bool initDisplay();
 void applyDisplayBrightness();
 void refreshDisplayBrightnessNow();
 void checkScheduledBrightness();
+// Hold normal brightness while game mode is on screen.
+void setDisplayGameOverride(bool on);
 
 // True while the scheduled power-off window is currently active (panel dark).
 bool isDisplayScheduledOff();

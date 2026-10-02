@@ -418,7 +418,6 @@ static void netRecover(const char* why) {
   WiFi.mode(WIFI_OFF);
   delay(200);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
   WiFi.begin();
 
   wifiConnected = false;

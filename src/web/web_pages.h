@@ -70,6 +70,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <button type="button" class="nav-item" data-nav="display">Display</button>
         <button type="button" class="nav-item" data-nav="led">LED strip</button>
         <button type="button" class="nav-item" data-nav="viz">Audio visualizer<span class="nv-tag">Audio</span></button>
+        <button type="button" class="nav-item" data-nav="game">Game mode</button>
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
       </div>
@@ -978,6 +979,50 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
         </section>
 
+        <!-- GAME MODE -->
+        <section class="page" data-page="game">
+          <div class="page-header">
+            <h1 class="page-h1">Game mode</h1>
+            <p class="page-lede">Pair a Bluetooth gamepad and play on the panel. A forced mode like the visualizer: it runs until you quit from the pad or press Stop.</p>
+          </div>
+          <div class="card">
+            <h2 class="card-title">Games</h2>
+            <p class="field-hint" style="margin-top:0">Falling Blocks, Snake, Bricks, Space Rocks and Runner, played with an Xbox Wireless Controller over Bluetooth LE (model 1708 or newer, controller firmware 5.x). Start game mode here, then hold the pad's pair button for 3 seconds; a paired pad reconnects with the Xbox button. Pick a game with the d-pad and A. Menu pauses, View in the pause screen returns to the game list, View in the list leaves game mode. While a game runs the panel uses fewer colour levels to make room for Bluetooth, and notifications are refused.</p>
+            <div class="btn-row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button type="button" class="btn" id="gameStart">Start game mode</button>
+              <button type="button" class="btn" id="gameStop">Stop</button>
+              <button type="button" class="btn btn-danger" id="gameForget">Forget paired pad</button>
+            </div>
+            <p class="field-hint" id="gameStatus">Pad status: ...</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Game settings</h2>
+            <div class="field">
+              <label class="field-label" for="blocksStartLevel">Falling Blocks starting level</label>
+              <div class="range-row">
+                <input type="range" name="blocksStartLevel" id="blocksStartLevel" min="1" max="10" step="1" value="">
+                <span class="range-val" data-for="blocksStartLevel"></span>
+              </div>
+            </div>
+            <label class="check-row standalone" style="margin-top:12px">
+              <input type="checkbox" name="gameRumble" id="gameRumble">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Rumble</strong><span class="ct-hint">Pad vibrates on hits, drops, cleared lines and game over.</span></span>
+            </label>
+            <label class="check-row standalone" style="margin-top:8px">
+              <input type="checkbox" name="blocksStickDrop" id="blocksStickDrop">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Falling Blocks: stick up hard-drops</strong><span class="ct-hint">Off: only d-pad up drops, so a nudge on the stick never slams a piece down.</span></span>
+            </label>
+            <div class="field" style="margin-top:12px">
+              <label class="field-label" for="gameIdleExitMin">Leave game mode after no input for</label>
+              <div class="select-wrap"><select name="gameIdleExitMin" id="gameIdleExitMin"><option value="2">2 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="0">Never</option></select></div>
+              <p class="field-hint">A paused or forgotten game frees the Bluetooth radio and hands the screen back to the clock. Any button or stick movement counts as input.</p>
+            </div>
+          </div>
+        </section>
+
         <section class="page" data-page="led">
           <div class="page-header">
             <h1 class="page-h1">LED strip</h1>
@@ -1600,6 +1645,21 @@ var vizStart = $('#vizStartBtn');
 if (vizStart) vizStart.addEventListener('click', function () { vizCall('/api/mode/viz', 'Visualizer running. Start the companion audio stream if the panel says no audio data.'); });
 var vizStop = $('#vizStopBtn');
 if (vizStop) vizStop.addEventListener('click', function () { vizCall('/api/mode/auto', 'Back to normal mode.'); });
+var gameStatusEl = $('#gameStatus'), gamePage = $('[data-page="game"]');
+function pollGameStatus() {
+if (!gameStatusEl || !gamePage || !gamePage.classList.contains('active')) return;
+fetch('/api/game/status').then(function (r) { return r.json(); }).then(function (d) {
+var t = 'Pad status: ' + d.link + (d.link === 'connected' ? ' (battery ' + d.battery + '%)' : '');
+gameStatusEl.textContent = t + ' - ' + (d.paired ? 'a pad is paired' : 'no pad paired') + ' - game mode ' + (d.active ? 'on' : 'off');
+}).catch(function () {});
+}
+var gameStartBtn = $('#gameStart'), gameStopBtn = $('#gameStop'), gameForgetBtn = $('#gameForget');
+if (gameStartBtn) gameStartBtn.addEventListener('click', function () { fetch('/api/game/start').then(pollGameStatus); });
+if (gameStopBtn) gameStopBtn.addEventListener('click', function () { fetch('/api/game/stop').then(pollGameStatus); });
+if (gameForgetBtn) gameForgetBtn.addEventListener('click', function () {
+if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget').then(pollGameStatus);
+});
+setInterval(pollGameStatus, 2000);
 var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); syncs.push(fs); }
 var marioEnc = $('#marioIdleEncounters');

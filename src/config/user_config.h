@@ -84,4 +84,10 @@
 #define IMPROV_SETUP_ENABLED 1           // 1 = Improv-Serial WiFi push, 0 = AP portal only
 #define IMPROV_SETUP_WINDOW_MS 180000    // 3-min Improv listen window on first boot
 
+// ========== Game Mode (BLE gamepad) ==========
+// Pairs an Xbox Wireless Controller over BLE (model 1708 or 1914+ on pad
+// firmware 5.x - the ESP32-S3 has no Bluetooth Classic) and runs games on the
+// panel. Started from the web UI or /api/game/start; BLE is idle until then.
+#define GAMEPAD_ENABLED 1                // 1 = game mode available, 0 = compiled out
+
 #endif // USER_CONFIG_H

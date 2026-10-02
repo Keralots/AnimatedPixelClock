@@ -544,6 +544,41 @@ stream keeps its last resolved device IP through temporary `.local` lookup failu
 If the clock restarts during playback, automatic mode restores the visualizer
 after detecting its new uptime (checked every 10 seconds).
 
+## Game mode (optional)
+
+Play Falling Blocks, Snake, Bricks, Space Rocks or Runner on the panel with a
+Bluetooth gamepad. The supported pad is the Xbox Wireless Controller, model 1708
+or newer, on controller firmware 5.x. The ESP32-S3 speaks Bluetooth LE only, so
+an older pad that has not been updated never shows up; update it once in the
+Xbox Accessories app over USB.
+
+1. In the web portal open **Game mode** and press **Start game mode**
+   (or `GET /api/game/start`).
+2. A new pad: hold its pair button for 3 seconds. A pad paired before reconnects
+   with the Xbox button. A pad paired to another device must be paired again.
+3. Pick a game with the d-pad and A. Menu pauses, View in the pause screen goes
+   back to the game list, View in the list leaves game mode.
+
+| Game | Controls |
+|---|---|
+| Falling Blocks | d-pad or stick move, down soft drop, up hard drop, A / B / X rotate, LB / RB hold |
+| Snake | d-pad or stick steer |
+| Bricks | stick (analog) or d-pad move the paddle, A launches |
+| Space Rocks | left / right turn, up or RT thrust, A or RB fire |
+| Runner | A or up jump (hold for height), down duck |
+
+Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
+`/api/display/off`, an OTA update, 2 minutes without a pad, 60 seconds after
+the pad is lost, or after the idle time set on the page (default 5 minutes
+without input, or never). The same page sets rumble on or off, the Falling Blocks
+starting level and whether stick up hard-drops, and has **Forget paired pad**.
+Best scores are kept on the device.
+
+While a game runs, the panel drops to 5 bits per colour and the night
+schedule is paused. Bluetooth needs about 45KB of internal memory that the
+panel's full-colour buffers otherwise hold. Notifications are refused with HTTP
+409 until the game ends. Leaving game mode restores the panel and the schedule.
+
 ## Flashing
 
 ### Web flasher (recommended)
@@ -649,6 +684,9 @@ the device on a trusted LAN.
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
 | `/api/mode/ambient` | Force the ambient screensaver on now |
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
+| `/api/game/start` / `/api/game/stop` | Enter / leave game mode (see [Game mode](#game-mode-optional)) |
+| `/api/game/status` | Game mode and gamepad link as JSON |
+| `/api/game/forget` | Forget every paired gamepad |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
 | `/api/reboot` | Soft-restart (settings kept) |
@@ -744,6 +782,7 @@ rest_command:
 
 - [ESP32-HUB75-MatrixPanel-DMA](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-I2S-DMA) (matrix driver)
 - Adafruit GFX, WiFiManager (tzapu), ArduinoJson, Improv-Serial
+- [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) (game mode gamepad)
 
 ## License
 
@@ -753,7 +792,8 @@ Licensed under the [MIT License](LICENSE).
 
 AnimatedPixelClock is an independent, non-commercial hobby project. It is not
 affiliated with, endorsed by, sponsored by or connected to Nintendo, The Tetris
-Company, Bandai Namco, Taito, Atari, Konami or any other rights holder.
+Company, Bandai Namco, Taito, Atari, Konami, Microsoft or any other rights holder.
+Xbox is named only to say which controller works with game mode.
 
 The clock and ambient style names describe what each animation is styled after,
 so that you can tell the styles apart. Every sprite and effect in this firmware
