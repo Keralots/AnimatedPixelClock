@@ -88,6 +88,9 @@
 // Pairs an Xbox Wireless Controller over BLE (model 1708 or 1914+ on pad
 // firmware 5.x - the ESP32-S3 has no Bluetooth Classic) and runs games on the
 // panel. Started from the web UI or /api/game/start; BLE is idle until then.
+// Build flag -DGAMEPAD_ENABLED=0 overrides it per environment.
+#ifndef GAMEPAD_ENABLED
 #define GAMEPAD_ENABLED 1                // 1 = game mode available, 0 = compiled out
+#endif
 
 #endif // USER_CONFIG_H

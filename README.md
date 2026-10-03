@@ -588,6 +588,11 @@ panel's full-colour buffers otherwise hold. Notifications are refused with HTTP
 409 until the game ends. Leaving game mode restores the panel and the schedule.
 A factory reset also clears the best scores and the paired pad.
 
+Having Bluetooth in the firmware keeps about 29KB of internal memory reserved
+even when nobody plays. A clock that never plays can build without game mode by
+adding `-DGAMEPAD_ENABLED=0` to `build_flags` of its environment in
+`platformio.ini`; the **Game mode** page then disappears from the portal.
+
 ## Flashing
 
 ### Web flasher (recommended)
