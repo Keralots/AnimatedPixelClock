@@ -1700,7 +1700,7 @@ var gameStartBtn = $('#gameStart'), gameStopBtn = $('#gameStop'), gameForgetBtn 
 if (gameStartBtn) gameStartBtn.addEventListener('click', function () { fetch('/api/game/start').then(pollGameStatus); });
 if (gameStopBtn) gameStopBtn.addEventListener('click', function () { fetch('/api/game/stop').then(pollGameStatus); });
 if (gameForgetBtn) gameForgetBtn.addEventListener('click', function () {
-if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget').then(pollGameStatus);
+if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget').then(function (r) { if (r.ok) pollGameStatus(); else if (gameStatusEl) gameStatusEl.textContent = 'Bluetooth is still shutting down - try again in a moment.'; });
 });
 setInterval(pollGameStatus, 2000);
 var staticSel = $('#useStaticIP');

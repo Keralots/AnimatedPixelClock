@@ -51,9 +51,11 @@ struct GamepadState {
 
 inline bool gamepadHatUp(uint8_t hat) { return hat == 8 || hat == 1 || hat == 2; }
 
-void gamepadStart();
+// False when the BLE task could not be created.
+bool gamepadStart();
 void gamepadStop();
 // True once BLE is fully shut down and its task (and memory) is gone.
+// Call from the loop task: it reaps the parked task.
 bool gamepadIdle();
 GamepadLink gamepadLink();
 // Snapshot of the inputs; clears the `pressed` latch.
@@ -62,7 +64,8 @@ uint8_t gamepadBattery();
 // Magnitudes 0-100; dropped unless a pad is connected.
 void gamepadRumble(uint8_t strong, uint8_t weak, uint16_t ms);
 // Forget every paired pad; the next one has to be paired with its pair button.
-void gamepadForget();
+// False while BLE is still shutting down or the request could not be queued.
+bool gamepadForget();
 bool gamepadHasBond();
 
 #endif // GAMEPAD_H

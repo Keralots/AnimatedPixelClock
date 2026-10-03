@@ -165,8 +165,11 @@ uint32_t gameLoadHi(const char *key) {
 void gameStoreHi(const char *key, uint32_t score) {
   Preferences p;
   if (!p.begin("game", false)) return;
-  if (score) p.putUInt(key, score);
-  else if (p.isKey(key)) p.remove(key);
+  if (score) {
+    if (!p.putUInt(key, score)) Serial.printf("Game: could not save %s\n", key);
+  } else if (p.isKey(key)) {
+    p.remove(key);
+  }
   p.end();
 }
 

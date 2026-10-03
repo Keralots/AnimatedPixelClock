@@ -20,6 +20,7 @@
 #include "game_mode.h"
 #include "game_common.h"
 #include <Preferences.h>
+#include <esp_task_wdt.h>
 
 // Colour depth while BLE is up. NimBLE needs ~45KB of internal SRAM, which the
 // panel's full-depth DMA buffers and descriptors do not leave; 5 bits frees ~60KB.
@@ -104,7 +105,11 @@ void gameModeStart() {
   p.end();
   if (selected >= GAME_COUNT) selected = 0;
   openMenu();
-  gamepadStart();
+  if (!gamepadStart()) {
+    Serial.println("Game mode: BLE did not start");
+    gameModeStop();
+    return;
+  }
   Serial.println("Game mode: started");
 }
 
@@ -115,6 +120,15 @@ void gameModeStop() {
   restorePanel = true;
   setDisplayGameOverride(false);
   Serial.println("Game mode: stopped");
+}
+
+bool gameModeStopAndWait(unsigned long timeoutMs) {
+  gameModeStop();
+  for (unsigned long t = millis(); !gamepadIdle() && millis() - t < timeoutMs;) {
+    esp_task_wdt_reset();
+    delay(20);
+  }
+  return gamepadIdle();
 }
 
 bool gameModeActive() { return active; }
@@ -231,7 +245,8 @@ void displayGameMode() {
     if (!everConnected || lostAt) lastInputAt = now;
     everConnected = true;
     lostAt = 0;
-    if (in.pressed || in.buttons != lastButtons || abs(in.rx) > GAME_STICK_ACTIVITY ||
+    if (in.pressed || in.buttons != lastButtons || abs(in.lx) > GAME_STICK_ACTIVITY ||
+        abs(in.ly) > GAME_STICK_ACTIVITY || abs(in.rx) > GAME_STICK_ACTIVITY ||
         abs(in.ry) > GAME_STICK_ACTIVITY || in.lt > GAME_TRIGGER_ACTIVITY ||
         in.rt > GAME_TRIGGER_ACTIVITY)
       lastInputAt = now;

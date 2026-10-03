@@ -4,9 +4,9 @@
  * Forced display mode that pairs a BLE gamepad and runs games on the panel.
  * Entered via /api/game/start or the web UI; after the pad connects a menu
  * picks the game. Left via View in the menu, /api/game/stop, any
- * /api/mode/* call, OTA start, or the idle / no-pad timeouts. Leaving stops
- * BLE scanning and drops the pad. The panel runs at a reduced colour depth
- * while BLE is up (see GAME_PANEL_DEPTH).
+ * /api/mode/* call, a panel test pattern, OTA start, or the idle / no-pad
+ * timeouts. Leaving stops BLE scanning and drops the pad. The panel runs at a
+ * reduced colour depth while BLE is up (see GAME_PANEL_DEPTH).
  */
 
 #ifndef GAME_MODE_H
@@ -19,6 +19,8 @@
 
 void gameModeStart();
 void gameModeStop();
+// Stops and blocks (feeding the watchdog) until BLE has let go; false on timeout.
+bool gameModeStopAndWait(unsigned long timeoutMs);
 bool gameModeActive();
 // Call every loop pass: restores the panel's colour depth after game mode ends.
 void gameModeLoop();

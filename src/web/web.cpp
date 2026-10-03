@@ -126,7 +126,7 @@ void setupWebServer() {
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
 #if GAMEPAD_ENABLED
- gameModeStop();  // frees the radio the upload shares with BLE
+ gameModeStopAndWait(5000);  // the upload shares the radio with BLE
 #endif
  if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
  Update.printError(Serial);
@@ -422,8 +422,11 @@ void handleGameHiscores() {
 
 // GET /api/game/forget - drop every paired pad (a connected one is disconnected).
 void handleGameForget() {
- gamepadForget();
  server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (!gamepadForget()) {
+   server.send(503, "application/json", "{\"error\":\"Gamepad is shutting down, try again\"}");
+   return;
+ }
  server.send(200, "application/json", "{\"success\":true}");
 }
 #endif
@@ -499,6 +502,9 @@ void handlePanelTest() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  int pattern = server.arg("pattern").toInt();
  panelTestPattern = (pattern >= 0 && pattern <= 8) ? pattern : 0;
+#if GAMEPAD_ENABLED
+ if (panelTestPattern) gameModeStop();  // a test pattern hides the game and its timeouts
+#endif
  sendPanelJson();
 }
 
@@ -1959,6 +1965,13 @@ void handleReset() {
  preferences.begin("pcmonitor", false);
  preferences.clear();
  preferences.end();
+#if GAMEPAD_ENABLED
+ gameModeStopAndWait(5000);
+ preferences.begin("game", false);  // high scores and last game
+ preferences.clear();
+ preferences.end();
+ gamepadForget();
+#endif
 
  // Erase WiFi credentials
  wifiManager.resetSettings();

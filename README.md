@@ -570,7 +570,7 @@ never shows up; update it once in the Xbox Accessories app over USB.
 | Light Cycles | d-pad or stick steer; beat the computer's cycle, three lives |
 
 Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
-`/api/display/off`, an OTA update, 2 minutes without a pad, 60 seconds after
+`/api/display/off`, a panel test pattern, an OTA update, 2 minutes without a pad, 60 seconds after
 the pad is lost, or after the idle time set on the page (default 5 minutes
 without input, or never). The same page sets rumble on or off, the Falling Blocks
 starting level, whether stick up hard-drops and an optional landing preview (off by
@@ -586,6 +586,7 @@ While a game runs, the panel drops to 5 bits per colour and the night
 schedule is paused. Bluetooth needs about 45KB of internal memory that the
 panel's full-colour buffers otherwise hold. Notifications are refused with HTTP
 409 until the game ends. Leaving game mode restores the panel and the schedule.
+A factory reset also clears the best scores and the paired pad.
 
 ## Flashing
 

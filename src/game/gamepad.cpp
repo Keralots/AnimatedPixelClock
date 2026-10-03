@@ -50,7 +50,8 @@ static volatile bool gpFound = false;
 static volatile uint8_t gpBattery = 0;
 static NimBLEAddress gpFoundAddr;
 static NimBLEClient *gpClient = nullptr;
-static TaskHandle_t gpTask = nullptr;
+static TaskHandle_t gpTask = nullptr;     // owned by the loop task
+static volatile bool gpStopped = false;   // task has shut BLE down and parked itself
 static QueueHandle_t gpCmdQ = nullptr;
 static NimBLERemoteCharacteristic *gpOutput = nullptr;
 
@@ -265,29 +266,53 @@ static void gamepadTask(void *) {
 
     taskENTER_CRITICAL(&gpMux);
     bool again = gpWanted;
-    if (!again) gpTask = nullptr;
+    if (!again) gpStopped = true;
     taskEXIT_CRITICAL(&gpMux);
-    if (!again) vTaskDelete(nullptr);
+    if (!again) vTaskSuspend(nullptr);  // reapTask() deletes it
   }
 }
 
-void gamepadStart() {
+// Deleting the parked task from another task frees its stack at once; a
+// self-deleting task leaves that to the idle task, after the panel wants it back.
+static bool reapTask() {
+  if (!gpTask) return true;
+  if (!gpStopped || eTaskGetState(gpTask) != eSuspended) return false;
+  vTaskDelete(gpTask);
+  gpTask = nullptr;
+  gpStopped = false;
+  return true;
+}
+
+bool gamepadStart() {
   if (!gpCmdQ) gpCmdQ = xQueueCreate(4, sizeof(GpCmd));
+  if (!gpCmdQ) {
+    Serial.println("Gamepad: no memory for the command queue");
+    return false;
+  }
   taskENTER_CRITICAL(&gpMux);
   gpWanted = true;
-  bool running = gpTask != nullptr;
+  bool running = gpTask && !gpStopped;  // a task still tearing down picks gpWanted up again
   taskEXIT_CRITICAL(&gpMux);
-  if (running) return;
+  if (running) return true;
+  for (uint8_t i = 0; !reapTask(); i++) {  // parked flag set, suspend a moment away
+    if (i >= 50) {
+      gpWanted = false;
+      return false;
+    }
+    vTaskDelay(1);
+  }
   if (xTaskCreate(gamepadTask, "gamepad", GP_TASK_STACK, nullptr, 2, &gpTask) != pdPASS) {
     gpTask = nullptr;
     gpWanted = false;
     Serial.println("Gamepad: no memory for the BLE task");
+    return false;
   }
+  return true;
 }
 
 void gamepadStop() { gpWanted = false; }
 
-bool gamepadIdle() { return gpTask == nullptr; }
+bool gamepadIdle() { return reapTask(); }
 GamepadLink gamepadLink() { return gpLink; }
 
 void gamepadRead(GamepadState *out) {
@@ -308,12 +333,13 @@ void gamepadRumble(uint8_t strong, uint8_t weak, uint16_t ms) {
   xQueueSend(gpCmdQ, &cmd, 0);  // drop it if the queue is full - rumble is a nicety
 }
 
-void gamepadForget() {
-  if (gpWanted && gpCmdQ) {
+bool gamepadForget() {
+  if (gpTask && !gpStopped) {
+    if (!gpWanted) return false;  // shutting down: NimBLE would write its cached copy back
     GpCmd cmd = {GP_CMD_FORGET, {}};
-    xQueueSend(gpCmdQ, &cmd, pdMS_TO_TICKS(100));
-    return;
+    return xQueueSend(gpCmdQ, &cmd, pdMS_TO_TICKS(100)) == pdTRUE;
   }
+  if (!reapTask()) return false;
   // BLE is down, so NimBLE holds no cached copy - clear its store directly.
   nvs_handle_t h;
   if (nvs_open(GP_BOND_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
@@ -322,6 +348,7 @@ void gamepadForget() {
     nvs_close(h);
   }
   Serial.println("Gamepad: bonds cleared");
+  return true;
 }
 
 bool gamepadHasBond() {
