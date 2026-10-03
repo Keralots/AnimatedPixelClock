@@ -166,6 +166,7 @@ struct Settings {
   // Network settings
   char deviceName[32];          // Device name for mDNS and app (default: "pixelclock")
   bool showIPAtBoot;          // Show IP address on the panel at startup (default: true)
+  uint8_t wifiTxPower;        // WiFi transmit power in 0.25 dBm steps (default: 78 = 19.5 dBm)
   bool useStaticIP;
   char staticIP[16];
   char gateway[16];

@@ -96,6 +96,7 @@ void setupWebServer() {
  server.on("/api/panel", HTTP_GET, handlePanelGet);
  server.on("/api/panel", HTTP_POST, handlePanelSave);
  server.on("/api/panel/test", HTTP_GET, handlePanelTest);
+ server.on("/api/wifi/txpower", HTTP_GET, handleWifiTxPower);
 #if GAMEPAD_ENABLED
  server.on("/api/game/start", HTTP_GET, handleGameStart);
  server.on("/api/game/stop", HTTP_GET, handleGameStop);
@@ -498,6 +499,29 @@ void handlePanelSave() {
 }
 
 // GET /api/panel/test?pattern=0-8 - show a test pattern (0 = off, not saved)
+// GET /api/wifi/txpower[?dbm=19.5|18.5|17|15|13|11|8.5] - read, or set and save
+void handleWifiTxPower() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (server.hasArg("dbm")) {
+   uint8_t q = (uint8_t)constrain((int)(server.arg("dbm").toFloat() * 4 + 0.5f), 0, 255);
+   if (sanitizeWifiTxPower(q) != q) {
+     server.send(400, "application/json", "{\"error\":\"dbm must be 19.5, 18.5, 17, 15, 13, 11 or 8.5\"}");
+     return;
+   }
+   if (q != settings.wifiTxPower) {
+     settings.wifiTxPower = q;
+     saveSettings();
+   }
+   applyWifiTxPower();
+ }
+ int8_t cur = 0;
+ esp_wifi_get_max_tx_power(&cur);
+ char buf[96];
+ snprintf(buf, sizeof(buf), "{\"dbm\":%.1f,\"applied\":%.1f,\"rssi\":%d}",
+          settings.wifiTxPower / 4.0f, cur / 4.0f, WiFi.RSSI());
+ server.send(200, "application/json", buf);
+}
+
 void handlePanelTest() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  int pattern = server.arg("pattern").toInt();
@@ -2031,6 +2055,7 @@ void handleExportConfig() {
  json += "\"useNetworkMBFormat\":" + String(settings.useNetworkMBFormat ? "true" : "false") + ",";
  json += "\"deviceName\":\"" + String(settings.deviceName) + "\",";
  json += "\"showIPAtBoot\":" + String(settings.showIPAtBoot ? "true" : "false") + ",";
+ json += "\"wifiTxPowerDbm\":" + String(settings.wifiTxPower / 4.0f, 1) + ",";
  json += "\"ntpServer1\":\"" + String(settings.ntpServer1) + "\",";
  json += "\"ntpServer2\":\"" + String(settings.ntpServer2) + "\",";
  json += "\"notifyEnabled\":" + String(settings.notifyEnabled ? "true" : "false") + ",";
@@ -2359,6 +2384,9 @@ void handleImportConfig() {
  if (!doc["useRpmKFormat"].isNull()) settings.useRpmKFormat = doc["useRpmKFormat"];
  if (!doc["useNetworkMBFormat"].isNull()) settings.useNetworkMBFormat = doc["useNetworkMBFormat"];
  if (!doc["showIPAtBoot"].isNull()) settings.showIPAtBoot = doc["showIPAtBoot"];
+ if (doc["wifiTxPowerDbm"].is<float>())
+   settings.wifiTxPower = sanitizeWifiTxPower(
+       (uint8_t)constrain((int)(doc["wifiTxPowerDbm"].as<float>() * 4 + 0.5f), 0, 255));
  if (!doc["notifyEnabled"].isNull()) settings.notifyEnabled = doc["notifyEnabled"];
  if (!doc["notifyPosition"].isNull()) settings.notifyPosition = doc["notifyPosition"];
  if (!doc["weatherEnabled"].isNull()) settings.weatherEnabled = doc["weatherEnabled"];
@@ -2535,6 +2563,7 @@ void handleImportConfig() {
  // Save imported settings
  saveSettings();
  ledApplySettings();
+ applyWifiTxPower();
  applyTimezone();
  ntpSynced = false; // Force NTP resync after config import
  weatherSettingsChanged(); // imported location may differ - refetch now

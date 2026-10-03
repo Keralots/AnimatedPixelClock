@@ -1402,6 +1402,20 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
             </div>
           </div>
 
+          <div class="card" id="wifiTxCard">
+            <h2 class="card-title">WiFi transmit power <span class="tag" id="wifiTxRssi"></span></h2>
+            <div class="field" style="margin-bottom:0"><label class="field-label" for="wifiTxPower">Transmit power</label><div class="select-wrap"><select id="wifiTxPower">
+              <option value="19.5">19.5 dBm (maximum, default)</option>
+              <option value="18.5">18.5 dBm</option>
+              <option value="17">17 dBm</option>
+              <option value="15">15 dBm</option>
+              <option value="13">13 dBm</option>
+              <option value="11">11 dBm</option>
+              <option value="8.5">8.5 dBm</option>
+            </select></div></div>
+            <p class="field-hint">Applies and saves at once. Some small ESP32-S3 boards transmit worse at full power: if WiFi drops out or the portal loads slowly, try 11-13 dBm. Lower it a step at a time; too little loses range. The tag shows the signal received from the router, which this setting does not change.</p>
+          </div>
+
           <div class="card">
             <h2 class="card-title">Configuration backup</h2>
             <p class="field-hint" style="margin:0 0 14px">Save all settings to a JSON file, or restore them on this or another device.</p>
@@ -2195,6 +2209,16 @@ if (!d.success) { btn.disabled = false; alert('Could not save panel options.'); 
 markClean('Rebooting...');
 setTimeout(function () { location.reload(); }, 10000);
 }).catch(function (err) { btn.disabled = false; alert('Error saving panel options: ' + err); });
+});
+}
+var wifiTxCard = $('#wifiTxCard');
+function wifiTxShow(d) { $('#wifiTxPower').value = String(d.dbm); $('#wifiTxRssi').textContent = 'signal ' + d.rssi + ' dBm'; }
+if (wifiTxCard) {
+['input', 'change'].forEach(function (t) { wifiTxCard.addEventListener(t, function (ev) { ev.stopPropagation(); }); });
+fetch('/api/wifi/txpower', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(wifiTxShow).catch(function () {});
+$('#wifiTxPower').addEventListener('change', function () {
+fetch('/api/wifi/txpower?dbm=' + this.value).then(function (r) { return r.json(); }).then(wifiTxShow)
+.catch(function (err) { alert('Could not set the transmit power: ' + err); });
 });
 }
 $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });

@@ -26,6 +26,9 @@ void initNetwork();
 // Initialize mDNS service discovery
 void initMDNS();
 
+// Applies settings.wifiTxPower now; initNetwork() also re-applies it on every WiFi start
+void applyWifiTxPower();
+
 // Apply static IP settings if configured
 void applyStaticIP();
 
