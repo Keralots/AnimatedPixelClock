@@ -124,9 +124,11 @@ static void hitRock(Rock &r) {
   score += ROCK_SCORE[r.size];
   gameRumble(r.size == 0 ? 35 : 0, 25, 50);
   if (r.size < 2) {
-    float scale = 1 + (wave - 1) * 0.12f;
-    spawnRock(r.x, r.y, r.size + 1, scale);
-    spawnRock(r.x, r.y, r.size + 1, scale);
+    // The first child may land in r's own slot, so copy what the second needs.
+    float x = r.x, y = r.y, scale = 1 + (wave - 1) * 0.12f;
+    uint8_t size = r.size + 1;
+    spawnRock(x, y, size, scale);
+    spawnRock(x, y, size, scale);
   }
 }
 
