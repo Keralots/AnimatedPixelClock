@@ -203,6 +203,19 @@ resync, which can take a few seconds on a slow server.
 
 Both fields are included in config export/import.
 
+### WiFi transmit power
+
+**Maintenance > WiFi transmit power** sets how strongly the clock transmits, from
+19.5 dBm (the maximum and the default) down to 8.5 dBm. The change applies at once
+and is saved. Some small ESP32-S3 boards transmit worse at full power: on a
+Waveshare S3-Zero, 11 dBm loaded pages several times faster than 17-19.5 dBm at the
+same signal strength. If WiFi drops out or the portal is slow, try 11-13 dBm, one
+step at a time, since too little power loses range. The card also shows the signal
+received from the router, which this setting does not change.
+
+`GET /api/wifi/txpower` returns the setting; `?dbm=11` sets and saves it. It is part
+of config export/import.
+
 ## Weather (optional)
 
 The Weather Clock (style 14) shows current conditions next to the time: an animated
@@ -650,6 +663,7 @@ the device on a trusted LAN.
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
+| `/api/wifi/txpower?dbm=<dBm>` | Read or set the WiFi transmit power (19.5, 18.5, 17, 15, 13, 11, 8.5; saved) |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash

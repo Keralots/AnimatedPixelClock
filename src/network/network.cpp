@@ -137,7 +137,18 @@ bool connectManualWiFi(const char* ssid, const char* password) {
 }
 
 // ========== Network Initialization ==========
+void applyWifiTxPower() {
+  if (WiFi.getMode() != WIFI_OFF) WiFi.setTxPower((wifi_power_t)settings.wifiTxPower);
+}
+
 void initNetwork() {
+  // Set before the first association attempt, and again after every restart of
+  // the radio (link recovery, the setup portal): the driver resets it to maximum.
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t) { applyWifiTxPower(); },
+               ARDUINO_EVENT_WIFI_STA_START);
+  WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t) { applyWifiTxPower(); },
+               ARDUINO_EVENT_WIFI_AP_START);
+
   // Apply static IP if configured
   applyStaticIP();
 
@@ -211,8 +222,7 @@ void initNetwork() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // Set WiFi TX power to maximum for better range
-  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  applyWifiTxPower();
 
   // Start UDP listener
   udp.begin(UDP_PORT);

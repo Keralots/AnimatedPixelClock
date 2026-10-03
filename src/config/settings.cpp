@@ -111,6 +111,14 @@ uint8_t sanitizeBrightnessValue(uint8_t value) {
   return value == 0 ? 1 : value;
 }
 
+// The levels the web UI offers; anything else (old or hand-edited data) is the default.
+uint8_t sanitizeWifiTxPower(uint8_t quarterDbm) {
+  static const uint8_t LEVELS[] = {78, 74, 68, 60, 52, 44, 34};
+  for (uint8_t l : LEVELS)
+    if (l == quarterDbm) return l;
+  return WIFI_TX_POWER_DEFAULT;
+}
+
 bool isZeroBrightnessAllowed() {
   return false;
 }
@@ -142,6 +150,7 @@ void loadSettings() {
     settings.useRpmKFormat = false;      // Default: Full RPM format (1800RPM)
     settings.useNetworkMBFormat = false; // Default: Full KB/s format
     strcpy(settings.deviceName, "pixelclock");
+    settings.wifiTxPower = WIFI_TX_POWER_DEFAULT;
     settings.colonBlinkMode = 1;         // Default: Blink
     settings.colonBlinkRate = 10; // Default: 1.0 Hz (10 = 1.0Hz in tenths)
     settings.refreshRateMode = 0; // Default: Auto
@@ -614,6 +623,8 @@ void loadSettings() {
   settings.deviceName[31] = '\0';
   settings.showIPAtBoot =
       preferences.getBool("showIPBoot", true); // Default: Show IP at startup
+  settings.wifiTxPower =
+      sanitizeWifiTxPower(preferences.getUChar("wifiTxPwr", WIFI_TX_POWER_DEFAULT));
   settings.useStaticIP =
       preferences.getBool("useStaticIP", false); // Default: DHCP
   String loadedIP = preferences.getString("staticIP", "192.168.1.100");
@@ -903,6 +914,7 @@ void saveSettings() {
   // Save network configuration
   preferences.putString("deviceName", settings.deviceName);
   preferences.putBool("showIPBoot", settings.showIPAtBoot);
+  preferences.putUChar("wifiTxPwr", settings.wifiTxPower);
   preferences.putBool("useStaticIP", settings.useStaticIP);
   preferences.putString("staticIP", settings.staticIP);
   preferences.putString("gateway", settings.gateway);

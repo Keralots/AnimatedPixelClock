@@ -62,5 +62,6 @@ void handleReboot();
 void handlePanelGet();
 void handlePanelSave();
 void handlePanelTest();
+void handleWifiTxPower();
 
 #endif // WEB_H
