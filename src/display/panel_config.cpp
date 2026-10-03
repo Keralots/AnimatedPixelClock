@@ -7,6 +7,7 @@
 #include <Preferences.h>
 
 #include "display.h"
+#include "../config/config.h"
 
 PanelOptions panelOptions;
 uint8_t panelTestPattern = 0;
@@ -71,10 +72,21 @@ void applyPanelOptions() {
 
 bool setPanelColorDepth(uint8_t colorDepth) {
   colorDepth = constrain(colorDepth, 4, panelOptions.colorDepth);
-  if (display.getCfg().getPixelColorDepthBits() == colorDepth) return true;
-  if (!rebuildMatrixDisplay(display, panelConfig(colorDepth))) return false;
+  uint8_t was = display.getCfg().getPixelColorDepthBits();
+  if (was == colorDepth && display.ready()) return true;
+  bool ok = rebuildMatrixDisplay(display, panelConfig(colorDepth));
+  if (!ok) {
+    // Never leave a dead driver behind: back to the depth that ran, else the leanest.
+    Serial.printf("Panel: restart at %u bits failed\n", colorDepth);
+    if (!rebuildMatrixDisplay(display, panelConfig(was)) &&
+        !rebuildMatrixDisplay(display, panelConfig(4))) {
+      Serial.println("Panel: no depth starts, display disabled");
+      displayAvailable = false;
+      return false;
+    }
+  }
   display.setBrightness8(getAppliedBrightness());
-  return true;
+  return ok;
 }
 
 int panelRefreshRate() { return display.refreshRate(); }

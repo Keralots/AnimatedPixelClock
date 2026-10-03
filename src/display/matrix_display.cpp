@@ -27,15 +27,23 @@ struct BusDescB {
   friend type stolen(BusDescB);
 };
 
+struct PanelInit {
+  typedef bool MatrixPanel_I2S_DMA::*type;
+  friend type stolen(PanelInit);
+};
+
 template struct Steal<BusChan, &Bus_Parallel16::dma_chan>;
 template struct Steal<BusDescB, &Bus_Parallel16::_dmadesc_b>;
+template struct Steal<PanelInit, &MatrixPanel_I2S_DMA::initialized>;
 
 }  // namespace
 
+bool MatrixDisplay::ready() const { return this->*stolen(PanelInit()); }
+
 void MatrixDisplay::releaseDma() {
-  dma_bus.dma_transfer_stop();
   gdma_channel_handle_t &chan = dma_bus.*stolen(BusChan());
   if (chan) {
+    dma_bus.dma_transfer_stop();
     gdma_disconnect(chan);
     gdma_del_channel(chan);
     chan = nullptr;

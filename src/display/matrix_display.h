@@ -47,6 +47,7 @@ public:
 
   inline void clearDisplay() { clearScreen(); }      // clear the (back) draw buffer
   inline void display() {
+    if (!ready()) return;  // a failed restart leaves no DMA chain to flip
     flipDMABuffer();
     lastFlipUs = micros();
     hasFlipped = true;
@@ -69,6 +70,7 @@ public:
   inline int refreshRate() const { return calculated_refresh_rate; }
   // Stops output and frees what the driver's own teardown leaks.
   void releaseDma();
+  bool ready() const;  // begin() succeeded
 private:
   uint32_t lastFlipUs = 0;
   bool hasFlipped = false;
