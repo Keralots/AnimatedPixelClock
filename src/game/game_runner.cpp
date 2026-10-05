@@ -208,9 +208,18 @@ bool runnerFrame(const GamepadState &in, bool padLost) {
     case STEP_RESUMED:
       lastTick = now;
       break;
-    case STEP_PLAY:
-      update(in, gameDt(lastTick, now));
+    case STEP_PLAY: {
+      // Sub-steps keep a fast obstacle from jumping over the runner in one frame.
+      float dt = gameDt(lastTick, now);
+      int steps = (int)ceilf(speed * dt / 2.0f);
+      if (steps < 1) steps = 1;
+      GamepadState step = in;
+      for (int i = 0; i < steps && phase == G_PLAY; i++) {
+        update(step, dt / steps);
+        step.pressed = 0;  // a press acts once
+      }
       break;
+    }
     case STEP_HOLD:
       break;
   }
