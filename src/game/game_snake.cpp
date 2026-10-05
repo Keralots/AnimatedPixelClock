@@ -159,11 +159,13 @@ bool snakeFrame(const GamepadState &in, bool padLost) {
       lastStep = now;
       break;
     case STEP_PLAY: {
-      uint16_t p = in.pressed;
-      if (p & GP_UP) queueTurn(0, -1);
-      if (p & GP_DOWN) queueTurn(0, 1);
-      if (p & GP_LEFT) queueTurn(-1, 0);
-      if (p & GP_RIGHT) queueTurn(1, 0);
+      for (uint8_t i = 0; i < in.dirCount; i++) {
+        uint16_t d = in.dirs[i];
+        if (d == GP_UP) queueTurn(0, -1);
+        if (d == GP_DOWN) queueTurn(0, 1);
+        if (d == GP_LEFT) queueTurn(-1, 0);
+        if (d == GP_RIGHT) queueTurn(1, 0);
+      }
       while (phase == G_PLAY && now - lastStep >= stepMs) {
         lastStep += stepMs;
         step();

@@ -47,6 +47,8 @@ struct GamepadState {
   int16_t rx, ry;
   uint16_t lt, rt;    // triggers, 0..1023
   uint8_t hat;        // raw d-pad: 0 = none, 1 = up, clockwise to 8 = up-left
+  uint8_t dirCount;   // directions pressed since the previous read, oldest first:
+  uint16_t dirs[4];   // `pressed` loses their order when two land between frames
 };
 
 inline bool gamepadHatUp(uint8_t hat) { return hat == 8 || hat == 1 || hat == 2; }

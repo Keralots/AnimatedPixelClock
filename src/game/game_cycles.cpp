@@ -227,11 +227,13 @@ static void stepCycles() {
 
 static void update(const GamepadState &in, float dt) {
   gt += dt;
-  uint16_t p = in.pressed;
-  if (p & GP_UP) queueTurn(3);
-  if (p & GP_DOWN) queueTurn(1);
-  if (p & GP_LEFT) queueTurn(2);
-  if (p & GP_RIGHT) queueTurn(0);
+  for (uint8_t i = 0; i < in.dirCount; i++) {
+    uint16_t d = in.dirs[i];
+    if (d == GP_UP) queueTurn(3);
+    if (d == GP_DOWN) queueTurn(1);
+    if (d == GP_LEFT) queueTurn(2);
+    if (d == GP_RIGHT) queueTurn(0);
+  }
 
   if (crashUntil) {
     if (gt < crashUntil) return;

@@ -97,6 +97,9 @@ static void onReport(NimBLERemoteCharacteristic *, uint8_t *d, size_t len, bool)
   if (len > 15 && (d[15] & 0x01)) b |= GP_SHARE;
 
   taskENTER_CRITICAL(&gpMux);
+  uint16_t newDirs = b & ~gpState.buttons & (GP_UP | GP_DOWN | GP_LEFT | GP_RIGHT);
+  for (uint16_t bit = GP_UP; newDirs && bit; bit <<= 1)
+    if ((newDirs & bit) && gpState.dirCount < 4) gpState.dirs[gpState.dirCount++] = bit;
   gpState.pressed |= b & ~gpState.buttons;
   gpState.buttons = b;
   gpState.lx = lx;
@@ -323,6 +326,7 @@ void gamepadRead(GamepadState *out) {
   taskENTER_CRITICAL(&gpMux);
   *out = gpState;
   gpState.pressed = 0;
+  gpState.dirCount = 0;
   taskEXIT_CRITICAL(&gpMux);
 }
 
