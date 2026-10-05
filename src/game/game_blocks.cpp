@@ -273,8 +273,9 @@ static void updatePlay(const GamepadState &in, unsigned long now) {
     }
   } else if (dir) {
     // Auto-repeat can outpace the frame rate, so catch up on every step due.
-    while (now >= nextRepeat && tryMove(dir, 0, now)) nextRepeat += ARR_MS;
-    if (now >= nextRepeat) nextRepeat = now + ARR_MS;
+    // Signed differences survive the millis() rollover.
+    while ((long)(now - nextRepeat) >= 0 && tryMove(dir, 0, now)) nextRepeat += ARR_MS;
+    if ((long)(now - nextRepeat) >= 0) nextRepeat = now + ARR_MS;
   }
 
   bool soft = b & GP_DOWN;
