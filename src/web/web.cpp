@@ -705,7 +705,8 @@ static String rgb565ToHex(uint16_t c) {
 }
 
 // One editable color per row. `style` = the clock style this element belongs to
-// (its picker shows inside that style's settings subcard), -2 = PC-monitor stats
+// (its picker shows inside that style's settings subcard), -1 = every style
+// (Time & date card on the Clock page), -2 = PC-monitor stats
 // (own card on the Display-layout page, not a clock style). The per-style time
 // digit color is emitted separately (buildDigitRow) so it can also cover styles
 // that have no settings subcard. APPEND rows as modes are colored.
@@ -757,6 +758,8 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
     {COL_WEATHER_ICON, 14, "Icon"},
     {COL_WEATHER_ACCENT, 14, "Rain / effects"},
     {COL_WEATHER_TEMP, 14, "Temperature"},
+    {COL_WEATHER_DETAIL, 14, "Details row"},
+    {COL_DATE, -1, "Date + AM/PM"},
     {COL_VIZ_LOW, -3, "Bars (bottom)"},
     {COL_VIZ_MID, -3, "Bars (middle)"},
     {COL_VIZ_PEAK, -3, "Bars (top) + peaks"},

@@ -50,6 +50,13 @@ void resetClockAnimationState();
 // Draw a compact AM/PM indicator when 12-hour mode is active
 void drawMeridiemIndicator(int x, int y, bool isPM);
 
+// Date, weekday and AM/PM color, shared by every style
+uint16_t dateColor();
+// The date in settings.dateFormat, 10 characters plus the terminator
+void formatDate(char* buf, size_t len, const struct tm* t);
+// Size-1 date at (x, y) in dateColor(); leaves the text color white
+void drawDate(int x, int y, const struct tm* t);
+
 // Digit bounce animation shared by multiple clocks
 void triggerDigitBounce(int digitIndex);
 void updateDigitBounce();

@@ -105,6 +105,8 @@ enum ColorSlot {
   COL_DIGITS_S17,      // Doom Fire (separate from the historical contiguous slots)
   COL_LED_STRIP,       // WS2812B accent strip, one color for the whole strip
   COL_LED_SECONDS,     // WS2812B strip: the Hour sweep seconds dot
+  COL_DATE,            // date, weekday and AM/PM in every clock style
+  COL_WEATHER_DETAIL,  // Weather clock: min/max, humidity and sun times row
   // ...append future slots here (before COL_COUNT)
   COL_COUNT
 };

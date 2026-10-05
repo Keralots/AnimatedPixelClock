@@ -119,27 +119,7 @@ void displayClockWithMario() {
   maintainTimeOverride(&timeinfo, mario_state == MARIO_IDLE);
 
   // Date at top
-  display.setTextSize(1);
-  char dateStr[12];
-
-  switch (settings.dateFormat) {
-    case 0:
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-    case 1:
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900);
-      break;
-    case 2:
-      sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
-      break;
-    case 3:
-      sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-  }
-
-  int date_x = (SCREEN_WIDTH - DATE_DISPLAY_WIDTH) / 2;
-  display.setCursor(date_x, 4);
-  display.print(dateStr);
+  drawDate((SCREEN_WIDTH - DATE_DISPLAY_WIDTH) / 2, 4, &timeinfo);
   drawMeridiemIndicator(110, 4, displayed_is_pm);
 
   // SMB1-style coin counter (top-left, only when encounters enabled)

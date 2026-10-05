@@ -494,9 +494,10 @@ static void doomOutlineText(int x, int y, const char* str) {
       display.print(str);
     }
   }
-  display.setTextColor(DISPLAY_WHITE);
+  display.setTextColor(dateColor());
   display.setCursor(x, y);
   display.print(str);
+  display.setTextColor(DISPLAY_WHITE);
 }
 
 void displayClockWithDoom() {
@@ -535,12 +536,7 @@ void displayClockWithDoom() {
   // outlined rather than plated.
   if (settings.doomShowDate) {
     char dateStr[12];
-    switch (settings.dateFormat) {
-      case 0: sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
-      case 1: sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900); break;
-      case 2: sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday); break;
-      case 3: sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900); break;
-    }
+    formatDate(dateStr, sizeof(dateStr), &timeinfo);
     doomOutlineText((SCREEN_WIDTH - DATE_DISPLAY_WIDTH) / 2, 4, dateStr);
   }
   if (!settings.use24Hour) {

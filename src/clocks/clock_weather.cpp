@@ -194,8 +194,10 @@ void displayClockWithWeather() {
     snprintf(line, sizeof(line), "\x18%s  \x19%s", wx.sunrise, wx.sunset);
   }
   int w = strlen(line) * 6;
+  display.setTextColor(SPRITE_COLOR(COL_WEATHER_DETAIL));
   display.setCursor((SCREEN_WIDTH - w) / 2, WDETAIL_Y);
   display.print(line);
+  display.setTextColor(DISPLAY_WHITE);
 
   if (!wifiConnected) {
     drawNoWiFiIcon(0, 0);

@@ -82,6 +82,8 @@ const uint16_t SPRITE_COLOR_DEFAULTS[] = {
     /* COL_DIGITS_S17     */ 0xFFFF,  // white
     /* COL_LED_STRIP      */ 0xFD20,  // warm amber
     /* COL_LED_SECONDS    */ 0x07FF,  // cyan, reads against the amber bar
+    /* COL_DATE           */ 0xFFFF,  // white
+    /* COL_WEATHER_DETAIL */ 0xFFFF,  // white
 };
 void applyScopeDefaults() {
   settings.scopeGrid = true;

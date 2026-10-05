@@ -129,7 +129,8 @@ ID 4 is a legacy alias for the Space Invaders renderer and is not a separate
 choice in the web interface. ID 13 is retired; use the IDs listed above.
 
 Style colors are editable in the web interface (digits,
-characters, effects, backgrounds), so each clock can match your setup.
+characters, effects, backgrounds), so each clock can match your setup. The date and
+AM/PM color is shared by every style and sits under Clock > Time & date.
 
 The style names describe what each animation is styled after. This project is
 not affiliated with or endorsed by the rights holders; see
@@ -233,8 +234,8 @@ Setup (web interface, Clock page, Weather Clock style):
 
 Data comes from [Open-Meteo](https://open-meteo.com/) (no account or API key needed),
 fetched every 10 minutes. The optional API key field is only for Open-Meteo
-commercial subscriptions. Icon, effect and temperature colors are editable in the
-style's Colors card like any other clock.
+commercial subscriptions. Icon, effect, temperature and details row colors are
+editable in the style's Colors card like any other clock.
 
 ## Ambient screensaver
 

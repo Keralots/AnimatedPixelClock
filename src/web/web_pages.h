@@ -738,6 +738,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 </div>
               </div>
             </div>
+            <div id="colorsDate" style="margin-top:8px"></div>
           </div>
           <div id="colorsClock"></div>
         </section>
@@ -2236,6 +2237,7 @@ function buildColors(d) {
  html += '<label style="display:flex;align-items:center;gap:8px;margin-top:12px">' +
   '<input type="checkbox" name="resetSpriteColors" value="1"> Reset all sprite colors to defaults</label></div>';
  place('colorsClock', html);
+ place('colorsDate', colorRows(d, -1));
  var pc = colorRows(d, -2);
  place('colorsPc', pc ? '<div class="card"><h2 class="card-title">Colors</h2>' + pc + '</div>' : '');
  place('colorsViz', colorRows(d, -3));

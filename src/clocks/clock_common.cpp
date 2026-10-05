@@ -166,8 +166,34 @@ void drawMeridiemIndicator(int x, int y, bool isPM) {
   }
 
   display.setTextSize(1);
+  display.setTextColor(dateColor());
   display.setCursor(x, y);
   display.print(isPM ? "PM" : "AM");
+  display.setTextColor(DISPLAY_WHITE);
+}
+
+uint16_t dateColor() {
+  return SPRITE_COLOR(COL_DATE);
+}
+
+void formatDate(char* buf, size_t len, const struct tm* t) {
+  int d = t->tm_mday, m = t->tm_mon + 1, y = t->tm_year + 1900;
+  switch (settings.dateFormat) {
+    case 1:  snprintf(buf, len, "%02d/%02d/%04d", m, d, y); break;
+    case 2:  snprintf(buf, len, "%04d-%02d-%02d", y, m, d); break;
+    case 3:  snprintf(buf, len, "%02d.%02d.%04d", d, m, y); break;
+    default: snprintf(buf, len, "%02d/%02d/%04d", d, m, y); break;
+  }
+}
+
+void drawDate(int x, int y, const struct tm* t) {
+  char dateStr[12];
+  formatDate(dateStr, sizeof(dateStr), t);
+  display.setTextSize(1);
+  display.setTextColor(dateColor());
+  display.setCursor(x, y);
+  display.print(dateStr);
+  display.setTextColor(DISPLAY_WHITE);
 }
 
 // ========== Digit Bounce Animation ==========
@@ -289,41 +315,22 @@ void displayStandardClock() {
   display.setCursor(time_x, 8);
   display.setTextColor(digitColor());
   display.print(timeStr);
-  display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
+  display.setTextColor(DISPLAY_WHITE);
 
   // AM/PM indicator for 12-hour format
   drawMeridiemIndicator(110, 8, isPM);
 
-  // Date display
-  display.setTextSize(1);
-  char dateStr[12];
-
-  switch (settings.dateFormat) {
-    case 0:  // DD/MM/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-    case 1:  // MM/DD/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900);
-      break;
-    case 2:  // YYYY-MM-DD
-      sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
-      break;
-    case 3:  // DD.MM.YYYY
-      sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-  }
-
-  int date_x = (SCREEN_WIDTH - 60) / 2;
-  display.setCursor(date_x, 38);
-  display.print(dateStr);
+  drawDate((SCREEN_WIDTH - 60) / 2, 38, &timeinfo);
 
   // Day of week
   const char* days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   const char* dayName = days[timeinfo.tm_wday];
   int day_width = strlen(dayName) * 6;
   int day_x = (SCREEN_WIDTH - day_width) / 2;
+  display.setTextColor(dateColor());
   display.setCursor(day_x, 52);
   display.print(dayName);
+  display.setTextColor(DISPLAY_WHITE);
 
   // Draw no-WiFi icon if disconnected
   if (!wifiConnected) {
@@ -363,34 +370,13 @@ void displayLargeClock() {
   display.setCursor(time_x, 4);
   display.setTextColor(digitColor());
   display.print(timeStr);
-  display.setTextColor(DISPLAY_WHITE);  // date / AM-PM stay white
+  display.setTextColor(DISPLAY_WHITE);
 
   // AM/PM indicator for 12-hour format lives in the bottom-right corner here,
   // so it does not collide with the oversized minute digits.
   drawMeridiemIndicator(110, 54, isPM);
 
-  // Date at bottom
-  display.setTextSize(1);
-  char dateStr[12];
-
-  switch (settings.dateFormat) {
-    case 0:  // DD/MM/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-    case 1:  // MM/DD/YYYY
-      sprintf(dateStr, "%02d/%02d/%04d", timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_year + 1900);
-      break;
-    case 2:  // YYYY-MM-DD
-      sprintf(dateStr, "%04d-%02d-%02d", timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday);
-      break;
-    case 3:  // DD.MM.YYYY
-      sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-      break;
-  }
-
-  int date_x = (SCREEN_WIDTH - 60) / 2;
-  display.setCursor(date_x, 54);
-  display.print(dateStr);
+  drawDate((SCREEN_WIDTH - 60) / 2, 54, &timeinfo);
 
   // Draw no-WiFi icon if disconnected
   if (!wifiConnected) {
