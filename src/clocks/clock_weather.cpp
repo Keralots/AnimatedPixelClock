@@ -291,69 +291,95 @@ static void printAt(int x, int y, const char* s, uint16_t color, int size = 1) {
   display.setTextColor(DISPLAY_WHITE);
 }
 
-// 13x13 still icon for a forecast row
-static void drawMiniIcon(int x, int y, int code) {
+// 13x13 forecast icon with one-pixel motion. `phase` keeps neighbouring icons
+// out of step with each other.
+static void drawMiniIcon(int x, int y, int code, int phase) {
   uint16_t body = SPRITE_COLOR(COL_WEATHER_ICON);
   uint16_t accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
   int cx = x + 6, cy = y + 6;
+  unsigned long ms = millis() + phase * 1777UL;
+  float t = ms / 1000.0f;
+  int drift = (int)roundf(sinf(t * 0.7f));
   auto cloud = [](int ox, int oy, uint16_t c) {
     display.fillCircle(ox - 3, oy + 1, 2, c);
     display.fillCircle(ox + 1, oy - 1, 3, c);
     display.fillCircle(ox + 4, oy + 1, 2, c);
     display.fillRect(ox - 3, oy + 1, 8, 3, c);
   };
+  auto drops = [&](int count, int stepMs, bool flakes) {
+    for (int i = 0; i < count; i++) {
+      int fy = (int)((ms / stepMs + i * 2) % 4);
+      int dx = cx - 3 + i * 6 / max(1, count - 1);
+      if (flakes) display.drawPixel(dx + ((ms / 400 + i) % 2), cy + 3 + fy, accent);
+      else display.drawFastVLine(dx, cy + 3 + fy, 2, accent);
+    }
+  };
   switch (weatherIconFromCode(code)) {
-    case WICON_SUN:
+    case WICON_SUN: {
       display.fillCircle(cx, cy, 3, body);
+      float spin = t * 0.6f;
       for (int i = 0; i < 8; i++) {
-        float a = i * PI / 4;
+        float a = spin + i * PI / 4;
         display.drawPixel(cx + (int)roundf(cosf(a) * 5), cy + (int)roundf(sinf(a) * 5), body);
       }
       break;
+    }
     case WICON_PARTCLOUD:
       display.fillCircle(cx - 2, cy - 2, 3, body);
-      cloud(cx + 1, cy + 2, accent);
+      cloud(cx + 1 + drift, cy + 2, accent);
       break;
     case WICON_CLOUD:
-      cloud(cx, cy, body);
+      cloud(cx + drift, cy, body);
       break;
     case WICON_FOG:
-      for (int i = 0; i < 3; i++)
-        display.drawFastHLine(x + 1 + (i % 2), y + 3 + i * 3, 10, i % 2 ? accent : body);
+      for (int i = 0; i < 3; i++) {
+        int shift = (int)roundf(sinf(t * 1.1f + i * 1.2f));
+        display.drawFastHLine(x + 1 + shift, y + 3 + i * 3, 10, i % 2 ? accent : body);
+      }
       break;
     case WICON_RAIN:
+      drops(3, 90, false);
       cloud(cx, cy - 2, body);
-      for (int i = 0; i < 3; i++) display.drawFastVLine(cx - 3 + i * 3, cy + 4 + (i % 2), 2, accent);
       break;
     case WICON_SNOW:
+      drops(3, 220, true);
       cloud(cx, cy - 2, body);
-      for (int i = 0; i < 3; i++) display.drawPixel(cx - 3 + i * 3, cy + 4 + (i % 2) * 2, accent);
       break;
-    case WICON_STORM:
-      cloud(cx, cy - 2, body);
-      display.drawLine(cx, cy + 2, cx - 2, cy + 5, DISPLAY_WHITE);
-      display.drawLine(cx - 2, cy + 5, cx + 1, cy + 7, DISPLAY_WHITE);
+    case WICON_STORM: {
+      drops(2, 90, false);
+      bool flash = lightningOn(ms, nullptr);
+      cloud(cx, cy - 2, flash ? lightenColor(body) : body);
+      if (flash) {
+        display.drawLine(cx, cy + 2, cx - 2, cy + 5, DISPLAY_WHITE);
+        display.drawLine(cx - 2, cy + 5, cx + 1, cy + 7, DISPLAY_WHITE);
+      }
       break;
+    }
   }
 }
 
-// Current weather squeezed into the left half, the next three days as rows on
-// the right
-static void drawForecastLayout(const WeatherData& wx, const IconScene& scene,
-                               bool haveTime, const struct tm& timeinfo) {
-  static const char* const DAY_NAMES[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
-  uint16_t tempCol = SPRITE_COLOR(COL_WEATHER_TEMP);
-  uint16_t accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
-  uint16_t dim = scaleColor(DISPLAY_WHITE, 150);
-  char buf[16];
+static const char* const DAY_NAMES[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 
+struct ForecastInk {
+  uint16_t temp, accent, dim, line;
+};
+
+static void precipText(char* buf, size_t len, int chance, bool percentSign) {
+  if (chance < 0) snprintf(buf, len, "--");
+  else if (percentSign) snprintf(buf, len, "%d%%", chance);
+  else snprintf(buf, len, "%d", chance);
+}
+
+// Current weather squeezed into the left half of the panel
+static void drawForecastLeft(const WeatherData& wx, const IconScene& scene, bool haveTime,
+                             const struct tm& timeinfo, const ForecastInk& ink) {
+  char buf[16];
   if (haveTime) {
     int displayHour, displayMin;
     bool isPM;
     formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour, displayMin, isPM);
     snprintf(buf, sizeof(buf), "%02d%c%02d", displayHour, shouldShowColon() ? ':' : ' ', displayMin);
-    printAt(2, 2, buf, digitColor(), 2);
-    drawMeridiemIndicator(48, 45, isPM);
+    printAt(2, 2, buf, digitColor(), 2);  // no AM/PM: the left half has no room for it
   } else {
     printAt(2, 6, !ntpSynced ? "Syncing.." : "Time Error", DISPLAY_WHITE);
   }
@@ -362,30 +388,154 @@ static void drawForecastLayout(const WeatherData& wx, const IconScene& scene,
   snprintf(buf, sizeof(buf), "%d", toUnit(wx.tempC));
   int tw = strlen(buf) * 12;
   if (tw <= 24) {
-    printAt(30, 26, buf, tempCol, 2);
-    display.drawCircle(30 + tw + 2, 27, 1, tempCol);
+    printAt(30, 26, buf, ink.temp, 2);
+    display.drawCircle(30 + tw + 2, 27, 1, ink.temp);
   } else {
-    printAt(26, 26, buf, tempCol, 2);
+    printAt(26, 26, buf, ink.temp, 2);
   }
   snprintf(buf, sizeof(buf), "\x18%d \x19%d", toUnit(wx.tempMaxC), toUnit(wx.tempMinC));
   printAt(4, 55, buf, SPRITE_COLOR(COL_WEATHER_DETAIL));
+  display.drawFastVLine(63, 2, 60, ink.line);
+}
 
-  uint16_t line = scaleColor(DISPLAY_WHITE, 60);
-  display.drawFastVLine(63, 2, 60, line);
+// One row per day: name over rain chance, icon, high over low
+static void drawForecastRows(const WeatherData& wx, const ForecastInk& ink) {
+  char buf[16];
   for (int i = 0; i < WEATHER_FORECAST_DAYS; i++) {
     const WeatherDay& d = wx.days[i];
     int y = 2 + i * 21;
-    if (i < WEATHER_FORECAST_DAYS - 1) display.drawFastHLine(66, y + 19, 60, line);
+    if (i < WEATHER_FORECAST_DAYS - 1) display.drawFastHLine(66, y + 19, 60, ink.line);
     if (d.wday < 0 || d.wday > 6) continue;
-    printAt(67, y + 1, DAY_NAMES[d.wday], dim);
-    if (d.precipChance >= 0) snprintf(buf, sizeof(buf), "%d%%", d.precipChance);
-    else snprintf(buf, sizeof(buf), "--");
-    printAt(67, y + 10, buf, accent);
-    drawMiniIcon(92, y + 2, d.weatherCode);
+    printAt(67, y + 1, DAY_NAMES[d.wday], ink.dim);
+    precipText(buf, sizeof(buf), d.precipChance, true);
+    printAt(67, y + 10, buf, ink.accent);
+    drawMiniIcon(92, y + 2, d.weatherCode, i);
     snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMaxC));
-    printAt(127 - strlen(buf) * 6, y + 1, buf, tempCol);
+    printAt(127 - strlen(buf) * 6, y + 1, buf, ink.temp);
     snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMinC));
-    printAt(127 - strlen(buf) * 6, y + 10, buf, dim);
+    printAt(127 - strlen(buf) * 6, y + 10, buf, ink.dim);
+  }
+}
+
+// One column per day: name, icon, high, low, rain chance
+static void drawForecastColumns(const WeatherData& wx, const ForecastInk& ink) {
+  char buf[16];
+  for (int i = 0; i < WEATHER_FORECAST_DAYS; i++) {
+    const WeatherDay& d = wx.days[i];
+    if (d.wday < 0 || d.wday > 6) continue;
+    int x = 65 + i * 21;
+    auto centred = [&](int y, const char* s, uint16_t c) {
+      printAt(x + (21 - (int)strlen(s) * 6) / 2, y, s, c);
+    };
+    centred(2, DAY_NAMES[d.wday], ink.dim);
+    drawMiniIcon(x + 4, 13, d.weatherCode, i);
+    snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMaxC));
+    centred(30, buf, ink.temp);
+    snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMinC));
+    centred(40, buf, ink.dim);
+    precipText(buf, sizeof(buf), d.precipChance, d.precipChance < 100);
+    centred(54, buf, ink.accent);
+  }
+}
+
+// Temperature curve over rain chance bars for the coming hours
+static void drawForecastHours(const WeatherData& wx, const ForecastInk& ink) {
+  const int gx = 66, gy = 12, gh = 36, n = WEATHER_FORECAST_HOURS;
+  printAt(66, 1, "NEXT 12H", ink.dim);
+  float tmin = wx.hourTempC[0], tmax = wx.hourTempC[0];
+  for (int i = 1; i < n; i++) {
+    tmin = min(tmin, wx.hourTempC[i]);
+    tmax = max(tmax, wx.hourTempC[i]);
+  }
+  if (tmax - tmin < 4.0f) {
+    float mid = (tmax + tmin) / 2;
+    tmin = mid - 2.0f;
+    tmax = mid + 2.0f;
+  }
+  uint16_t bar = scaleColor(ink.accent, 120);
+  for (int i = 0; i < n; i++) {
+    int bh = max(0, (int)wx.hourPrecip[i]) * gh / 100;
+    if (bh) display.fillRect(gx + i * 5, gy + gh - bh, 4, bh, bar);
+  }
+  uint16_t curve = SPRITE_COLOR(COL_WEATHER_ICON);
+  int px = 0, py = 0;
+  for (int i = 0; i < n; i++) {
+    int x = gx + i * 5 + 2;
+    int y = gy + gh - 3 - (int)roundf((wx.hourTempC[i] - tmin) * (gh - 4) / (tmax - tmin));
+    if (i) display.drawLine(px, py, x, y, curve);
+    px = x;
+    py = y;
+  }
+  display.drawFastHLine(gx, gy + gh, n * 5, ink.line);
+  char buf[4];
+  const int marks[] = {0, 5, n - 1};
+  const int markX[] = {gx, gx + 25, gx + 48};
+  for (int k = 0; k < 3; k++) {
+    int h = (wx.hourStart + marks[k]) % 24;
+    if (!settings.use24Hour) h = h % 12 == 0 ? 12 : h % 12;
+    snprintf(buf, sizeof(buf), "%d", h);
+    printAt(markX[k], 54, buf, ink.dim);
+  }
+}
+
+// Tomorrow with the full animated icon, then the two days after as lines
+static void drawForecastTomorrow(const WeatherData& wx, const ForecastInk& ink) {
+  char buf[16];
+  const WeatherDay& d = wx.days[0];
+  printAt(66, 1, "TOMORROW", ink.dim);
+  IconScene s;
+  s.code = d.weatherCode;
+  s.night = false;
+  s.windy = false;
+  s.ms = millis();
+  s.t = s.ms / 1000.0f;
+  drawWeatherIcon(65, 11, weatherIconFromCode(d.weatherCode), s);
+
+  snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMaxC));
+  int tw = strlen(buf) * 12;
+  if (tw <= 24) {
+    printAt(94, 14, buf, ink.temp, 2);
+    display.drawCircle(94 + tw + 2, 15, 1, ink.temp);
+  } else {
+    printAt(127 - tw, 14, buf, ink.temp, 2);
+  }
+  char lo[8], pop[8];
+  snprintf(lo, sizeof(lo), "%d", toUnit(d.tempMinC));
+  precipText(pop, sizeof(pop), d.precipChance, true);
+  if (94 + (int)strlen(lo) * 6 + 3 > 127 - (int)strlen(pop) * 6)
+    precipText(pop, sizeof(pop), d.precipChance, false);
+  printAt(94, 32, lo, ink.dim);
+  printAt(127 - strlen(pop) * 6, 32, pop, ink.accent);
+
+  display.drawFastHLine(66, 43, 60, ink.line);
+  for (int i = 1; i < WEATHER_FORECAST_DAYS; i++) {
+    const WeatherDay& n = wx.days[i];
+    if (n.wday < 0 || n.wday > 6) continue;
+    int y = 46 + (i - 1) * 10;
+    printAt(66, y, DAY_NAMES[n.wday], ink.dim);
+    snprintf(buf, sizeof(buf), "%d/%d", toUnit(n.tempMaxC), toUnit(n.tempMinC));
+    printAt(127 - strlen(buf) * 6, y, buf, ink.temp);
+  }
+}
+
+// Layouts 1-4: current weather on the left, a forecast on the right
+static void drawForecastLayout(const WeatherData& wx, const IconScene& scene,
+                               bool haveTime, const struct tm& timeinfo) {
+  ForecastInk ink;
+  ink.temp = SPRITE_COLOR(COL_WEATHER_TEMP);
+  ink.accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
+  ink.dim = scaleColor(DISPLAY_WHITE, 150);
+  ink.line = scaleColor(DISPLAY_WHITE, 60);
+
+  drawForecastLeft(wx, scene, haveTime, timeinfo, ink);
+  switch (settings.weatherLayout) {
+    case 2: drawForecastColumns(wx, ink); break;
+    case 3:
+      if (wx.hourStart >= 0) drawForecastHours(wx, ink);
+      else drawForecastRows(wx, ink);
+      break;
+    case 4: drawForecastTomorrow(wx, ink); break;
+    default: drawForecastRows(wx, ink); break;
   }
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);
@@ -409,7 +559,7 @@ void displayClockWithWeather() {
     scene.night = nowMin < rise || nowMin >= set;
   }
 
-  if (ready && settings.weatherLayout == 1) {
+  if (ready && settings.weatherLayout >= 1) {
     drawForecastLayout(wx, scene, haveTime, timeinfo);
     return;
   }

@@ -1315,7 +1315,10 @@ void handleSave() {
  settings.weatherLon = lon;
  }
  settings.weatherUseFahrenheit = server.hasArg("weatherFahrenheit");
- if (server.hasArg("weatherLayout")) settings.weatherLayout = server.arg("weatherLayout").toInt() == 1 ? 1 : 0;
+ if (server.hasArg("weatherLayout")) {
+ int layout = server.arg("weatherLayout").toInt();
+ settings.weatherLayout = layout >= 0 && layout <= WEATHER_LAYOUT_MAX ? layout : 0;
+ }
  if (server.hasArg("weatherApiKey")) {
  String key = server.arg("weatherApiKey");
  if (key.length() <= 32) {
@@ -2236,7 +2239,10 @@ void handleImportConfig() {
  if (!doc["weatherLat"].isNull()) settings.weatherLat = doc["weatherLat"];
  if (!doc["weatherLon"].isNull()) settings.weatherLon = doc["weatherLon"];
  if (!doc["weatherUseFahrenheit"].isNull()) settings.weatherUseFahrenheit = doc["weatherUseFahrenheit"];
- if (!doc["weatherLayout"].isNull()) settings.weatherLayout = doc["weatherLayout"].as<int>() == 1 ? 1 : 0;
+ if (doc["weatherLayout"].is<int>()) {
+   int layout = doc["weatherLayout"].as<int>();
+   settings.weatherLayout = layout >= 0 && layout <= WEATHER_LAYOUT_MAX ? layout : 0;
+ }
  if (!doc["weatherApiKey"].isNull()) {
    const char* key = doc["weatherApiKey"];
    if (key && strlen(key) <= 32) {

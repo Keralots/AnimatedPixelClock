@@ -103,9 +103,11 @@ static bool fetchWeather() {
            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
            "precipitation_probability_max,sunrise,sunset"
+           "&hourly=temperature_2m,precipitation_probability&forecast_hours=%d"
            "&timezone=auto&forecast_days=%d%s%s",
            hasKey ? "customer-api.open-meteo.com" : "api.open-meteo.com",
-           settings.weatherLat, settings.weatherLon, 1 + WEATHER_FORECAST_DAYS,
+           settings.weatherLat, settings.weatherLon, WEATHER_FORECAST_HOURS,
+           1 + WEATHER_FORECAST_DAYS,
            hasKey ? "&apikey=" : "", hasKey ? settings.weatherApiKey : "");
 
   WiFiClientSecure client;
@@ -152,6 +154,18 @@ static bool fetchWeather() {
     day.tempMinC = daily["temperature_2m_min"][i + 1] | 0.0f;
     day.precipChance = daily["precipitation_probability_max"][i + 1] | -1;
   }
+  JsonObject hourly = doc["hourly"];
+  fresh.hourStart = -1;
+  const char* firstHour = hourly["time"][0];
+  const char* t = firstHour ? strchr(firstHour, 'T') : nullptr;
+  if (t && isdigit((unsigned char)t[1]) && isdigit((unsigned char)t[2])) {
+    fresh.hourStart = (int8_t)((t[1] - '0') * 10 + (t[2] - '0'));
+  }
+  for (int i = 0; i < WEATHER_FORECAST_HOURS; i++) {
+    fresh.hourTempC[i] = hourly["temperature_2m"][i] | 0.0f;
+    fresh.hourPrecip[i] = (int8_t)(hourly["precipitation_probability"][i] | -1);
+  }
+  if (hourly["temperature_2m"][WEATHER_FORECAST_HOURS - 1].isNull()) fresh.hourStart = -1;
   fresh.fetchedAt = millis();
 
   portENTER_CRITICAL(&weatherMux);

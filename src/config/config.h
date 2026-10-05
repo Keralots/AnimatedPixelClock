@@ -29,6 +29,7 @@ static inline uint8_t normalizeAmbientStyle(int s) {
   return (s == 2 || s == 5 || s < 0 || s > 6) ? 0 : (uint8_t)s;
 }
 
+#define WEATHER_LAYOUT_MAX 4
 #define SCOPE_TRAIL_MAX 4
 #define SCOPE_TRAIL_DEFAULT 3
 #define SCOPE_GAIN_MIN 50
@@ -124,7 +125,8 @@ struct Settings {
   float weatherLat;             // Location latitude (0,0 = unset)
   float weatherLon;             // Location longitude
   bool weatherUseFahrenheit;    // false = Celsius
-  uint8_t weatherLayout;        // 0 = classic, 1 = forecast rows on the right
+  uint8_t weatherLayout;        // 0 = classic; forecast on the right: 1 = day rows,
+                                // 2 = day columns, 3 = next 12 hours, 4 = tomorrow
   char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
 
   // Ambient screensaver (scheduled, replaces the clock)

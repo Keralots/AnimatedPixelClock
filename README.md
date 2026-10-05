@@ -231,9 +231,11 @@ Setup (web interface, Clock page, Weather Clock style):
    coordinates (the lookup runs in your browser; the device only stores latitude and
    longitude). You can also enter coordinates manually.
 3. Pick Celsius or Fahrenheit. Save.
-4. Optional: set **Layout** to **Forecast** to fit the current weather into the left
-   half and show the next three days on the right (day, rain chance, icon, high and
-   low).
+4. Optional: pick a **Layout** with a forecast. The current weather moves into the
+   left half and the right half shows one of:
+   - **Three days as rows** or **as columns**: day, rain chance, icon, high and low.
+   - **Next 12 hours**: a temperature curve over hourly rain chance bars.
+   - **Tomorrow in focus**: tomorrow with a large animated icon, then two more days.
 
 Data comes from [Open-Meteo](https://open-meteo.com/) (no account or API key needed),
 fetched every 10 minutes. The optional API key field is only for Open-Meteo

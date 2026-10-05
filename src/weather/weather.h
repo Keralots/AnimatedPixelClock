@@ -22,6 +22,7 @@ enum WeatherIconKind : uint8_t {
 };
 
 #define WEATHER_FORECAST_DAYS 3
+#define WEATHER_FORECAST_HOURS 12
 
 // One day after today, for the forecast layout
 struct WeatherDay {
@@ -43,6 +44,9 @@ struct WeatherData {
   char sunrise[6];       // "HH:MM"
   char sunset[6];        // "HH:MM"
   WeatherDay days[WEATHER_FORECAST_DAYS];  // tomorrow onwards
+  int8_t hourStart;      // local hour of hourTempC[0]; -1 when hourly data is missing
+  float hourTempC[WEATHER_FORECAST_HOURS];
+  int8_t hourPrecip[WEATHER_FORECAST_HOURS];  // precipitation probability %, -1 if unknown
   unsigned long fetchedAt;  // millis() of the last successful fetch
 };
 

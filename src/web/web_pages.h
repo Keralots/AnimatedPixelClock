@@ -711,7 +711,10 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <div class="select-wrap">
                   <select name="weatherLayout" id="weatherLayout">
                     <option value="0">Classic &middot; current weather</option>
-                    <option value="1">Forecast &middot; next three days on the right</option>
+                    <option value="1">Forecast &middot; three days as rows</option>
+                    <option value="2">Forecast &middot; three days as columns</option>
+                    <option value="3">Forecast &middot; next 12 hours</option>
+                    <option value="4">Forecast &middot; tomorrow in focus</option>
                   </select>
                 </div>
               </div>
