@@ -345,14 +345,16 @@ bool gamepadForget() {
   }
   if (!reapTask()) return false;
   // BLE is down, so NimBLE holds no cached copy - clear its store directly.
+  return gamepadEraseBondStore();
+}
+
+bool gamepadEraseBondStore() {
   nvs_handle_t h;
-  if (nvs_open(GP_BOND_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-    nvs_erase_all(h);
-    nvs_commit(h);
-    nvs_close(h);
-  }
-  Serial.println("Gamepad: bonds cleared");
-  return true;
+  if (nvs_open(GP_BOND_NAMESPACE, NVS_READWRITE, &h) != ESP_OK) return false;
+  bool ok = nvs_erase_all(h) == ESP_OK && nvs_commit(h) == ESP_OK;
+  nvs_close(h);
+  if (ok) Serial.println("Gamepad: bonds cleared");
+  return ok;
 }
 
 bool gamepadHasBond() {

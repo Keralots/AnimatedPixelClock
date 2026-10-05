@@ -66,6 +66,8 @@ void gamepadRumble(uint8_t strong, uint8_t weak, uint16_t ms);
 // Forget every paired pad; the next one has to be paired with its pair button.
 // False while BLE is still shutting down or the request could not be queued.
 bool gamepadForget();
+// Clears the stored bonds directly; only safe with BLE down or a restart next.
+bool gamepadEraseBondStore();
 bool gamepadHasBond();
 
 #endif // GAMEPAD_H

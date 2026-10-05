@@ -106,7 +106,12 @@ void setupWebServer() {
 #endif
 
  // OTA Firmware Update handlers
+ static bool otaRefused = false;  // Bluetooth did not let go of the radio in time
  server.on("/update", HTTP_POST, []() {
+ if (otaRefused) {
+   server.send(503, "text/plain", "Update refused: game mode's Bluetooth is still shutting down. Try again in a few seconds.");
+   return;
+ }
  if (Update.hasError()) {
    // Surface the real reason (non-200 so the UI knows it failed). The common
    // case once the firmware outgrows an older default partition table is a
@@ -127,11 +132,17 @@ void setupWebServer() {
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
 #if GAMEPAD_ENABLED
- gameModeStopAndWait(5000);  // the upload shares the radio with BLE
+ otaRefused = !gameModeStopAndWait(5000);  // the upload shares the radio with BLE
+ if (otaRefused) {
+   Serial.println("Update: Bluetooth still up, refusing");
+   return;
+ }
 #endif
  if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
  Update.printError(Serial);
  }
+ } else if (otaRefused) {
+ return;  // drop the rest of a refused upload
  } else if (upload.status == UPLOAD_FILE_WRITE) {
  // Write uploaded data
  if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
@@ -1991,11 +2002,12 @@ void handleReset() {
  preferences.clear();
  preferences.end();
 #if GAMEPAD_ENABLED
- gameModeStopAndWait(5000);
+ bool bleDown = gameModeStopAndWait(5000);
  preferences.begin("game", false);  // high scores and last game
  preferences.clear();
  preferences.end();
- gamepadForget();
+ // Still up: NimBLE may hold a cached copy, but the restart below comes first.
+ if (!(bleDown && gamepadForget())) gamepadEraseBondStore();
 #endif
 
  // Erase WiFi credentials
