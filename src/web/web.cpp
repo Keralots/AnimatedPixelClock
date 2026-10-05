@@ -986,8 +986,9 @@ void handlePortalValues() {
   form["ntpServer2"] = settings.ntpServer2;
   // Controls whose value is not a plain settings field.
   form["timezoneRegion"] = tzSelected;
-  form["use24Hour"] = settings.use24Hour;
-  form["useStaticIP"] = settings.useStaticIP;
+  // Selects with options "0"/"1": a JSON bool would set value "true"/"false" and match none.
+  form["use24Hour"] = settings.use24Hour ? 1 : 0;
+  form["useStaticIP"] = settings.useStaticIP ? 1 : 0;
   form["vizStyle"] = settings.vizStyle;
   form["scopeTrail"] = settings.scopeTrail;
   form["ambientStartHour"] = settings.ambientStartHour;
