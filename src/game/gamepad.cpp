@@ -35,6 +35,9 @@ static const NimBLEUUID UUID_HID((uint16_t)0x1812);
 static const NimBLEUUID UUID_BATTERY((uint16_t)0x180f);
 static const NimBLEUUID UUID_BATTERY_LEVEL((uint16_t)0x2a19);
 static const NimBLEUUID UUID_REPORT((uint16_t)0x2a4d);
+static const NimBLEUUID UUID_DEVICE_INFO((uint16_t)0x180a);
+static const NimBLEUUID UUID_PNP_ID((uint16_t)0x2a50);
+#define GP_VENDOR_MICROSOFT 0x045e
 
 enum GpCmdType : uint8_t { GP_CMD_RUMBLE, GP_CMD_FORGET };
 struct GpCmd {
@@ -158,6 +161,19 @@ static bool subscribeAll(NimBLERemoteService *svc, notify_callback cb) {
   return any;
 }
 
+// Vendor from the PnP ID (source, vendor LE, product, version). A pad without one
+// gets the benefit of the doubt; the scan already wanted a gamepad or an Xbox name.
+static bool isMicrosoftPad() {
+  NimBLERemoteService *dis = gpClient->getService(UUID_DEVICE_INFO);
+  NimBLERemoteCharacteristic *pnp = dis ? dis->getCharacteristic(UUID_PNP_ID) : nullptr;
+  if (!pnp || !pnp->canRead()) return true;
+  std::string v = pnp->readValue();
+  if (v.size() < 3) return true;
+  uint16_t vendor = (uint8_t)v[1] | (uint8_t)v[2] << 8;
+  Serial.printf("Gamepad: vendor %04x\n", vendor);
+  return vendor == GP_VENDOR_MICROSOFT;
+}
+
 static bool connectPad(const NimBLEAddress &addr) {
   if (!gpClient) {
     gpClient = NimBLEDevice::createClient();
@@ -176,6 +192,14 @@ static bool connectPad(const NimBLEAddress &addr) {
     Serial.println("Gamepad: pairing failed, dropping bond");
     gpClient->disconnect();
     NimBLEDevice::deleteBond(addr);
+    return false;
+  }
+  if (!isMicrosoftPad()) {
+    // onReport() decodes the Xbox layout; another pad's reports would be garbage.
+    Serial.println("Gamepad: not an Xbox controller, ignoring it");
+    gpClient->disconnect();
+    NimBLEDevice::deleteBond(addr);
+    NimBLEDevice::addIgnored(addr);
     return false;
   }
   NimBLERemoteService *hid = gpClient->getService(UUID_HID);
