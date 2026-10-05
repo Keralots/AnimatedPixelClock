@@ -55,7 +55,8 @@ static Rock rocks[RK_MAX];
 static Shot shots[SHOTS];
 static float shipX, shipY, shipVX, shipVY, shipA;
 static bool thrusting;
-static unsigned long invulnUntil, lastShot, lastTick;
+static unsigned long lastShot, lastTick;
+static float invulnMs;  // counts down in play only, so a pause does not use it up
 static uint8_t lives, wave;
 static uint32_t score, hiScore;
 static GamePhase phase;
@@ -98,19 +99,19 @@ static void startWave() {
   }
 }
 
-static void respawnShip(unsigned long now) {
+static void respawnShip() {
   shipX = SCREEN_WIDTH / 2;
   shipY = GAME_TOP + FIELD_H / 2;
   shipVX = shipVY = 0;
   shipA = -HALF_PI;
-  invulnUntil = now + INVULN_MS;
+  invulnMs = INVULN_MS;
 }
 
 void rocksReset() {
   hiScore = gameLoadHi("rocksHi");
   for (auto &r : rocks) r.alive = false;
   for (auto &s : shots) s.life = 0;
-  respawnShip(millis());
+  respawnShip();
   lives = LIVES;
   wave = 1;
   score = 0;
@@ -140,10 +141,11 @@ static void shipHit(unsigned long now) {
     if (newHi) hiScore = score;
     return;
   }
-  respawnShip(now);
+  respawnShip();
 }
 
 static void update(const GamepadState &in, float dt, unsigned long now) {
+  if (invulnMs > 0) invulnMs -= dt * 1000;
   uint16_t b = in.buttons;
   if (b & GP_LEFT) shipA -= TURN_RATE * dt;
   if (b & GP_RIGHT) shipA += TURN_RATE * dt;
@@ -195,7 +197,8 @@ static void update(const GamepadState &in, float dt, unsigned long now) {
         break;
       }
     }
-    if (r.alive && now >= invulnUntil && dist2(shipX, shipY, r.x, r.y) < (rr + SHIP_R - 1) * (rr + SHIP_R - 1)) {
+    rr = ROCK_R[r.size];  // a hit may have put a smaller fragment in this slot
+    if (r.alive && invulnMs <= 0 && dist2(shipX, shipY, r.x, r.y) < (rr + SHIP_R - 1) * (rr + SHIP_R - 1)) {
       hitRock(r);
       shipHit(now);
       if (phase != G_PLAY) return;
@@ -203,7 +206,7 @@ static void update(const GamepadState &in, float dt, unsigned long now) {
   }
   if (!any) {
     wave++;
-    invulnUntil = now + 1500;
+    invulnMs = 1500;
     startWave();
   }
 }
@@ -228,7 +231,7 @@ static void drawRock(const Rock &r) {
 }
 
 static void drawShip(unsigned long now) {
-  if (now < invulnUntil && (now / 120) % 2) return;
+  if (invulnMs > 0 && (now / 120) % 2) return;
   float c = cosf(shipA), s = sinf(shipA);
   auto pt = [&](float fwd, float side, float &x, float &y) {
     x = shipX + c * fwd - s * side;
@@ -281,7 +284,7 @@ bool rocksFrame(const GamepadState &in, bool padLost) {
       rocksReset();
       phase = G_PLAY;
       lastTick = now;
-      invulnUntil = now + INVULN_MS;
+      invulnMs = INVULN_MS;
       break;
     case STEP_RESUMED:
       lastTick = now;
