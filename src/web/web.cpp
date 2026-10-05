@@ -314,6 +314,9 @@ void handleSetBrightness() {
  int value = server.arg("value").toInt();
  if (value < 0) value = 0;
  if (value > 100) value = 100;
+#if GAMEPAD_ENABLED
+ if (value == 0) gameModeStop();  // nobody plays on a dark panel
+#endif
  setDisplayBrightnessPercent((uint8_t)value);
  server.send(200, "application/json",
              "{\"success\":true,\"brightness\":" + String(value) + "}");
@@ -372,6 +375,7 @@ void handleModeViz() {
 #if GAMEPAD_ENABLED
 // GET /api/game/start - enter game mode: pair a BLE gamepad, then the game menu.
 void handleGameStart() {
+ panelTestPattern = 0;  // a test pattern would hide the game
  gameModeStart();
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!gameModeActive()) {

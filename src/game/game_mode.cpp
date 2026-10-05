@@ -133,7 +133,32 @@ bool gameModeStopAndWait(unsigned long timeoutMs) {
 
 bool gameModeActive() { return active; }
 
+// Runs from the loop rather than the renderer, so a game that is not on screen
+// (dark panel, test pattern) still times out and frees the radio.
+static void checkTimeouts(unsigned long now) {
+  if (gamepadLink() == GP_LINK_CONNECTED) {
+    if (!everConnected || lostAt) lastInputAt = now;
+    everConnected = true;
+    lostAt = 0;
+    if (settings.gameIdleExitMin && now - lastInputAt >= settings.gameIdleExitMin * 60000UL) {
+      Serial.println("Game mode: idle timeout");
+      gameModeStop();
+    }
+    return;
+  }
+  if (!everConnected) {
+    if (now - enteredAt >= GAME_PAIR_TIMEOUT_MS) gameModeStop();
+    return;
+  }
+  if (!lostAt) lostAt = now;
+  if (now - lostAt >= GAME_LOST_TIMEOUT_MS) gameModeStop();
+}
+
 void gameModeLoop() {
+  if (active) {
+    checkTimeouts(millis());
+    return;
+  }
   if (!restorePanel || !gamepadIdle()) return;
   restorePanel = false;
   setPanelColorDepth(panelOptions.colorDepth);
@@ -156,7 +181,8 @@ static void drawPairingScreen(GamepadLink link, unsigned long now) {
   display.setTextColor(GC_CYAN);
   display.setCursor(0, 54);
   display.print(status);
-  unsigned long left = (GAME_PAIR_TIMEOUT_MS - (now - enteredAt)) / 1000;
+  unsigned long elapsed = min(now - enteredAt, GAME_PAIR_TIMEOUT_MS);
+  unsigned long left = (GAME_PAIR_TIMEOUT_MS - elapsed) / 1000;
   display.setTextColor(GC_GREY);
   display.setCursor(104, 54);
   display.print(left);
@@ -251,28 +277,17 @@ void displayGameMode() {
         in.rt > GAME_TRIGGER_ACTIVITY)
       lastInputAt = now;
     lastButtons = in.buttons;
-    if (!runFrame(in, false)) {
-      gameModeStop();
-    } else if (settings.gameIdleExitMin &&
-               now - lastInputAt >= settings.gameIdleExitMin * 60000UL) {
-      Serial.println("Game mode: idle timeout");
-      gameModeStop();
-    }
+    if (!runFrame(in, false)) gameModeStop();
     return;
   }
 
   if (!everConnected) {
-    if (now - enteredAt >= GAME_PAIR_TIMEOUT_MS) {
-      gameModeStop();
-      return;
-    }
     drawPairingScreen(link, now);
     return;
   }
 
   if (!lostAt) lostAt = now;
   runFrame(in, true);
-  if (now - lostAt >= GAME_LOST_TIMEOUT_MS) gameModeStop();
 }
 
 #endif // GAMEPAD_ENABLED

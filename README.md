@@ -590,7 +590,7 @@ clock runs.
 | Light Cycles | d-pad or stick steer; beat the computer's cycle, three lives |
 
 Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
-`/api/display/off`, a panel test pattern, an OTA update, 2 minutes without a pad, 60 seconds after
+`/api/display/off`, brightness 0, a panel test pattern, an OTA update, 2 minutes without a pad, 60 seconds after
 the pad is lost, or after the idle time set on the page (default 5 minutes
 without input, or never). The same page sets rumble on or off, the Falling Blocks
 starting level, whether stick up hard-drops and an optional landing preview (off by
