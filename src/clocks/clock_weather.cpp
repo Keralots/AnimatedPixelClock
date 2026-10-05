@@ -20,6 +20,44 @@
 #define WDETAIL_Y 55
 #define WDETAIL_SWAP_MS 5000
 
+// Above this the rain and snow slant, clouds drift faster and streaks blow past
+#define WWIND_KMH 30.0f
+
+struct IconScene {
+  int code;          // raw WMO code, for precipitation intensity
+  bool night;
+  bool windy;
+  float t;           // seconds
+  unsigned long ms;
+};
+
+static uint16_t scaleColor(uint16_t c, int num) {
+  int r = ((c >> 11) & 31) * num / 255;
+  int g = ((c >> 5) & 63) * num / 255;
+  int b = (c & 31) * num / 255;
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
+// Halfway to white, for the cloud lit by a lightning flash
+static uint16_t lightenColor(uint16_t c) {
+  int r = (((c >> 11) & 31) + 31) / 2;
+  int g = (((c >> 5) & 63) + 63) / 2;
+  int b = ((c & 31) + 31) / 2;
+  return (uint16_t)((r << 11) | (g << 5) | b);
+}
+
+static uint32_t hash32(uint32_t x) {
+  x ^= x >> 16; x *= 0x7feb352dU;
+  x ^= x >> 15; x *= 0x846ca68bU;
+  x ^= x >> 16;
+  return x;
+}
+
+static int parseHHMM(const char* s) {
+  if (!s || strlen(s) < 5 || s[2] != ':') return -1;
+  return ((s[0] - '0') * 10 + (s[1] - '0')) * 60 + (s[3] - '0') * 10 + (s[4] - '0');
+}
+
 static void drawCloudShape(int cx, int cy, uint16_t color) {
   // Puffy cloud built from three discs on a base bar, ~20px wide.
   display.fillCircle(cx - 6, cy + 2, 4, color);
@@ -28,91 +66,197 @@ static void drawCloudShape(int cx, int cy, uint16_t color) {
   display.fillRect(cx - 6, cy + 2, 13, 4, color);
 }
 
-static void drawWeatherIcon(int x, int y, WeatherIconKind kind) {
+// Disc that breathes by one pixel, with rays turning slowly around it.
+// Alternate rays are shorter so the rotation reads.
+static void drawSun(int cx, int cy, int r, float t, uint16_t color) {
+  int disc = r + ((sinf(t * 1.6f) > 0.6f) ? 1 : 0);
+  display.fillCircle(cx, cy, disc, color);
+  float spin = t * 0.5f;
+  for (int i = 0; i < 8; i++) {
+    float a = spin + i * (PI / 4.0f);
+    int len = r + ((i % 2) ? 4 : 5);
+    display.drawLine(cx + (int)roundf(cosf(a) * (r + 2)), cy + (int)roundf(sinf(a) * (r + 2)),
+                     cx + (int)roundf(cosf(a) * len), cy + (int)roundf(sinf(a) * len), color);
+  }
+}
+
+static void drawMoon(int cx, int cy, int r, uint16_t color) {
+  display.fillCircle(cx, cy, r, color);
+  display.fillCircle(cx + r / 2 + 1, cy - r / 2, r - 1, DISPLAY_BLACK);
+}
+
+// Fixed star field around the moon, each star fading in and out on its own beat
+static void drawStars(int x, int y, float t, int count) {
+  static const int8_t STARS[][2] = {{2, 3}, {20, 1}, {24, 12}, {1, 18}, {22, 22}, {12, 0}};
+  for (int i = 0; i < count && i < 6; i++) {
+    float s = sinf(t * (0.9f + i * 0.23f) + i * 1.7f);
+    if (s < -0.2f) continue;
+    uint16_t c = scaleColor(DISPLAY_WHITE, s > 0.6f ? 255 : 110);
+    int sx = x + STARS[i][0], sy = y + STARS[i][1];
+    display.drawPixel(sx, sy, c);
+    if (s > 0.9f) {
+      uint16_t d = scaleColor(DISPLAY_WHITE, 90);
+      display.drawPixel(sx - 1, sy, d);
+      display.drawPixel(sx + 1, sy, d);
+      display.drawPixel(sx, sy - 1, d);
+      display.drawPixel(sx, sy + 1, d);
+    }
+  }
+}
+
+// Precipitation strength from the WMO code: 0 light, 1 moderate, 2 heavy
+static int precipLevel(int code) {
+  switch (code) {
+    case 51: case 56: case 61: case 66: case 71: case 77: case 80: case 85:
+      return 0;
+    case 55: case 57: case 65: case 67: case 75: case 82: case 86: case 99:
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+static bool isDrizzle(int code) { return code >= 51 && code <= 57; }
+
+static void drawRain(int cx, int top, int bottom, const IconScene& s, int level, uint16_t color) {
+  static const int COUNT[] = {3, 5, 7};
+  static const int STEP_MS[] = {60, 45, 32};
+  int n = COUNT[level];
+  int len = isDrizzle(s.code) ? 1 : (level == 2 ? 3 : 2);
+  int fallH = bottom - top;
+  uint16_t splash = scaleColor(color, 140);
+  for (int i = 0; i < n; i++) {
+    int x0 = cx - 8 + (n > 1 ? i * 16 / (n - 1) : 8);
+    int fy = (int)((s.ms / STEP_MS[level] + (hash32(i + 7) % fallH)) % fallH);
+    int slant = s.windy ? fy / 3 : 0;
+    int x = x0 - slant;
+    if (s.windy) display.drawLine(x, top + fy, x + len / 2 + 1, top + fy - len + 1, color);
+    else display.drawFastVLine(x, top + fy, len, color);
+    if (!isDrizzle(s.code) && fy >= fallH - 2) {
+      display.drawPixel(x - 1, bottom + 1, splash);
+      display.drawPixel(x + 1, bottom + 1, splash);
+    }
+  }
+}
+
+static void drawSnow(int cx, int top, int bottom, const IconScene& s, int level, uint16_t color) {
+  static const int COUNT[] = {4, 6, 8};
+  int n = COUNT[level];
+  int fallH = bottom - top;
+  for (int i = 0; i < n; i++) {
+    int x0 = cx - 9 + (n > 1 ? i * 18 / (n - 1) : 9);
+    int fy = (int)((s.ms / 110 + (hash32(i + 3) % fallH)) % fallH);
+    int x = x0 + (int)roundf(1.5f * sinf(s.t * 2.0f + i * 1.3f)) - (s.windy ? fy / 2 : 0);
+    int y = top + fy;
+    if (i % 3 == 0) {
+      display.drawPixel(x, y, color);
+      display.drawPixel(x - 1, y, color);
+      display.drawPixel(x + 1, y, color);
+      display.drawPixel(x, y - 1, color);
+      display.drawPixel(x, y + 1, color);
+    } else {
+      display.drawPixel(x, y, color);
+    }
+  }
+}
+
+// Short gust lines blowing right to left across the icon area
+static void drawWindStreaks(int x, int y, const IconScene& s) {
+  uint16_t c = scaleColor(DISPLAY_WHITE, 120);
+  static const int ROWS[] = {2, 13, 22};
+  for (int i = 0; i < 3; i++) {
+    int span = 70;
+    int pos = (int)((s.ms / 18 + i * 23) % span);
+    int sx = x + 44 - pos;
+    int len = 4 + i % 2 * 2;
+    for (int k = 0; k < len; k++) {
+      int px = sx + k;
+      if (px >= 0 && px < x + 46) display.drawPixel(px, y + ROWS[i], c);
+    }
+  }
+}
+
+// Lightning comes in random 500ms slots, about one in eight, as a double flash
+static bool lightningOn(unsigned long ms, int* boltShift) {
+  uint32_t slot = ms / 500;
+  uint32_t h = hash32(slot * 2654435761U);
+  if (h % 8 != 0) return false;
+  unsigned long in = ms % 500;
+  if (boltShift) *boltShift = (int)(h / 8 % 3) * 4 - 4;
+  return in < 80 || (in >= 150 && in < 260);
+}
+
+static void drawWeatherIcon(int x, int y, WeatherIconKind kind, const IconScene& s) {
   uint16_t body = SPRITE_COLOR(COL_WEATHER_ICON);
   uint16_t accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
   int cx = x + WICON_SIZE / 2;
   int cy = y + WICON_SIZE / 2;
-  unsigned long now = millis();
+  float drift = s.windy ? 1.1f : 0.5f;
 
   switch (kind) {
     case WICON_SUN: {
-      display.fillCircle(cx, cy, 6, body);
-      // Eight rays; every other ray pulses longer on a slow beat.
-      int pulse = (now / 400) % 2;
-      for (int i = 0; i < 8; i++) {
-        float a = i * (PI / 4.0f);
-        int len = 10 + ((i % 2 == pulse) ? 1 : -1);
-        int x0 = cx + (int)(cosf(a) * 8);
-        int y0 = cy + (int)(sinf(a) * 8);
-        int x1 = cx + (int)(cosf(a) * len);
-        int y1 = cy + (int)(sinf(a) * len);
-        display.drawLine(x0, y0, x1, y1, body);
+      if (s.night) {
+        drawStars(x - 2, y - 2, s.t, 6);
+        drawMoon(cx, cy, 7, body);
+      } else {
+        drawSun(cx, cy, 6, s.t, body);
       }
       break;
     }
     case WICON_PARTCLOUD: {
-      display.fillCircle(cx - 4, cy - 4, 5, body);
-      for (int i = 0; i < 4; i++) {
-        float a = i * (PI / 2.0f) - PI / 4.0f;
-        display.drawLine(cx - 4 + (int)(cosf(a) * 6), cy - 4 + (int)(sinf(a) * 6),
-                         cx - 4 + (int)(cosf(a) * 9), cy - 4 + (int)(sinf(a) * 9),
-                         body);
+      if (s.night) {
+        drawStars(x - 2, y - 2, s.t, 3);
+        drawMoon(cx - 4, cy - 4, 5, body);
+      } else {
+        drawSun(cx - 4, cy - 4, 4, s.t, body);
       }
-      drawCloudShape(cx + 3, cy + 4, accent);
+      int off = (int)roundf(3.0f * sinf(s.t * drift));
+      drawCloudShape(cx + 3 + off, cy + 4, accent);
       break;
     }
     case WICON_CLOUD: {
-      // Slow 1px horizontal bob.
-      int bob = ((now / 700) % 2) ? 1 : 0;
-      drawCloudShape(cx + bob, cy - 1, body);
+      int back = (int)roundf(2.0f * sinf(s.t * drift * 0.7f));
+      int front = (int)roundf(3.0f * sinf(s.t * drift + 1.0f));
+      drawCloudShape(cx - 4 + back, cy - 5, scaleColor(body, 150));
+      drawCloudShape(cx + 3 + front, cy + 2, body);
       break;
     }
     case WICON_FOG: {
-      // Four haze lines drifting in alternating directions.
+      // Four haze lines swaying in alternating directions.
       for (int i = 0; i < 4; i++) {
         int yy = y + 5 + i * 5;
-        int shift = (int)((now / 150 + i * 4) % 8) - 4;
+        int shift = (int)roundf(3.0f * sinf(s.t * drift * 1.6f + i * 0.9f));
         if (i % 2) shift = -shift;
         display.drawFastHLine(x + 3 + shift, yy, 16, i % 2 ? accent : body);
       }
       break;
     }
     case WICON_RAIN: {
-      drawCloudShape(cx, cy - 5, body);
-      // Three drop columns falling below the cloud.
-      for (int i = 0; i < 3; i++) {
-        int dropY = (int)((now / 60 + i * 5) % 12);
-        display.drawFastVLine(cx - 6 + i * 6, cy + 2 + dropY, 3, accent);
-      }
+      drawRain(cx, cy + 1, y + WICON_SIZE + 2, s, precipLevel(s.code), accent);
+      drawCloudShape(cx + (int)roundf(sinf(s.t * drift)), cy - 6, body);
       break;
     }
     case WICON_SNOW: {
-      drawCloudShape(cx, cy - 5, body);
-      // Drifting flakes with a slight side sway.
-      for (int i = 0; i < 3; i++) {
-        int fy = (int)((now / 120 + i * 6) % 12);
-        int fx = cx - 6 + i * 6 + (((now / 240 + i) % 2) ? 1 : -1);
-        display.drawPixel(fx, cy + 2 + fy, accent);
-        display.drawPixel(fx, cy + 3 + fy, accent);
-      }
+      drawSnow(cx, cy + 1, y + WICON_SIZE + 2, s, precipLevel(s.code), accent);
+      drawCloudShape(cx + (int)roundf(sinf(s.t * drift)), cy - 6, body);
       break;
     }
     case WICON_STORM: {
-      drawCloudShape(cx, cy - 5, body);
-      for (int i = 0; i < 2; i++) {
-        int dropY = (int)((now / 60 + i * 7) % 10);
-        display.drawFastVLine(cx - 7 + i * 13, cy + 2 + dropY, 3, accent);
-      }
-      // Lightning bolt flashes ~300ms out of every 1.6s.
-      if ((now % 1600) < 300) {
-        display.drawLine(cx + 1, cy + 1, cx - 2, cy + 6, DISPLAY_WHITE);
-        display.drawLine(cx - 2, cy + 6, cx + 2, cy + 6, DISPLAY_WHITE);
-        display.drawLine(cx + 2, cy + 6, cx - 1, cy + 12, DISPLAY_WHITE);
+      int shift = 0;
+      bool flash = lightningOn(s.ms, &shift);
+      drawRain(cx, cy + 1, y + WICON_SIZE + 2, s, 1, accent);
+      drawCloudShape(cx, cy - 6, flash ? lightenColor(body) : body);
+      if (flash) {
+        int bx = cx + shift;
+        display.drawLine(bx + 1, cy - 1, bx - 2, cy + 5, DISPLAY_WHITE);
+        display.drawLine(bx - 2, cy + 5, bx + 2, cy + 5, DISPLAY_WHITE);
+        display.drawLine(bx + 2, cy + 5, bx - 1, cy + 12, DISPLAY_WHITE);
       }
       break;
     }
   }
+
+  if (s.windy) drawWindStreaks(x - 8, y - 4, s);
 }
 
 // Big temperature: size-2 digits plus a small degree circle and unit letter.
@@ -177,7 +321,18 @@ void displayClockWithWeather() {
     return;
   }
 
-  drawWeatherIcon(WICON_X, WICON_Y, weatherIconFromCode(wx.weatherCode));
+  IconScene scene;
+  scene.code = wx.weatherCode;
+  scene.ms = millis();
+  scene.t = scene.ms / 1000.0f;
+  scene.windy = wx.windKmh >= WWIND_KMH;
+  scene.night = false;
+  int rise = parseHHMM(wx.sunrise), set = parseHHMM(wx.sunset);
+  if (haveTime && rise >= 0 && set > rise) {
+    int nowMin = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    scene.night = nowMin < rise || nowMin >= set;
+  }
+  drawWeatherIcon(WICON_X, WICON_Y, weatherIconFromCode(wx.weatherCode), scene);
   drawTemperature(52, WICON_Y + 3, wx.tempC);
 
   // --- Details row: min/max + humidity alternating with sun times ---
