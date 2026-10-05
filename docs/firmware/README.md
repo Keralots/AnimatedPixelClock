@@ -14,6 +14,11 @@ commit, push, or publish a GitHub Release.
 The `supermini` filename is retained for compatibility; it also covers the
 Waveshare ESP32-S3-Zero. Choose the image for your board and flash size.
 
+Every board is also built as a `-games` variant (`<env>-games`, file ID
+`<id>-games`, for example `waveshare-games` from `matrix-waveshare-games`) with
+Bluetooth game mode. Clock-only is the default: Bluetooth keeps about 29KB of
+internal memory reserved once it is linked. Both variants share the flash layout.
+
 ## Packaging
 
 1. Set the intended firmware version in `src/config/config.h`.
@@ -42,11 +47,14 @@ The web flasher reads `docs/firmware/latest/VERSION` and selects one of:
 AnimatedPixelClock-supermini-v<version>-Full.bin
 AnimatedPixelClock-wroom-v<version>-Full.bin
 AnimatedPixelClock-waveshare-v<version>-Full.bin
+AnimatedPixelClock-<id>-games-v<version>-Full.bin   (one per board)
 SHA256SUMS.txt
 ```
 
 These files are committed under `docs/` and published by GitHub Pages from
-`main:/docs`. The filename IDs match `BOARDS` in `docs/flasher.js`.
+`main:/docs`. The filename IDs match `BOARDS` in `docs/flasher.js`, plus the
+`suffix` of the chosen entry in its `VARIANTS`. The flasher only offers a board or
+variant whose image exists for the published version.
 
 The GitHub Release assets are prepared in `release/v<version>/`:
 
@@ -57,6 +65,8 @@ firmware-v<version>-waveshare.bin
 OTA_ONLY_firmware-v<version>-supermini.bin
 OTA_ONLY_firmware-v<version>-wroom.bin
 OTA_ONLY_firmware-v<version>-waveshare.bin
+firmware-v<version>-<id>-games.bin           (one per board)
+OTA_ONLY_firmware-v<version>-<id>-games.bin  (one per board)
 pc_stats_monitor_v4.exe
 SHA256SUMS.txt
 ```
@@ -76,10 +86,10 @@ asset: the GitHub Release is the only place users download it from.
 
 Commit the source, flasher updates, `docs/firmware/latest` and release BINs/checksums.
 Push `main`, tag that exact commit as `v<version>`, and create a GitHub Release
-with all eight assets listed above (six BINs, the EXE and SHA256SUMS.txt). Use a draft until every upload is complete,
+with all fourteen assets listed above (twelve BINs, the EXE and SHA256SUMS.txt). Use a draft until every upload is complete,
 then publish it and mark stable releases as latest.
 
 The flasher's Windows download points to that same tag's `pc_stats_monitor_v4.exe`.
 Keep that asset name stable. After GitHub Pages finishes deploying, check the
-public page, all three published Full images, all six release BIN downloads, the
+public page, all six published Full images, all twelve release BIN downloads, the
 EXE download and their SHA-256 hashes.

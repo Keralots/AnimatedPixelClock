@@ -199,6 +199,7 @@ void handleDeviceInfo() {
  doc["freeHeap"] = ESP.getFreeHeap();
  doc["model"] = "AnimatedPixelClock";
  doc["build"] = __DATE__ " " __TIME__;
+ doc["gameMode"] = GAMEPAD_ENABLED != 0;  // which release variant this is
  doc["chip"] = ESP.getChipModel();
  doc["flashBytes"] = ESP.getFlashChipSize();
  doc["firmwareBytes"] = runningFirmwareBytes;

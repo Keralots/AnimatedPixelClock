@@ -1325,6 +1325,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <dl class="sr-rows" style="position:relative;z-index:1">
                 <div class="sr-row"><dt>version</dt><dd id="fwVer"></dd></div>
                 <div class="sr-row"><dt>built</dt><dd id="fwBuilt"></dd></div>
+                <div class="sr-row"><dt>variant</dt><dd id="fwVariant"></dd></div>
                 <div class="sr-row"><dt>free heap</dt><dd id="fwHeap"></dd></div>
               </dl>
             </div>
@@ -2246,6 +2247,9 @@ otaFile.addEventListener('change', function () { if (otaFile.files[0]) doUpload(
 drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) doUpload(f); });
 function doUpload(file) {
 if (!file.name || file.name.slice(-4) !== '.bin') { alert('Please select a valid .bin firmware file.'); return; }
+var fileGames = /-games\.bin$/i.test(file.name);
+if (fwGames !== null && fileGames !== fwGames && !confirm('This clock runs the ' + (fwGames ? 'clock + games' : 'clock only') +
+ ' firmware, but ' + file.name + ' looks like the ' + (fileGames ? 'clock + games' : 'clock only') + ' one. Install it anyway?')) return;
 var prog = $('#otaProgress'), fill = $('#otaFill'), pct = $('#otaPct');
 prog.classList.add('show'); fill.style.width = '0%'; pct.textContent = 'Uploading ' + file.name + '... 0%';
 var xhr = new XMLHttpRequest();
@@ -2302,6 +2306,7 @@ function updateDiagnostics(d) {
  $('#diagnosticsText').textContent=lines.join('\n');
 }
 
+var fwGames = null;
 function refreshStatus() {
 fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
 updateDiagnostics(d);
@@ -2310,6 +2315,7 @@ if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname
 if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }
 if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
 if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
+if (typeof d.gameMode === 'boolean') { fwGames = d.gameMode; var fv = $('#fwVariant'); if (fv) fv.textContent = d.gameMode ? 'clock + games' : 'clock only'; }
 }).catch(function () {});
 fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
 var led = $('#srLed'), title = $('#srTitle');

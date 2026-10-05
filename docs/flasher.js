@@ -1,7 +1,8 @@
 // AnimatedPixelClock Web Flasher - client logic.
 // Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
-// install button, specs and board photo in sync. One firmware image per board in
-// BOARDS below, all driving the 128x64 HUB75 matrix.
+// install button, specs and board photo in sync. Each board in BOARDS below has a
+// clock-only image and a "-games" image with Bluetooth game mode (VARIANTS), all
+// driving the 128x64 HUB75 matrix.
 
 const BOARDS = {
   supermini: {
@@ -27,12 +28,21 @@ const BOARDS = {
   },
 };
 
+// Bluetooth reserves internal memory for good once it is in the firmware, so the
+// clock-only image is the default.
+const VARIANTS = {
+  clock: { label: 'Clock only (recommended)', suffix: '', spec: 'clock only' },
+  games: { label: 'Clock + game mode (Bluetooth Xbox pad, about 29KB less free memory)', suffix: '-games', spec: 'clock + games' },
+};
+
 const DEFAULT_BOARD = 'supermini';
+const DEFAULT_VARIANT = 'clock';
 const DISPLAY = 'HUB75 · 128×64 RGB';
 const PROBE_TIMEOUT_MS = 4000;
 
 let _version = null;
 let _currentManifestUrl = null;
+const _imageState = {};  // "<board>/<variant>" -> published | missing | unknown
 
 async function loadVersion() {
   const r = await fetch('firmware/latest/VERSION', { cache: 'no-cache' });
@@ -42,12 +52,14 @@ async function loadVersion() {
   return text;
 }
 
-function buildManifest(boardId, version) {
+function imageUrl(boardId, variantId, version) {
+  const fid = BOARDS[boardId].firmware + VARIANTS[variantId].suffix;
+  return new URL(`firmware/latest/AnimatedPixelClock-${fid}-${version}-Full.bin`, location.href).href;
+}
+
+function buildManifest(boardId, variantId, version) {
   const board = BOARDS[boardId];
-  const binUrl = new URL(
-    `firmware/latest/AnimatedPixelClock-${board.firmware}-${version}-Full.bin`,
-    location.href,
-  ).href;
+  const binUrl = imageUrl(boardId, variantId, version);
   return {
     name: 'AnimatedPixelClock',
     version,
@@ -67,12 +79,12 @@ function buildManifest(boardId, version) {
   };
 }
 
-function manifestBlobUrl(boardId, version) {
+function manifestBlobUrl(boardId, variantId, version) {
   if (_currentManifestUrl) {
     URL.revokeObjectURL(_currentManifestUrl);
     _currentManifestUrl = null;
   }
-  const blob = new Blob([JSON.stringify(buildManifest(boardId, version))], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(buildManifest(boardId, variantId, version))], { type: 'application/json' });
   _currentManifestUrl = URL.createObjectURL(blob);
   return _currentManifestUrl;
 }
@@ -87,6 +99,28 @@ function populateBoardSelect() {
     sel.appendChild(opt);
   }
   sel.value = DEFAULT_BOARD;
+}
+
+// Offers the variants published for this board, keeping the current pick if it is.
+function populateVariantSelect(boardId) {
+  const sel = document.getElementById('variant-select');
+  if (!sel) return DEFAULT_VARIANT;
+  const prev = sel.value || DEFAULT_VARIANT;
+  sel.innerHTML = '';
+  for (const [id, info] of Object.entries(VARIANTS)) {
+    if (_imageState[`${boardId}/${id}`] === 'missing') continue;
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = info.label;
+    sel.appendChild(opt);
+  }
+  sel.value = sel.querySelector(`option[value="${prev}"]`) ? prev : (sel.options[0]?.value || DEFAULT_VARIANT);
+  return sel.value;
+}
+
+function renderVariant(variantId) {
+  const el = document.getElementById('spec-variant');
+  if (el) el.textContent = VARIANTS[variantId].spec;
 }
 
 function renderSpecs(boardId) {
@@ -109,13 +143,13 @@ function renderSpecs(boardId) {
   if (note) note.textContent = info.note;
 }
 
-function renderInstallButton(boardId, version) {
+function renderInstallButton(boardId, variantId, version) {
   // ESP Web Tools caches the manifest on first render - recreate the element on
   // every board switch so the new board's manifest is picked up.
   const slot = document.getElementById('install-slot');
   slot.innerHTML = '';
   const btn = document.createElement('esp-web-install-button');
-  btn.setAttribute('manifest', manifestBlobUrl(boardId, version));
+  btn.setAttribute('manifest', manifestBlobUrl(boardId, variantId, version));
 
   const fallback = document.createElement('span');
   fallback.setAttribute('slot', 'unsupported');
@@ -165,8 +199,7 @@ function showVersionError(err) {
 // Only a definite 404/410 counts as "not published yet". A blocked HEAD, a 405,
 // a 5xx or a timeout is inconclusive, and dropping a board on those grounds would
 // hide a perfectly good image.
-async function probeBoard(info, version) {
-  const url = new URL(`firmware/latest/AnimatedPixelClock-${info.firmware}-${version}-Full.bin`, location.href).href;
+async function probeImage(url) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
   try {
@@ -180,22 +213,25 @@ async function probeBoard(info, version) {
   }
 }
 
-// A board is only offered once its Full.bin exists for the published version -
-// otherwise picking it hands ESP Web Tools a 404.
+// A board or variant is only offered once its Full.bin exists for the published
+// version - otherwise picking it hands ESP Web Tools a 404.
 async function pruneUnpublishedBoards(version) {
   const sel = document.getElementById('board-select');
   if (!sel) return;
-  const results = await Promise.all(
-    Object.entries(BOARDS).map(async ([id, info]) => [id, await probeBoard(info, version)]),
-  );
+  const keys = Object.keys(BOARDS).flatMap((b) => Object.keys(VARIANTS).map((v) => [b, v]));
+  await Promise.all(keys.map(async ([b, v]) => {
+    _imageState[`${b}/${v}`] = await probeImage(imageUrl(b, v, version));
+  }));
   // Every image missing means the VERSION file and the published binaries
   // disagree. Say so rather than silently emptying the picker.
-  if (results.every(([, state]) => state === 'missing')) {
+  if (Object.values(_imageState).every((state) => state === 'missing')) {
     showStatus(`No firmware images published for ${version} yet. The site may be mid-deploy, try again in a minute.`, 'error');
     return;
   }
-  for (const [id, state] of results) {
-    if (state === 'missing') sel.querySelector(`option[value="${id}"]`)?.remove();
+  for (const id of Object.keys(BOARDS)) {
+    if (Object.keys(VARIANTS).every((v) => _imageState[`${id}/${v}`] === 'missing')) {
+      sel.querySelector(`option[value="${id}"]`)?.remove();
+    }
   }
   if (!sel.querySelector(`option[value="${sel.value}"]`)) sel.selectedIndex = 0;
 }
@@ -223,14 +259,19 @@ async function init() {
   await pruneUnpublishedBoards(_version);
 
   const sel = document.getElementById('board-select');
-  const initialBoard = sel && sel.value ? sel.value : DEFAULT_BOARD;
-  renderSpecs(initialBoard);
-  renderInstallButton(initialBoard, _version);
-
-  if (sel) sel.addEventListener('change', (e) => {
-    const boardId = e.target.value;
+  const variantSel = document.getElementById('variant-select');
+  const refresh = () => {
+    const boardId = sel && sel.value ? sel.value : DEFAULT_BOARD;
+    const variantId = populateVariantSelect(boardId);
     renderSpecs(boardId);
-    renderInstallButton(boardId, _version);
+    renderVariant(variantId);
+    renderInstallButton(boardId, variantId, _version);
+  };
+  refresh();
+  if (sel) sel.addEventListener('change', refresh);
+  if (variantSel) variantSel.addEventListener('change', () => {
+    renderVariant(variantSel.value);
+    renderInstallButton(sel && sel.value ? sel.value : DEFAULT_BOARD, variantSel.value, _version);
   });
 }
 

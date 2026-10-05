@@ -564,6 +564,13 @@ Wireless Controller, model 1708 or newer, on controller firmware 5.x. The
 ESP32-S3 speaks Bluetooth LE only, so an older pad that has not been updated
 never shows up; update it once in the Xbox Accessories app over USB.
 
+Game mode is only in the **clock + games** firmware: pick it in the web flasher,
+install the `-games` OTA image, or build a `-games` environment (see
+[Flashing](#flashing)). The default clock-only firmware leaves Bluetooth out,
+because once it is in the firmware it keeps about 29KB of internal memory
+reserved even when nobody plays. The Maintenance page shows which variant a
+clock runs.
+
 1. In the web portal open **Game mode** and press **Start game mode**
    (or `GET /api/game/start`).
 2. A new pad: hold its pair button for 3 seconds. A pad paired before reconnects
@@ -601,10 +608,6 @@ panel's full-colour buffers otherwise hold. Notifications are refused with HTTP
 409 until the game ends. Leaving game mode restores the panel and the schedule.
 A factory reset also clears the best scores and the paired pad.
 
-Having Bluetooth in the firmware keeps about 29KB of internal memory reserved
-even when nobody plays. A clock that never plays can build without game mode by
-adding `-DGAMEPAD_ENABLED=0` to `build_flags` of its environment in
-`platformio.ini`; the **Game mode** page then disappears from the portal.
 
 ## Flashing
 
@@ -630,6 +633,10 @@ Board choices on that page:
   same BOOT-hold trick if the port does not appear. Its 32MB flash leaves 23MB
   for custom animations.
 
+Every board also has a **Firmware** choice: **Clock only** (recommended) or
+**Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
+gamepad at the cost of about 29KB of free internal memory.
+
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 It also provides a direct Windows companion download after flashing. Full images,
 OTA-only images for every board, the EXE and SHA-256 checksums are available in
@@ -649,6 +656,9 @@ pio run -e matrix-s3 -t upload
 
 # Waveshare ESP32-S3-RGB-Matrix driver board
 pio run -e matrix-waveshare -t upload
+
+# Any of the above with game mode: add -games to the environment
+pio run -e matrix-waveshare-games -t upload
 ```
 
 Omit `-t upload` to build only. The WROOM environment currently sets upload and
@@ -692,8 +702,11 @@ upload `OTA_ONLY_firmware-v<version>-<board>.bin`. Do not upload the full
 `firmware-v<version>-<board>.bin` - that one carries the bootloader and partition
 table and belongs at `0x0` over USB. `wroom` is the ESP32-S3-WROOM-1 N16R8 (16MB)
 build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build, and `waveshare` the
-Waveshare ESP32-S3-RGB-Matrix build. Downloads can be verified against
-`SHA256SUMS.txt`.
+Waveshare ESP32-S3-RGB-Matrix build. Each has a `-games` twin with game mode
+(for example `OTA_ONLY_firmware-v<version>-waveshare-games.bin`); upload the one
+that matches the variant shown on the Maintenance page, or the other one to switch.
+The portal asks before installing a file whose name does not match. Downloads can
+be verified against `SHA256SUMS.txt`.
 
 ## HTTP control API
 
