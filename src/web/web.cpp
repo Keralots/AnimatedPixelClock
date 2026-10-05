@@ -960,6 +960,7 @@ void handlePortalValues() {
   form["weatherLat"] = String(settings.weatherLat, 4);
   form["weatherLon"] = String(settings.weatherLon, 4);
   form["weatherFahrenheit"] = settings.weatherUseFahrenheit;
+  form["weatherLayout"] = settings.weatherLayout;
   form["weatherApiKey"] = settings.weatherApiKey;
   form["colonBlinkRate"] = settings.colonBlinkRate;
   form["displayBrightness"] = settings.displayBrightness;
@@ -1314,6 +1315,7 @@ void handleSave() {
  settings.weatherLon = lon;
  }
  settings.weatherUseFahrenheit = server.hasArg("weatherFahrenheit");
+ if (server.hasArg("weatherLayout")) settings.weatherLayout = server.arg("weatherLayout").toInt() == 1 ? 1 : 0;
  if (server.hasArg("weatherApiKey")) {
  String key = server.arg("weatherApiKey");
  if (key.length() <= 32) {
@@ -1924,6 +1926,7 @@ void handleExportConfig() {
  json += "\"weatherLat\":" + String(settings.weatherLat, 4) + ",";
  json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
  json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
+ json += "\"weatherLayout\":" + String(settings.weatherLayout) + ",";
  json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
  json += "\"ambientEnabled\":" + String(settings.ambientEnabled ? "true" : "false") + ",";
  json += "\"ambientStyle\":" + String(settings.ambientStyle) + ",";
@@ -2233,6 +2236,7 @@ void handleImportConfig() {
  if (!doc["weatherLat"].isNull()) settings.weatherLat = doc["weatherLat"];
  if (!doc["weatherLon"].isNull()) settings.weatherLon = doc["weatherLon"];
  if (!doc["weatherUseFahrenheit"].isNull()) settings.weatherUseFahrenheit = doc["weatherUseFahrenheit"];
+ if (!doc["weatherLayout"].isNull()) settings.weatherLayout = doc["weatherLayout"].as<int>() == 1 ? 1 : 0;
  if (!doc["weatherApiKey"].isNull()) {
    const char* key = doc["weatherApiKey"];
    if (key && strlen(key) <= 32) {

@@ -177,6 +177,7 @@ void loadSettings() {
     settings.weatherLat = 0;
     settings.weatherLon = 0;
     settings.weatherUseFahrenheit = false;
+    settings.weatherLayout = 0;
     settings.weatherApiKey[0] = '\0';
     settings.ambientEnabled = false;
     settings.ambientStyle = 0;
@@ -403,6 +404,8 @@ void loadSettings() {
   settings.weatherLon = preferences.getFloat("weatherLon", 0);
   settings.weatherUseFahrenheit =
       preferences.getBool("weatherF", false); // Default: Celsius
+  settings.weatherLayout = preferences.getUChar("weatherLay", 0);
+  if (settings.weatherLayout > 1) settings.weatherLayout = 0;
   String loadedWeatherKey = preferences.getString("weatherKey", "");
   strncpy(settings.weatherApiKey, loadedWeatherKey.c_str(), 32);
   settings.weatherApiKey[32] = '\0';
@@ -820,6 +823,7 @@ void saveSettings() {
   preferences.putFloat("weatherLat", settings.weatherLat);
   preferences.putFloat("weatherLon", settings.weatherLon);
   preferences.putBool("weatherF", settings.weatherUseFahrenheit);
+  preferences.putUChar("weatherLay", settings.weatherLayout);
   preferences.putString("weatherKey", settings.weatherApiKey);
   preferences.putBool("ambEn", settings.ambientEnabled);
   preferences.putUChar("ambStyle", settings.ambientStyle);

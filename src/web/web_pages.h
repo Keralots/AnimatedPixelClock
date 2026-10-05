@@ -707,6 +707,15 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                 <span class="check-text"><strong>Fahrenheit</strong><span class="ct-hint">Off shows Celsius.</span></span>
               </label>
               <div class="field" style="margin:16px 0 0">
+                <label class="field-label" for="weatherLayout">Layout</label>
+                <div class="select-wrap">
+                  <select name="weatherLayout" id="weatherLayout">
+                    <option value="0">Classic &middot; current weather</option>
+                    <option value="1">Forecast &middot; next three days on the right</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin:16px 0 0">
                 <label class="field-label" for="weatherApiKey">API key (optional)</label>
                 <input type="text" name="weatherApiKey" id="weatherApiKey" maxlength="32" value="" placeholder="Leave empty for the free endpoint">
                 <p class="field-hint">Only needed with an Open-Meteo commercial subscription.</p>

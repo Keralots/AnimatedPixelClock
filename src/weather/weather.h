@@ -1,8 +1,8 @@
 /*
  * AnimatedPixelClock - Weather Module (Open-Meteo)
  *
- * Background FreeRTOS task fetches current conditions + today's range every
- * 10 minutes and publishes them into a small struct the render loop reads.
+ * Background FreeRTOS task fetches current conditions, today's range and the
+ * next three days every 10 minutes and publishes them into a small struct the render loop reads.
  */
 
 #ifndef WEATHER_H
@@ -21,6 +21,17 @@ enum WeatherIconKind : uint8_t {
   WICON_STORM,
 };
 
+#define WEATHER_FORECAST_DAYS 3
+
+// One day after today, for the forecast layout
+struct WeatherDay {
+  int8_t wday;           // 0 = Sunday; -1 when the day is missing
+  int weatherCode;       // raw WMO code
+  float tempMaxC;
+  float tempMinC;
+  int precipChance;      // max precipitation probability %, -1 if unknown
+};
+
 struct WeatherData {
   bool valid;            // true once at least one fetch succeeded
   float tempC;           // current temperature (Celsius)
@@ -31,6 +42,7 @@ struct WeatherData {
   int weatherCode;       // raw WMO code
   char sunrise[6];       // "HH:MM"
   char sunset[6];        // "HH:MM"
+  WeatherDay days[WEATHER_FORECAST_DAYS];  // tomorrow onwards
   unsigned long fetchedAt;  // millis() of the last successful fetch
 };
 

@@ -85,6 +85,15 @@ static void extractClockTime(const char* iso, char out[6]) {
   }
 }
 
+// Day of week (0 = Sunday) of an ISO date ("2026-10-07"), -1 if malformed
+static int8_t weekdayOf(const char* iso) {
+  int y, m, d;
+  if (!iso || sscanf(iso, "%d-%d-%d", &y, &m, &d) != 3 || m < 1 || m > 12) return -1;
+  static const int T[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+  if (m < 3) y--;
+  return (int8_t)((y + y / 4 - y / 100 + y / 400 + T[m - 1] + d) % 7);
+}
+
 static bool fetchWeather() {
   char url[320];
   bool hasKey = settings.weatherApiKey[0] != '\0';
@@ -92,10 +101,11 @@ static bool fetchWeather() {
   snprintf(url, sizeof(url),
            "https://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
-           "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset"
-           "&timezone=auto&forecast_days=1%s%s",
+           "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
+           "precipitation_probability_max,sunrise,sunset"
+           "&timezone=auto&forecast_days=%d%s%s",
            hasKey ? "customer-api.open-meteo.com" : "api.open-meteo.com",
-           settings.weatherLat, settings.weatherLon,
+           settings.weatherLat, settings.weatherLon, 1 + WEATHER_FORECAST_DAYS,
            hasKey ? "&apikey=" : "", hasKey ? settings.weatherApiKey : "");
 
   WiFiClientSecure client;
@@ -134,6 +144,14 @@ static bool fetchWeather() {
   fresh.tempMinC = daily["temperature_2m_min"][0] | 0.0f;
   extractClockTime(daily["sunrise"][0], fresh.sunrise);
   extractClockTime(daily["sunset"][0], fresh.sunset);
+  for (int i = 0; i < WEATHER_FORECAST_DAYS; i++) {
+    WeatherDay& day = fresh.days[i];
+    day.wday = weekdayOf(daily["time"][i + 1]);
+    day.weatherCode = daily["weather_code"][i + 1] | 3;
+    day.tempMaxC = daily["temperature_2m_max"][i + 1] | 0.0f;
+    day.tempMinC = daily["temperature_2m_min"][i + 1] | 0.0f;
+    day.precipChance = daily["precipitation_probability_max"][i + 1] | -1;
+  }
   fresh.fetchedAt = millis();
 
   portENTER_CRITICAL(&weatherMux);

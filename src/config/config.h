@@ -124,6 +124,7 @@ struct Settings {
   float weatherLat;             // Location latitude (0,0 = unset)
   float weatherLon;             // Location longitude
   bool weatherUseFahrenheit;    // false = Celsius
+  uint8_t weatherLayout;        // 0 = classic, 1 = forecast rows on the right
   char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
 
   // Ambient screensaver (scheduled, replaces the clock)

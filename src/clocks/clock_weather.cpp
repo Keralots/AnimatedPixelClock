@@ -3,8 +3,9 @@
  *
  * Time on top, animated condition icon + big temperature in the middle,
  * details row (min/max + humidity alternating with sunrise/sunset) at the
- * bottom. Icon animation phases run off millis() so there is no state to
- * reset between style switches.
+ * bottom. The optional forecast layout moves all of that into the left half
+ * and lists the next three days on the right. Icon animation phases run off
+ * millis() so there is no state to reset between style switches.
  */
 
 #include "clocks.h"
@@ -278,9 +279,140 @@ static void drawTemperature(int x, int y, float tempC) {
   display.setTextColor(DISPLAY_WHITE);
 }
 
+static int toUnit(float tempC) {
+  return (int)roundf(settings.weatherUseFahrenheit ? tempC * 9.0f / 5.0f + 32.0f : tempC);
+}
+
+static void printAt(int x, int y, const char* s, uint16_t color, int size = 1) {
+  display.setTextSize(size);
+  display.setTextColor(color);
+  display.setCursor(x, y);
+  display.print(s);
+  display.setTextColor(DISPLAY_WHITE);
+}
+
+// 13x13 still icon for a forecast row
+static void drawMiniIcon(int x, int y, int code) {
+  uint16_t body = SPRITE_COLOR(COL_WEATHER_ICON);
+  uint16_t accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
+  int cx = x + 6, cy = y + 6;
+  auto cloud = [](int ox, int oy, uint16_t c) {
+    display.fillCircle(ox - 3, oy + 1, 2, c);
+    display.fillCircle(ox + 1, oy - 1, 3, c);
+    display.fillCircle(ox + 4, oy + 1, 2, c);
+    display.fillRect(ox - 3, oy + 1, 8, 3, c);
+  };
+  switch (weatherIconFromCode(code)) {
+    case WICON_SUN:
+      display.fillCircle(cx, cy, 3, body);
+      for (int i = 0; i < 8; i++) {
+        float a = i * PI / 4;
+        display.drawPixel(cx + (int)roundf(cosf(a) * 5), cy + (int)roundf(sinf(a) * 5), body);
+      }
+      break;
+    case WICON_PARTCLOUD:
+      display.fillCircle(cx - 2, cy - 2, 3, body);
+      cloud(cx + 1, cy + 2, accent);
+      break;
+    case WICON_CLOUD:
+      cloud(cx, cy, body);
+      break;
+    case WICON_FOG:
+      for (int i = 0; i < 3; i++)
+        display.drawFastHLine(x + 1 + (i % 2), y + 3 + i * 3, 10, i % 2 ? accent : body);
+      break;
+    case WICON_RAIN:
+      cloud(cx, cy - 2, body);
+      for (int i = 0; i < 3; i++) display.drawFastVLine(cx - 3 + i * 3, cy + 4 + (i % 2), 2, accent);
+      break;
+    case WICON_SNOW:
+      cloud(cx, cy - 2, body);
+      for (int i = 0; i < 3; i++) display.drawPixel(cx - 3 + i * 3, cy + 4 + (i % 2) * 2, accent);
+      break;
+    case WICON_STORM:
+      cloud(cx, cy - 2, body);
+      display.drawLine(cx, cy + 2, cx - 2, cy + 5, DISPLAY_WHITE);
+      display.drawLine(cx - 2, cy + 5, cx + 1, cy + 7, DISPLAY_WHITE);
+      break;
+  }
+}
+
+// Current weather squeezed into the left half, the next three days as rows on
+// the right
+static void drawForecastLayout(const WeatherData& wx, const IconScene& scene,
+                               bool haveTime, const struct tm& timeinfo) {
+  static const char* const DAY_NAMES[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+  uint16_t tempCol = SPRITE_COLOR(COL_WEATHER_TEMP);
+  uint16_t accent = SPRITE_COLOR(COL_WEATHER_ACCENT);
+  uint16_t dim = scaleColor(DISPLAY_WHITE, 150);
+  char buf[16];
+
+  if (haveTime) {
+    int displayHour, displayMin;
+    bool isPM;
+    formatTimeForDisplay(timeinfo.tm_hour, timeinfo.tm_min, displayHour, displayMin, isPM);
+    snprintf(buf, sizeof(buf), "%02d%c%02d", displayHour, shouldShowColon() ? ':' : ' ', displayMin);
+    printAt(2, 2, buf, digitColor(), 2);
+    drawMeridiemIndicator(48, 45, isPM);
+  } else {
+    printAt(2, 6, !ntpSynced ? "Syncing.." : "Time Error", DISPLAY_WHITE);
+  }
+
+  drawWeatherIcon(2, 22, weatherIconFromCode(wx.weatherCode), scene);
+  snprintf(buf, sizeof(buf), "%d", toUnit(wx.tempC));
+  int tw = strlen(buf) * 12;
+  if (tw <= 24) {
+    printAt(30, 26, buf, tempCol, 2);
+    display.drawCircle(30 + tw + 2, 27, 1, tempCol);
+  } else {
+    printAt(26, 26, buf, tempCol, 2);
+  }
+  snprintf(buf, sizeof(buf), "\x18%d \x19%d", toUnit(wx.tempMaxC), toUnit(wx.tempMinC));
+  printAt(4, 55, buf, SPRITE_COLOR(COL_WEATHER_DETAIL));
+
+  uint16_t line = scaleColor(DISPLAY_WHITE, 60);
+  display.drawFastVLine(63, 2, 60, line);
+  for (int i = 0; i < WEATHER_FORECAST_DAYS; i++) {
+    const WeatherDay& d = wx.days[i];
+    int y = 2 + i * 21;
+    if (i < WEATHER_FORECAST_DAYS - 1) display.drawFastHLine(66, y + 19, 60, line);
+    if (d.wday < 0 || d.wday > 6) continue;
+    printAt(67, y + 1, DAY_NAMES[d.wday], dim);
+    if (d.precipChance >= 0) snprintf(buf, sizeof(buf), "%d%%", d.precipChance);
+    else snprintf(buf, sizeof(buf), "--");
+    printAt(67, y + 10, buf, accent);
+    drawMiniIcon(92, y + 2, d.weatherCode);
+    snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMaxC));
+    printAt(127 - strlen(buf) * 6, y + 1, buf, tempCol);
+    snprintf(buf, sizeof(buf), "%d", toUnit(d.tempMinC));
+    printAt(127 - strlen(buf) * 6, y + 10, buf, dim);
+  }
+
+  if (!wifiConnected) drawNoWiFiIcon(0, 0);
+}
+
 void displayClockWithWeather() {
   struct tm timeinfo;
   bool haveTime = getTimeWithTimeout(&timeinfo);
+  WeatherData wx = getWeather();
+  bool ready = settings.weatherEnabled && weatherConfigured() && wx.valid;
+
+  IconScene scene;
+  scene.code = wx.weatherCode;
+  scene.ms = millis();
+  scene.t = scene.ms / 1000.0f;
+  scene.windy = wx.windKmh >= WWIND_KMH;
+  scene.night = false;
+  int rise = parseHHMM(wx.sunrise), set = parseHHMM(wx.sunset);
+  if (haveTime && rise >= 0 && set > rise) {
+    int nowMin = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    scene.night = nowMin < rise || nowMin >= set;
+  }
+
+  if (ready && settings.weatherLayout == 1) {
+    drawForecastLayout(wx, scene, haveTime, timeinfo);
+    return;
+  }
 
   // --- Time row (size 2, centered) ---
   if (haveTime) {
@@ -305,7 +437,6 @@ void displayClockWithWeather() {
   }
 
   // --- Weather block ---
-  WeatherData wx = getWeather();
   display.setTextSize(1);
 
   if (!settings.weatherEnabled || !weatherConfigured()) {
@@ -321,17 +452,6 @@ void displayClockWithWeather() {
     return;
   }
 
-  IconScene scene;
-  scene.code = wx.weatherCode;
-  scene.ms = millis();
-  scene.t = scene.ms / 1000.0f;
-  scene.windy = wx.windKmh >= WWIND_KMH;
-  scene.night = false;
-  int rise = parseHHMM(wx.sunrise), set = parseHHMM(wx.sunset);
-  if (haveTime && rise >= 0 && set > rise) {
-    int nowMin = timeinfo.tm_hour * 60 + timeinfo.tm_min;
-    scene.night = nowMin < rise || nowMin >= set;
-  }
   drawWeatherIcon(WICON_X, WICON_Y, weatherIconFromCode(wx.weatherCode), scene);
   drawTemperature(52, WICON_Y + 3, wx.tempC);
 
