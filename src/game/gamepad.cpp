@@ -217,7 +217,11 @@ static void bleUp() {
 
 static void bleDown() {
   teardown();
-  vTaskDelay(pdMS_TO_TICKS(200));  // let the disconnect finish
+  // deleteClient() spins on taskYIELD until the link is gone, which starves the
+  // lower-priority loop, so wait here first. deinit(true) erases the client list
+  // while iterating it (NimBLE 1.4.3); an empty list keeps that loop from running.
+  for (int i = 0; gpClient && gpClient->isConnected() && i < 300; i++) vTaskDelay(pdMS_TO_TICKS(20));
+  if (gpClient) NimBLEDevice::deleteClient(gpClient);
   NimBLEDevice::deinit(true);
   gpClient = nullptr;
   gpOutput = nullptr;
