@@ -55,6 +55,7 @@ static NimBLEAddress gpFoundAddr;
 static NimBLEClient *gpClient = nullptr;
 static TaskHandle_t gpTask = nullptr;     // owned by the loop task
 static volatile bool gpStopped = false;   // task has shut BLE down and parked itself
+static volatile bool gpFailed = false;    // Bluetooth did not start, so the task gave up
 static QueueHandle_t gpCmdQ = nullptr;
 static NimBLERemoteCharacteristic *gpOutput = nullptr;
 
@@ -228,11 +229,15 @@ static void teardown() {
   gpLink = GP_LINK_OFF;
 }
 
-static void bleUp() {
+static bool bleUp() {
   // IDF aborts if BT starts while WiFi power save is off, and main.cpp turns
   // it off for snappy web transfers. Modem sleep only while the pad is in use.
   WiFi.setSleep(true);
   NimBLEDevice::init("");
+  if (!NimBLEDevice::getInitialized()) {  // controller start failed (tools/patch_nimble.py)
+    WiFi.setSleep(false);
+    return false;
+  }
   NimBLEDevice::setSecurityAuth(true, false, false);  // bond, no MITM: pads have no display
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   NimBLEScan *scan = NimBLEDevice::getScan();
@@ -240,6 +245,7 @@ static void bleUp() {
   scan->setActiveScan(true);
   scan->setInterval(97);
   scan->setWindow(48);  // half duty, so WiFi keeps the radio the other half
+  return true;
 }
 
 static void bleDown() {
@@ -270,7 +276,16 @@ static void runCommand(const GpCmd &cmd) {
 static void gamepadTask(void *) {
   GpCmd cmd;
   for (;;) {
-    bleUp();
+    if (!bleUp()) {
+      Serial.println("Gamepad: Bluetooth did not start");
+      taskENTER_CRITICAL(&gpMux);
+      gpWanted = false;
+      gpFailed = true;
+      gpStopped = true;
+      taskEXIT_CRITICAL(&gpMux);
+      vTaskSuspend(nullptr);  // reapTask() deletes it
+      continue;
+    }
     NimBLEScan *scan = NimBLEDevice::getScan();
 
     while (gpWanted) {
@@ -322,6 +337,7 @@ bool gamepadStart() {
   }
   taskENTER_CRITICAL(&gpMux);
   gpWanted = true;
+  gpFailed = false;
   bool running = gpTask && !gpStopped;  // a task still tearing down picks gpWanted up again
   taskEXIT_CRITICAL(&gpMux);
   if (running) return true;
@@ -344,6 +360,7 @@ bool gamepadStart() {
 void gamepadStop() { gpWanted = false; }
 
 bool gamepadIdle() { return reapTask(); }
+bool gamepadFailed() { return gpFailed; }
 GamepadLink gamepadLink() { return gpLink; }
 
 void gamepadRead(GamepadState *out) {

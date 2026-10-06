@@ -59,6 +59,8 @@ void gamepadStop();
 // True once BLE is fully shut down and its task (and memory) is gone.
 // Call from the loop task: it reaps the parked task.
 bool gamepadIdle();
+// True when Bluetooth did not start after the last gamepadStart().
+bool gamepadFailed();
 GamepadLink gamepadLink();
 // Snapshot of the inputs; clears the `pressed` latch.
 void gamepadRead(GamepadState *out);

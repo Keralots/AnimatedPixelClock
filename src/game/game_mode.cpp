@@ -156,6 +156,11 @@ static void checkTimeouts(unsigned long now) {
 
 void gameModeLoop() {
   if (active) {
+    if (gamepadFailed()) {
+      Serial.println("Game mode: Bluetooth did not start");
+      gameModeStop();
+      return;
+    }
     checkTimeouts(millis());
     return;
   }
