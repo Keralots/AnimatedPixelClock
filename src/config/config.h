@@ -13,7 +13,7 @@
 #include "color_slots.h"
 
 // ========== Version ==========
-#define FIRMWARE_VERSION "2.4.0-beta1"
+#define FIRMWARE_VERSION "2.4.0"
 
 // ========== Constants ==========
 #define MAX_METRICS 20
