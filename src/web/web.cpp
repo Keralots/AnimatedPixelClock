@@ -775,6 +775,9 @@ void handleAnimPlay() {
  File f = LittleFS.open(animPath(name.c_str()), "r");
  bool valid = animValidatePca(f, nullptr); if (f) f.close();
  if (!valid) { server.send(404, "application/json", "{\"error\":\"animation not found or invalid\"}"); return; }
+#if GAMEPAD_ENABLED
+ gameModeStop();
+#endif
  safeCopyString(settings.ambientCustomFile, name.c_str(), sizeof(settings.ambientCustomFile));
  settings.ambientStyle = 6; ambientCustomInvalidate();
  httpForceAmbient = true; httpForceClock = false; httpForceViz = false;
