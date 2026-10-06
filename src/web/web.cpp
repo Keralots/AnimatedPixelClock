@@ -2068,13 +2068,22 @@ void handleReset() {
  ESP.restart();
 }
 
+// JSON string literal with quotes and escapes, for the hand-built export.
+static String jsonStr(const char* s) {
+ JsonDocument doc;
+ doc.set(s);
+ String out;
+ serializeJson(doc, out);
+ return out;
+}
+
 // Export configuration as JSON
 void handleExportConfig() {
  netMarkHttp();
  String json = "{";
 
  // Clock settings
- json += "\"cycleConfig\":\"" + String(settings.cycleConfig) + "\",";
+ json += "\"cycleConfig\":" + jsonStr(settings.cycleConfig) + ",";
  json += "\"clockStyle\":" + String(settings.clockStyle) + ",";
  json += "\"tronBikeStyle\":" + String(settings.tronBikeStyle) + ",";
  json += "\"matrixRainSpeed\":" + String(settings.matrixRainSpeed) + ",";
@@ -2107,7 +2116,7 @@ void handleExportConfig() {
  json += "\"blocksGhost\":" + String(settings.blocksGhost ? "true" : "false") + ",";
  json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
  json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
- json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
+ json += "\"timezoneString\":" + jsonStr(settings.timezoneString) + ",";
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
  json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
  json += "\"use24Hour\":" + String(settings.use24Hour ? "true" : "false") + ",";
@@ -2118,11 +2127,11 @@ void handleExportConfig() {
  json += "\"displayRowMode\":" + String(settings.displayRowMode) + ",";
  json += "\"useRpmKFormat\":" + String(settings.useRpmKFormat ? "true" : "false") + ",";
  json += "\"useNetworkMBFormat\":" + String(settings.useNetworkMBFormat ? "true" : "false") + ",";
- json += "\"deviceName\":\"" + String(settings.deviceName) + "\",";
+ json += "\"deviceName\":" + jsonStr(settings.deviceName) + ",";
  json += "\"showIPAtBoot\":" + String(settings.showIPAtBoot ? "true" : "false") + ",";
  json += "\"wifiTxPowerDbm\":" + String(settings.wifiTxPower / 4.0f, 1) + ",";
- json += "\"ntpServer1\":\"" + String(settings.ntpServer1) + "\",";
- json += "\"ntpServer2\":\"" + String(settings.ntpServer2) + "\",";
+ json += "\"ntpServer1\":" + jsonStr(settings.ntpServer1) + ",";
+ json += "\"ntpServer2\":" + jsonStr(settings.ntpServer2) + ",";
  json += "\"notifyEnabled\":" + String(settings.notifyEnabled ? "true" : "false") + ",";
  json += "\"notifyPosition\":" + String(settings.notifyPosition) + ",";
  json += "\"weatherEnabled\":" + String(settings.weatherEnabled ? "true" : "false") + ",";
@@ -2135,7 +2144,7 @@ void handleExportConfig() {
  json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
  json += "\"ambientEndHour\":" + String(settings.ambientEndHour) + ",";
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
- json += "\"ambientCustomFile\":\"" + String(settings.ambientCustomFile) + "\",";
+ json += "\"ambientCustomFile\":" + jsonStr(settings.ambientCustomFile) + ",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
  json += "\"vizStyle\":" + String(settings.vizStyle) + ",";
  json += "\"scopeGrid\":" + String(settings.scopeGrid ? "true" : "false") + ",";
@@ -2148,7 +2157,7 @@ void handleExportConfig() {
  json += "\"metricLabels\":[";
  for (int i = 0; i < MAX_METRICS; i++) {
  if (i > 0) json += ",";
- json += "\"" + String(settings.metricLabels[i]) + "\"";
+ json += jsonStr(settings.metricLabels[i]);
  }
  json += "],";
 
@@ -2156,7 +2165,7 @@ void handleExportConfig() {
  json += "\"metricNames\":[";
  for (int i = 0; i < MAX_METRICS; i++) {
  if (i > 0) json += ",";
- json += "\"" + String(settings.metricNames[i]) + "\"";
+ json += jsonStr(settings.metricNames[i]);
  }
  json += "],";
 
@@ -2245,7 +2254,6 @@ void handleExportConfig() {
 
  json += "}";
 
- server.sendHeader("Access-Control-Allow-Origin", "*");
  server.setContentLength(json.length());
  server.send(200, "application/json", "");
  WiFiClient client = server.client();
