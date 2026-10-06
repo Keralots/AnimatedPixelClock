@@ -7,7 +7,8 @@ Runs the whole release pipeline for the browser flasher at docs/:
     2. Locates the PlatformIO CLI (PATH, then the standard penv install)
     3. Builds every board variant in a single PlatformIO invocation
        (matrix-s3-wroom = WROOM 16MB, matrix-s3 = S3-Zero / Super Mini 4MB,
-        matrix-waveshare = Waveshare ESP32-S3-RGB-Matrix)
+        matrix-waveshare = Waveshare ESP32-S3-RGB-Matrix), each as a clock-only
+       image and as a "-games" image with Bluetooth game mode
     4. Merges bootloader + partitions + OTA initialization + app into a "Full" image per
        variant (flashed at 0x0, what ESP Web Tools writes)
     5. Copies the Full.bin images into docs/firmware/latest/ as
@@ -41,16 +42,17 @@ from pathlib import Path
 # Variants published by the web flasher.
 # (PlatformIO env, firmware id, label). The firmware id must match the
 # `firmware` field in docs/flasher.js and drives the release/ filenames.
-VARIANTS = [
-    ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)"),
-    ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)"),
-    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix (32MB)"),
+BOARDS = [
+    ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)", 16),
+    ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)", 4),
+    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix (32MB)", 32),
 ]
-FLASH_BYTES = {
-    "matrix-s3-wroom": 16 * 1024 * 1024,
-    "matrix-s3": 4 * 1024 * 1024,
-    "matrix-waveshare": 32 * 1024 * 1024,
-}
+# Each board ships clock-only and with game mode (env "<env>-games", id "<id>-games").
+VARIANTS = [(env + sfx, fid + sfx, label + note)
+            for env, fid, label, _ in BOARDS
+            for sfx, note in (("", ""), ("-games", " + games"))]
+FLASH_BYTES = {env + sfx: mb * 1024 * 1024
+               for env, _, _, mb in BOARDS for sfx in ("", "-games")}
 
 # Flash offsets for the ESP32-S3 (bootloader starts at 0x0).
 BOOTLOADER_OFFSET = 0x0

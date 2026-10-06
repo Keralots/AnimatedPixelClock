@@ -23,6 +23,9 @@ static bool scheduledBrightnessApplied = false;
 // Scheduled dimming and brightness re-applies are suppressed so they don't turn it back on.
 static bool displayForcedOff = false;
 
+// Game mode holds normal brightness and keeps the schedule out until it ends.
+static bool gameOverride = false;
+
 // Applies a raw brightness value. Callers pass either an already-sanitized
 // settings value or an intentional 0 (forced off / 0%): sanitizing here would
 // turn that 0 into 1, leaving the panel faintly lit instead of off.
@@ -119,7 +122,7 @@ void applyDisplayBrightness() {
 }
 
 void refreshDisplayBrightnessNow() {
-  if (displayForcedOff) {
+  if (displayForcedOff || gameOverride) {
     return;
   }
 
@@ -135,7 +138,7 @@ void refreshDisplayBrightnessNow() {
 
 // Check and apply time-based brightness (scheduled dimming)
 void checkScheduledBrightness() {
-  if (displayForcedOff) {
+  if (displayForcedOff || gameOverride) {
     return;
   }
 
@@ -193,4 +196,18 @@ void setDisplayBrightnessPercent(uint8_t percent) {
   settings.displayBrightness = brightness;
   displayForcedOff = (brightness == 0);
   applyBrightnessLevel(brightness);
+}
+
+// Starting a game is a deliberate act, so it also lifts an HTTP display-off.
+// Leaving re-applies the schedule at once.
+void setDisplayGameOverride(bool on) {
+  if (gameOverride == on) return;
+  gameOverride = on;
+  if (!on) {
+    refreshDisplayBrightnessNow();
+    return;
+  }
+  displayForcedOff = false;
+  uint8_t brightness = sanitizeBrightnessValue(settings.displayBrightness);
+  applyBrightnessLevel(brightness ? brightness : 1);
 }

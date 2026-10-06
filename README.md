@@ -596,6 +596,59 @@ stream keeps its last resolved device IP through temporary `.local` lookup failu
 If the clock restarts during playback, automatic mode restores the visualizer
 after detecting its new uptime (checked every 10 seconds).
 
+## Game mode (optional)
+
+Play Falling Blocks, Snake, Bricks, Space Rocks, Runner, Defenders or Light
+Cycles on the panel with a Bluetooth gamepad. The supported pad is the Xbox
+Wireless Controller, model 1708 or newer, on controller firmware 5.x. The
+ESP32-S3 speaks Bluetooth LE only, so an older pad that has not been updated
+never shows up; update it once in the Xbox Accessories app over USB.
+
+Game mode is only in the **clock + games** firmware: pick it in the web flasher,
+install the `-games` OTA image, or build a `-games` environment (see
+[Flashing](#flashing)). The default clock-only firmware leaves Bluetooth out,
+because once it is in the firmware it keeps about 29KB of internal memory
+reserved even when nobody plays. The Maintenance page shows which variant a
+clock runs.
+
+1. In the web portal open **Game mode** and press **Start game mode**
+   (or `GET /api/game/start`).
+2. A new pad: hold its pair button for 3 seconds. A pad paired before reconnects
+   with the Xbox button. A pad paired to another device must be paired again.
+3. Pick a game with the d-pad and A. Each game opens on a card with its
+   controls; A starts it. Menu pauses, View in the pause screen goes back to the
+   game list, View in the list leaves game mode.
+
+| Game | Controls |
+|---|---|
+| Falling Blocks | d-pad or stick move, down soft drop, up hard drop, A / B / X rotate, LB / RB hold |
+| Snake | d-pad or stick steer |
+| Bricks | stick (analog) or d-pad move the paddle, A launches |
+| Space Rocks | left / right turn, up or RT thrust, A or RB fire |
+| Runner | A or up jump (hold for height), down duck |
+| Defenders | stick (analog) or d-pad move the cannon, A / RB / RT fire |
+| Light Cycles | d-pad or stick steer; beat the computer's cycle, three lives |
+
+Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
+`/api/display/off`, brightness 0, a panel test pattern, an OTA update, 2 minutes without a pad, 60 seconds after
+the pad is lost, or after the idle time set on the page (default 5 minutes
+without input, or never). The same page sets rumble on or off, the Falling Blocks
+starting level, whether stick up hard-drops and an optional landing preview (off by
+default), and has **Forget paired pad**.
+Best scores are kept on the device, listed on the same page with a reset button
+per game and one for all of them (`GET /api/game/hiscores?reset=<game>` or
+`?reset=all`), and travel with the configuration export and import.
+
+The game list shows the pad's battery level. At 20% or less it turns red, and a
+blinking battery mark appears next to the clock in every game.
+
+While a game runs, the panel drops to 5 bits per colour and the night
+schedule is paused. Bluetooth needs about 45KB of internal memory that the
+panel's full-colour buffers otherwise hold. Notifications are refused with HTTP
+409 until the game ends. Leaving game mode restores the panel and the schedule.
+A factory reset also clears the best scores and the paired pad.
+
+
 ## Flashing
 
 ### Web flasher (recommended)
@@ -620,6 +673,10 @@ Board choices on that page:
   same BOOT-hold trick if the port does not appear. Its 32MB flash leaves 23MB
   for custom animations.
 
+Every board also has a **Firmware** choice: **Clock only** (recommended) or
+**Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
+gamepad at the cost of about 29KB of free internal memory.
+
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 It also provides a direct Windows companion download after flashing. Full images,
 OTA-only images for every board, the EXE and SHA-256 checksums are available in
@@ -639,6 +696,9 @@ pio run -e matrix-s3 -t upload
 
 # Waveshare ESP32-S3-RGB-Matrix driver board
 pio run -e matrix-waveshare -t upload
+
+# Any of the above with game mode: add -games to the environment
+pio run -e matrix-waveshare-games -t upload
 ```
 
 Omit `-t upload` to build only. The WROOM environment currently sets upload and
@@ -682,8 +742,11 @@ upload `OTA_ONLY_firmware-v<version>-<board>.bin`. Do not upload the full
 `firmware-v<version>-<board>.bin` - that one carries the bootloader and partition
 table and belongs at `0x0` over USB. `wroom` is the ESP32-S3-WROOM-1 N16R8 (16MB)
 build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build, and `waveshare` the
-Waveshare ESP32-S3-RGB-Matrix build. Downloads can be verified against
-`SHA256SUMS.txt`.
+Waveshare ESP32-S3-RGB-Matrix build. Each has a `-games` twin with game mode
+(for example `OTA_ONLY_firmware-v<version>-waveshare-games.bin`); upload the one
+that matches the variant shown on the Maintenance page, or the other one to switch.
+The portal asks before installing a file whose name does not match. Downloads can
+be verified against `SHA256SUMS.txt`.
 
 ## HTTP control API
 
@@ -701,6 +764,10 @@ the device on a trusted LAN.
 | `/api/mode/clock` / `/api/mode/auto` | Force the clock / resume automatic mode |
 | `/api/mode/ambient` | Force the ambient screensaver on now |
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
+| `/api/game/start` / `/api/game/stop` | Enter / leave game mode (see [Game mode](#game-mode-optional)) |
+| `/api/game/status` | Game mode and gamepad link as JSON |
+| `/api/game/forget` | Forget every paired gamepad |
+| `/api/game/hiscores` | High scores as JSON; `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` / `defenders` / `cycles` clears them |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
 | `/api/wifi/txpower?dbm=<dBm>` | Read or set the WiFi transmit power (19.5, 18.5, 17, 15, 13, 11, 8.5; saved) |
@@ -797,6 +864,7 @@ rest_command:
 
 - [ESP32-HUB75-MatrixPanel-DMA](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-I2S-DMA) (matrix driver)
 - Adafruit GFX, WiFiManager (tzapu), ArduinoJson, Improv-Serial
+- [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) (game mode gamepad)
 
 ## License
 
@@ -806,7 +874,8 @@ Licensed under the [MIT License](LICENSE).
 
 AnimatedPixelClock is an independent, non-commercial hobby project. It is not
 affiliated with, endorsed by, sponsored by or connected to Nintendo, The Tetris
-Company, Bandai Namco, Taito, Atari, Konami or any other rights holder.
+Company, Bandai Namco, Taito, Atari, Konami, Microsoft or any other rights holder.
+Xbox is named only to say which controller works with game mode.
 
 The clock and ambient style names describe what each animation is styled after,
 so that you can tell the styles apart. Every sprite and effect in this firmware

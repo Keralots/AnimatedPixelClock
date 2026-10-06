@@ -74,6 +74,9 @@ int getOptimalRefreshRate();
 #include "viz/visualizer.h"
 #include "weather/weather.h"
 #include "web/web.h"
+#if GAMEPAD_ENABLED
+#include "game/game_mode.h"
+#endif
 
 
 // ========== Helper Functions ==========
@@ -110,6 +113,12 @@ int getOptimalRefreshRate() {
   // Always adaptive. The manual fixed-Hz override (and its web control) was
   // removed - a user-pinned low rate only made animations choppy. The adaptive
   // rates below are what keep motion smooth.
+
+#if GAMEPAD_ENABLED
+  if (gameModeActive()) {
+    return GAME_REFRESH_HZ;
+  }
+#endif
 
   // A notification banner may scroll over any screen - keep it silky.
   if (notifyActive()) {
@@ -328,6 +337,10 @@ void loop() {
   // Accent strip
   ledLoop();
 
+#if GAMEPAD_ENABLED
+  gameModeLoop();
+#endif
+
   // Crash report: note when this boot started, once the time is synced
   crashReportLoop();
 
@@ -394,11 +407,16 @@ void loop() {
       nextDisplayUpdate = millis() + frameInterval;
     }
 
-    // Visualizer wins over everything while forced AND fed; when the packet
-    // stream dies for 10s it falls through (and auto-resumes when it's back).
-    bool showViz = httpForceViz && vizShouldDisplay();
-    bool showStats =
-        !showViz && metricData.online && !httpForceClock && !httpForceAmbient;
+#if GAMEPAD_ENABLED
+    bool showGame = gameModeActive();
+#else
+    bool showGame = false;
+#endif
+    // Visualizer wins over everything but a game while forced AND fed; when the
+    // packet stream dies for 10s it falls through (and auto-resumes when it's back).
+    bool showViz = !showGame && httpForceViz && vizShouldDisplay();
+    bool showStats = !showGame && !showViz && metricData.online && !httpForceClock &&
+                     !httpForceAmbient;
 
     // The DMA flip only takes effect at the end of the panel's current scan
     // (the library does not wait for the buffer to be free), so anything we
@@ -406,14 +424,15 @@ void loop() {
     // black is the worst offender - a visible dark flash on full-screen
     // content. The custom animation player overwrites every pixel of the
     // frame, so skip the redundant clear when it is what renders this tick.
-    bool animFullRepaint = !showViz && !showStats && ambientActive() &&
+    bool animFullRepaint = !showGame && !showViz && !showStats && ambientActive() &&
                            settings.ambientStyle == 6 && ambientCustomPlaying();
     // Doom Fire paints every pixel itself. Clearing first would blank the
     // buffer the panel is still scanning, which is exactly the dark flash the
     // comment below describes - and it showed as flicker along the bottom,
     // where the brightest rows are drawn last.
     uint8_t styleNow = settings.clockStyle == 9 ? cycleActiveStyle : settings.clockStyle;
-    bool doomFullRepaint = !showViz && !showStats && !ambientActive() && styleNow == 17;
+    bool doomFullRepaint =
+        !showGame && !showViz && !showStats && !ambientActive() && styleNow == 17;
     // Do not clear/reuse the previous front buffer until the queued flip has
     // settled. Free when the frame interval already exceeds one panel scan;
     // otherwise (panel refresh near the frame rate) it prevents dark flashes.
@@ -422,6 +441,10 @@ void loop() {
 
     if (panelTestPattern) {
       drawPanelTestPattern();
+#if GAMEPAD_ENABLED
+    } else if (showGame) {
+      displayGameMode();
+#endif
     } else if (showViz) {
       displayVisualizer();
     } else
@@ -490,8 +513,8 @@ void loop() {
       }
     }
 
-    // Notification banner draws over whatever screen is active.
-    if (notifyActive()) {
+    // Notification banner draws over whatever screen is active but a game.
+    if (notifyActive() && !showGame) {
       drawNotifyOverlay();
     }
 

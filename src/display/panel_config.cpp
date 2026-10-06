@@ -7,6 +7,7 @@
 #include <Preferences.h>
 
 #include "display.h"
+#include "../config/config.h"
 
 PanelOptions panelOptions;
 uint8_t panelTestPattern = 0;
@@ -52,7 +53,7 @@ bool savePanelOptions(const PanelOptions &opts) {
   return true;
 }
 
-void applyPanelOptions() {
+static HUB75_I2S_CFG panelConfig(uint8_t colorDepth) {
   HUB75_I2S_CFG cfg = makeMatrixConfig();
   cfg.driver = (HUB75_I2S_CFG::shift_driver)panelOptions.driver;
   cfg.i2sspeed = panelOptions.clockMHz == 20   ? HUB75_I2S_CFG::HZ_20M
@@ -60,9 +61,32 @@ void applyPanelOptions() {
                                                : HUB75_I2S_CFG::HZ_8M;
   cfg.latch_blanking = panelOptions.latchBlanking;
   cfg.clkphase = panelOptions.clkPhase;
-  cfg.setPixelColorDepthBits(panelOptions.colorDepth);
+  cfg.setPixelColorDepthBits(colorDepth);
   cfg.min_refresh_rate = panelOptions.minRefresh;
-  display.setCfg(cfg);
+  return cfg;
+}
+
+void applyPanelOptions() {
+  display.setCfg(panelConfig(panelOptions.colorDepth));
+}
+
+bool setPanelColorDepth(uint8_t colorDepth) {
+  colorDepth = constrain(colorDepth, 4, panelOptions.colorDepth);
+  uint8_t was = display.getCfg().getPixelColorDepthBits();
+  if (was == colorDepth && display.ready()) return true;
+  bool ok = rebuildMatrixDisplay(display, panelConfig(colorDepth));
+  if (!ok) {
+    // Never leave a dead driver behind: back to the depth that ran, else the leanest.
+    Serial.printf("Panel: restart at %u bits failed\n", colorDepth);
+    if (!rebuildMatrixDisplay(display, panelConfig(was)) &&
+        !rebuildMatrixDisplay(display, panelConfig(4))) {
+      Serial.println("Panel: no depth starts, display disabled");
+      displayAvailable = false;
+      return false;
+    }
+  }
+  display.setBrightness8(getAppliedBrightness());
+  return ok;
 }
 
 int panelRefreshRate() { return display.refreshRate(); }

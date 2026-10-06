@@ -23,6 +23,9 @@
 #include "../weather/weather.h"
 #include "web_pages.h"
 #include "web_assets.h"
+#if GAMEPAD_ENABLED
+#include "../game/game_mode.h"
+#endif
 #include <WebServer.h>
 #include <Update.h>
 #include <LittleFS.h>
@@ -94,9 +97,21 @@ void setupWebServer() {
  server.on("/api/panel", HTTP_POST, handlePanelSave);
  server.on("/api/panel/test", HTTP_GET, handlePanelTest);
  server.on("/api/wifi/txpower", HTTP_GET, handleWifiTxPower);
+#if GAMEPAD_ENABLED
+ server.on("/api/game/start", HTTP_GET, handleGameStart);
+ server.on("/api/game/stop", HTTP_GET, handleGameStop);
+ server.on("/api/game/status", HTTP_GET, handleGameStatus);
+ server.on("/api/game/forget", HTTP_GET, handleGameForget);
+ server.on("/api/game/hiscores", HTTP_GET, handleGameHiscores);
+#endif
 
  // OTA Firmware Update handlers
+ static bool otaRefused = false;  // Bluetooth did not let go of the radio in time
  server.on("/update", HTTP_POST, []() {
+ if (otaRefused) {
+   server.send(503, "text/plain", "Update refused: game mode's Bluetooth is still shutting down. Try again in a few seconds.");
+   return;
+ }
  if (Update.hasError()) {
    // Surface the real reason (non-200 so the UI knows it failed). The common
    // case once the firmware outgrows an older default partition table is a
@@ -116,9 +131,18 @@ void setupWebServer() {
  esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
+#if GAMEPAD_ENABLED
+ otaRefused = !gameModeStopAndWait(5000);  // the upload shares the radio with BLE
+ if (otaRefused) {
+   Serial.println("Update: Bluetooth still up, refusing");
+   return;
+ }
+#endif
  if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
  Update.printError(Serial);
  }
+ } else if (otaRefused) {
+ return;  // drop the rest of a refused upload
  } else if (upload.status == UPLOAD_FILE_WRITE) {
  // Write uploaded data
  if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
@@ -186,6 +210,7 @@ void handleDeviceInfo() {
  doc["freeHeap"] = ESP.getFreeHeap();
  doc["model"] = "AnimatedPixelClock";
  doc["build"] = __DATE__ " " __TIME__;
+ doc["gameMode"] = GAMEPAD_ENABLED != 0;  // which release variant this is
  doc["chip"] = ESP.getChipModel();
  doc["flashBytes"] = ESP.getFlashChipSize();
  doc["firmwareBytes"] = runningFirmwareBytes;
@@ -236,10 +261,17 @@ void handleStatus() {
  bool showViz = httpForceViz && vizShouldDisplay();
  bool showStats = !showViz && pcOnline && !httpForceClock && !httpForceAmbient;
 
- doc["displayOn"] = !isDisplayForcedOff() && !isDisplayScheduledOff() && settings.displayBrightness > 0;
+#if GAMEPAD_ENABLED
+ bool game = gameModeActive();
+#else
+ bool game = false;
+#endif
+ doc["displayOn"] = !isDisplayForcedOff() && (game || !isDisplayScheduledOff()) &&
+                    settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
  doc["scheduledOff"] = isDisplayScheduledOff();
- doc["mode"] = showViz ? "viz"
+ doc["mode"] = game ? "game"
+               : showViz ? "viz"
                : (ambientActive() ? "ambient" : (showStats ? "metrics" : "clock"));
  doc["forcedClock"] = httpForceClock;
  doc["forcedAmbient"] = httpForceAmbient;
@@ -264,6 +296,9 @@ void handleDisplayOn() {
 
 // GET /api/display/off - hold the panel off (suppresses scheduled brightness re-applies)
 void handleDisplayOff() {
+#if GAMEPAD_ENABLED
+ gameModeStop();  // a dark panel stops rendering, and with it the game's timeouts
+#endif
  setDisplayForcedOff(true);
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"displayOn\":false}");
@@ -279,6 +314,9 @@ void handleSetBrightness() {
  int value = server.arg("value").toInt();
  if (value < 0) value = 0;
  if (value > 100) value = 100;
+#if GAMEPAD_ENABLED
+ if (value == 0) gameModeStop();  // nobody plays on a dark panel
+#endif
  setDisplayBrightnessPercent((uint8_t)value);
  server.send(200, "application/json",
              "{\"success\":true,\"brightness\":" + String(value) + "}");
@@ -286,6 +324,9 @@ void handleSetBrightness() {
 
 // GET /api/mode/clock - force clock display even when the PC is online
 void handleModeClock() {
+#if GAMEPAD_ENABLED
+ gameModeStop();
+#endif
  httpForceClock = true;
  httpForceAmbient = false;
  httpForceViz = false;
@@ -295,6 +336,9 @@ void handleModeClock() {
 
 // GET /api/mode/auto - resume automatic mode (metrics when PC online, clock otherwise)
 void handleModeAuto() {
+#if GAMEPAD_ENABLED
+ gameModeStop();
+#endif
  httpForceClock = false;
  httpForceAmbient = false;
  httpForceViz = false;
@@ -304,6 +348,9 @@ void handleModeAuto() {
 
 // GET /api/mode/ambient - force the ambient screensaver regardless of schedule
 void handleModeAmbient() {
+#if GAMEPAD_ENABLED
+ gameModeStop();
+#endif
  httpForceAmbient = true;
  httpForceClock = false;
  httpForceViz = false;
@@ -314,6 +361,9 @@ void handleModeAmbient() {
 // GET /api/mode/viz - force the audio spectrum visualizer (needs the companion
 // streaming spectrum packets; falls back to the clock if the stream dies)
 void handleModeViz() {
+#if GAMEPAD_ENABLED
+ gameModeStop();
+#endif
  httpForceViz = true;
  httpForceClock = false;
  httpForceAmbient = false;
@@ -321,6 +371,82 @@ void handleModeViz() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  server.send(200, "application/json", "{\"success\":true,\"mode\":\"viz\"}");
 }
+
+#if GAMEPAD_ENABLED
+// GET /api/game/start - enter game mode: pair a BLE gamepad, then the game menu.
+void handleGameStart() {
+ panelTestPattern = 0;  // a test pattern would hide the game
+ gameModeStart();
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (!gameModeActive()) {
+   server.send(503, "application/json", "{\"error\":\"Could not free memory for Bluetooth\"}");
+   return;
+ }
+ server.send(200, "application/json", "{\"success\":true,\"mode\":\"game\"}");
+}
+
+// GET /api/game/stop - leave game mode and release the pad.
+void handleGameStop() {
+ gameModeStop();
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", "{\"success\":true}");
+}
+
+// GET /api/game/status - game mode and pad link, for the web UI.
+void handleGameStatus() {
+ static const char *LINKS[] = {"off", "searching", "connecting", "connected"};
+ JsonDocument doc;
+ doc["active"] = gameModeActive();
+ doc["link"] = LINKS[gamepadLink()];
+ doc["battery"] = gamepadBattery();
+ doc["paired"] = gamepadHasBond();
+ JsonArray his = doc["hiscores"].to<JsonArray>();
+ for (uint8_t i = 0; i < gameCount(); i++) {
+   JsonObject g = his.add<JsonObject>();
+   g["id"] = gameId(i);
+   g["name"] = gameName(i);
+   g["hi"] = gameHiScore(i);
+ }
+ String json;
+ serializeJson(doc, json);
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ server.send(200, "application/json", json);
+}
+
+// GET /api/game/hiscores[?reset=all|<game id>] - list the high scores, optionally clearing some.
+void handleGameHiscores() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (server.hasArg("reset")) {
+   String which = server.arg("reset");
+   bool found = false;
+   for (uint8_t i = 0; i < gameCount(); i++) {
+     if (which == "all" || which == gameId(i)) {
+       gameSetHiScore(i, 0);
+       found = true;
+     }
+   }
+   if (!found) {
+     server.send(400, "application/json", "{\"error\":\"Unknown game\"}");
+     return;
+   }
+ }
+ JsonDocument doc;
+ for (uint8_t i = 0; i < gameCount(); i++) doc[gameId(i)] = gameHiScore(i);
+ String json;
+ serializeJson(doc, json);
+ server.send(200, "application/json", json);
+}
+
+// GET /api/game/forget - drop every paired pad (a connected one is disconnected).
+void handleGameForget() {
+ server.sendHeader("Access-Control-Allow-Origin", "*");
+ if (!gamepadForget()) {
+   server.send(503, "application/json", "{\"error\":\"Gamepad is shutting down, try again\"}");
+   return;
+ }
+ server.send(200, "application/json", "{\"success\":true}");
+}
+#endif
 
 // GET /api/clock/style?id=0-17 - switch the active clock animation
 void handleSetClockStyle() {
@@ -416,6 +542,9 @@ void handlePanelTest() {
  server.sendHeader("Access-Control-Allow-Origin", "*");
  int pattern = server.arg("pattern").toInt();
  panelTestPattern = (pattern >= 0 && pattern <= 8) ? pattern : 0;
+#if GAMEPAD_ENABLED
+ if (panelTestPattern) gameModeStop();  // a test pattern hides the game and its timeouts
+#endif
  sendPanelJson();
 }
 
@@ -467,6 +596,12 @@ void handleNotify() {
    server.send(403, "application/json", "{\"error\":\"Notifications disabled in settings\"}");
    return;
  }
+#if GAMEPAD_ENABLED
+ if (gameModeActive()) {
+   server.send(409, "application/json", "{\"error\":\"Game mode is on screen\"}");
+   return;
+ }
+#endif
  if (!server.hasArg("plain")) {
    server.send(400, "application/json", "{\"error\":\"Missing body\"}");
    return;
@@ -942,6 +1077,11 @@ void handlePortalValues() {
   form["doomBurningDigits"] = settings.doomBurningDigits;
   form["doomSmoothFire"] = settings.doomSmoothFire;
   form["doomShowDate"] = settings.doomShowDate;
+  form["gameIdleExitMin"] = settings.gameIdleExitMin;
+  form["gameRumble"] = settings.gameRumble;
+  form["blocksStartLevel"] = settings.blocksStartLevel;
+  form["blocksStickDrop"] = settings.blocksStickDrop;
+  form["blocksGhost"] = settings.blocksGhost;
   form["ledEnabled"] = settings.ledEnabled;
   form["ledPin"] = settings.ledPin;
   form["ledCount"] = settings.ledCount;
@@ -1552,6 +1692,14 @@ void handleSave() {
  settings.doomShowDate = server.hasArg("doomShowDate");
  settings.doomBurningDigits = server.hasArg("doomBurningDigits");
  settings.doomSmoothFire = server.hasArg("doomSmoothFire");
+ {
+ int v;
+ if (argIntInRange("gameIdleExitMin", 0, 60, v)) settings.gameIdleExitMin = (uint8_t)v;
+ if (argIntInRange("blocksStartLevel", 1, 10, v)) settings.blocksStartLevel = (uint8_t)v;
+ }
+ settings.gameRumble = server.hasArg("gameRumble");
+ settings.blocksStickDrop = server.hasArg("blocksStickDrop");
+ settings.blocksGhost = server.hasArg("blocksGhost");
 
  // Save network configuration
  if (server.hasArg("deviceName")) {
@@ -1866,6 +2014,14 @@ void handleReset() {
  preferences.begin("pcmonitor", false);
  preferences.clear();
  preferences.end();
+#if GAMEPAD_ENABLED
+ bool bleDown = gameModeStopAndWait(5000);
+ preferences.begin("game", false);  // high scores and last game
+ preferences.clear();
+ preferences.end();
+ // Still up: NimBLE may hold a cached copy, but the restart below comes first.
+ if (!(bleDown && gamepadForget())) gamepadEraseBondStore();
+#endif
 
  // Erase WiFi credentials
  wifiManager.resetSettings();
@@ -1905,6 +2061,11 @@ void handleExportConfig() {
  json += "\"doomGroundHeight\":" + String(settings.doomGroundHeight) + ",";
  json += "\"doomWind\":" + String(settings.doomWind) + ",";
  json += "\"doomShowDate\":" + String(settings.doomShowDate ? "true" : "false") + ",";
+ json += "\"gameIdleExitMin\":" + String(settings.gameIdleExitMin) + ",";
+ json += "\"gameRumble\":" + String(settings.gameRumble ? "true" : "false") + ",";
+ json += "\"blocksStartLevel\":" + String(settings.blocksStartLevel) + ",";
+ json += "\"blocksStickDrop\":" + String(settings.blocksStickDrop ? "true" : "false") + ",";
+ json += "\"blocksGhost\":" + String(settings.blocksGhost ? "true" : "false") + ",";
  json += "\"doomBurningDigits\":" + String(settings.doomBurningDigits ? "true" : "false") + ",";
  json += "\"doomSmoothFire\":" + String(settings.doomSmoothFire ? "true" : "false") + ",";
  json += "\"timezoneString\":\"" + String(settings.timezoneString) + "\",";
@@ -2035,6 +2196,15 @@ void handleExportConfig() {
  json += ",\"colorDepth\":" + String(panelOptions.colorDepth);
  json += ",\"minRefresh\":" + String(panelOptions.minRefresh) + "}";
 
+#if GAMEPAD_ENABLED
+ json += ",\"gameHiscores\":{";
+ for (uint8_t i = 0; i < gameCount(); i++) {
+   if (i > 0) json += ",";
+   json += "\"" + String(gameId(i)) + "\":" + String(gameHiScore(i));
+ }
+ json += "}";
+#endif
+
  json += "}";
 
  server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -2146,6 +2316,17 @@ void handleImportConfig() {
  if (!doc["doomShowDate"].isNull()) settings.doomShowDate = doc["doomShowDate"];
  if (!doc["doomBurningDigits"].isNull()) settings.doomBurningDigits = doc["doomBurningDigits"];
  if (!doc["doomSmoothFire"].isNull()) settings.doomSmoothFire = doc["doomSmoothFire"];
+ if (doc["gameIdleExitMin"].is<int>()) {
+   int v = doc["gameIdleExitMin"].as<int>();
+   if (v >= 0 && v <= 60) settings.gameIdleExitMin = (uint8_t)v;
+ }
+ if (doc["blocksStartLevel"].is<int>()) {
+   int v = doc["blocksStartLevel"].as<int>();
+   if (v >= 1 && v <= 10) settings.blocksStartLevel = (uint8_t)v;
+ }
+ if (!doc["gameRumble"].isNull()) settings.gameRumble = doc["gameRumble"];
+ if (!doc["blocksStickDrop"].isNull()) settings.blocksStickDrop = doc["blocksStickDrop"];
+ if (!doc["blocksGhost"].isNull()) settings.blocksGhost = doc["blocksGhost"];
  if (doc["matrixRainSpeed"].is<int>()) {
    int v = doc["matrixRainSpeed"].as<int>();
    if (v >= 5 && v <= 30) settings.matrixRainSpeed = (uint8_t)v;
@@ -2422,6 +2603,15 @@ void handleImportConfig() {
  // state so a previous in-flight animation doesn't carry stale time
  // override + queue residue into the new style.
  resetClockAnimationState();
+
+#if GAMEPAD_ENABLED
+ // High scores live in their own NVS namespace; only the games named are touched.
+ JsonObject his = doc["gameHiscores"];
+ for (uint8_t i = 0; !his.isNull() && i < gameCount(); i++) {
+   JsonVariant v = his[gameId(i)];
+   if (v.is<uint32_t>()) gameSetHiScore(i, v.as<uint32_t>());
+ }
+#endif
 
  // Panel options only take effect at boot, so they are stored for the next one.
  bool panelChanged = false;

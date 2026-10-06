@@ -70,6 +70,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
         <button type="button" class="nav-item" data-nav="display">Display</button>
         <button type="button" class="nav-item" data-nav="led">LED strip</button>
         <button type="button" class="nav-item" data-nav="viz">Audio visualizer<span class="nv-tag">Audio</span></button>
+        <button type="button" class="nav-item" data-nav="game">Game mode</button>
         <button type="button" class="nav-item" data-nav="layout">Display layout<span class="nv-tag">PC</span></button>
         <button type="button" class="nav-item" data-nav="metrics">Visible metrics<span class="nv-tag">PC</span></button>
       </div>
@@ -990,6 +991,64 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
           </div>
         </section>
 
+        <!-- GAME MODE -->
+        <section class="page" data-page="game">
+          <div class="page-header">
+            <h1 class="page-h1">Game mode</h1>
+            <p class="page-lede">Pair a Bluetooth gamepad and play on the panel. A forced mode like the visualizer: it runs until you quit from the pad or press Stop.</p>
+          </div>
+          <div class="card">
+            <h2 class="card-title">Games</h2>
+            <p class="field-hint" style="margin-top:0">Falling Blocks, Snake, Bricks, Space Rocks, Runner, Defenders and Light Cycles, played with an Xbox Wireless Controller over Bluetooth LE (model 1708 or newer, controller firmware 5.x). Start game mode here, then hold the pad's pair button for 3 seconds; a paired pad reconnects with the Xbox button. Pick a game with the d-pad and A. Menu pauses, View in the pause screen returns to the game list, View in the list leaves game mode. While a game runs the panel uses fewer colour levels to make room for Bluetooth, and notifications are refused.</p>
+            <div class="btn-row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button type="button" class="btn" id="gameStart">Start game mode</button>
+              <button type="button" class="btn" id="gameStop">Stop</button>
+              <button type="button" class="btn btn-danger" id="gameForget">Forget paired pad</button>
+            </div>
+            <p class="field-hint" id="gameStatus">Pad status: ...</p>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">High scores</h2>
+            <p class="field-hint" style="margin-top:0">Kept on the clock and included in the configuration export.</p>
+            <div id="gameHiscores" style="margin-top:8px"></div>
+            <div class="btn-row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button type="button" class="btn btn-danger" id="gameHiResetAll">Reset all high scores</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="card-title">Game settings</h2>
+            <div class="field">
+              <label class="field-label" for="blocksStartLevel">Falling Blocks starting level</label>
+              <div class="range-row">
+                <input type="range" name="blocksStartLevel" id="blocksStartLevel" min="1" max="10" step="1" value="">
+                <span class="range-val" data-for="blocksStartLevel"></span>
+              </div>
+            </div>
+            <label class="check-row standalone" style="margin-top:12px">
+              <input type="checkbox" name="gameRumble" id="gameRumble">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Rumble</strong><span class="ct-hint">Pad vibrates on hits, drops, cleared lines and game over.</span></span>
+            </label>
+            <label class="check-row standalone" style="margin-top:8px">
+              <input type="checkbox" name="blocksStickDrop" id="blocksStickDrop">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Falling Blocks: stick up hard-drops</strong><span class="ct-hint">Off: only d-pad up drops, so a nudge on the stick never slams a piece down.</span></span>
+            </label>
+            <label class="check-row standalone" style="margin-top:8px">
+              <input type="checkbox" name="blocksGhost" id="blocksGhost">
+              <span class="check-box" aria-hidden="true"></span>
+              <span class="check-text"><strong>Falling Blocks: landing preview</strong><span class="ct-hint">Dots mark where the falling piece will land. Default off.</span></span>
+            </label>
+            <div class="field" style="margin-top:12px">
+              <label class="field-label" for="gameIdleExitMin">Leave game mode after no input for</label>
+              <div class="select-wrap"><select name="gameIdleExitMin" id="gameIdleExitMin"><option value="2">2 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="0">Never</option></select></div>
+              <p class="field-hint">A paused or forgotten game frees the Bluetooth radio and hands the screen back to the clock. Any button or stick movement counts as input.</p>
+            </div>
+          </div>
+        </section>
+
         <section class="page" data-page="led">
           <div class="page-header">
             <h1 class="page-h1">LED strip</h1>
@@ -1279,6 +1338,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
               <dl class="sr-rows" style="position:relative;z-index:1">
                 <div class="sr-row"><dt>version</dt><dd id="fwVer"></dd></div>
                 <div class="sr-row"><dt>built</dt><dd id="fwBuilt"></dd></div>
+                <div class="sr-row"><dt>variant</dt><dd id="fwVariant"></dd></div>
                 <div class="sr-row"><dt>free heap</dt><dd id="fwHeap"></dd></div>
               </dl>
             </div>
@@ -1626,6 +1686,52 @@ var vizStart = $('#vizStartBtn');
 if (vizStart) vizStart.addEventListener('click', function () { vizCall('/api/mode/viz', 'Visualizer running. Start the companion audio stream if the panel says no audio data.'); });
 var vizStop = $('#vizStopBtn');
 if (vizStop) vizStop.addEventListener('click', function () { vizCall('/api/mode/auto', 'Back to normal mode.'); });
+var gameStatusEl = $('#gameStatus'), gamePage = $('[data-page="game"]');
+function pollGameStatus() {
+if (!gameStatusEl || !gamePage || !gamePage.classList.contains('active')) return;
+fetch('/api/game/status').then(function (r) { return r.json(); }).then(function (d) {
+var t = 'Pad status: ' + d.link + (d.link === 'connected' ? ' (battery ' + d.battery + '%)' : '');
+gameStatusEl.textContent = t + ' - ' + (d.paired ? 'a pad is paired' : 'no pad paired') + ' - game mode ' + (d.active ? 'on' : 'off');
+if (d.hiscores) renderHiscores(d.hiscores);
+}).catch(function () {});
+}
+var gameHiEl = $('#gameHiscores'), gameHiKey = '';
+function renderHiscores(list) {
+var key = JSON.stringify(list);
+if (!gameHiEl || key === gameHiKey) return;
+gameHiKey = key;
+gameHiEl.textContent = '';
+list.forEach(function (g) {
+var row = document.createElement('div');
+row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0';
+var name = document.createElement('span');
+name.style.flex = '1';
+name.textContent = g.name;
+var hi = document.createElement('strong');
+hi.textContent = g.hi ? g.hi : '-';
+var btn = document.createElement('button');
+btn.type = 'button';
+btn.className = 'btn';
+btn.textContent = 'Reset';
+btn.disabled = !g.hi;
+btn.addEventListener('click', function () { resetHiscore(g.id, 'Reset the ' + g.name + ' high score?'); });
+row.appendChild(name); row.appendChild(hi); row.appendChild(btn);
+gameHiEl.appendChild(row);
+});
+}
+function resetHiscore(id, msg) {
+if (confirm(msg)) fetch('/api/game/hiscores?reset=' + encodeURIComponent(id)).then(function () { gameHiKey = ''; pollGameStatus(); });
+}
+var gameHiResetAll = $('#gameHiResetAll');
+if (gameHiResetAll) gameHiResetAll.addEventListener('click', function () { resetHiscore('all', 'Reset every high score?'); });
+var gameStartBtn = $('#gameStart'), gameStopBtn = $('#gameStop'), gameForgetBtn = $('#gameForget');
+if (gameStartBtn) gameStartBtn.addEventListener('click', function () { fetch('/api/game/start').then(pollGameStatus); });
+if (gameStopBtn) gameStopBtn.addEventListener('click', function () { fetch('/api/game/stop').then(pollGameStatus); });
+if (gameForgetBtn) gameForgetBtn.addEventListener('click', function () {
+if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget').then(function (r) { if (r.ok) pollGameStatus(); else if (gameStatusEl) gameStatusEl.textContent = 'Bluetooth is still shutting down - try again in a moment.'; });
+});
+setInterval(pollGameStatus, 2000);
+fetch('/api/game/status').then(function (r) { if (r.status === 404) { var n = $('[data-nav="game"]'); if (n) n.style.display = 'none'; } }).catch(function () {});
 var staticSel = $('#useStaticIP');
 if (staticSel) { var fs = function () { toggle($('#staticFields'), staticSel.value === '1'); }; staticSel.addEventListener('change', fs); syncs.push(fs); }
 var marioEnc = $('#marioIdleEncounters');
@@ -2154,6 +2260,9 @@ otaFile.addEventListener('change', function () { if (otaFile.files[0]) doUpload(
 drop.addEventListener('drop', function (e) { var f = e.dataTransfer.files[0]; if (f) doUpload(f); });
 function doUpload(file) {
 if (!file.name || file.name.slice(-4) !== '.bin') { alert('Please select a valid .bin firmware file.'); return; }
+var fileGames = /-games\.bin$/i.test(file.name);
+if (fwGames !== null && fileGames !== fwGames && !confirm('This clock runs the ' + (fwGames ? 'clock + games' : 'clock only') +
+ ' firmware, but ' + file.name + ' looks like the ' + (fileGames ? 'clock + games' : 'clock only') + ' one. Install it anyway?')) return;
 var prog = $('#otaProgress'), fill = $('#otaFill'), pct = $('#otaPct');
 prog.classList.add('show'); fill.style.width = '0%'; pct.textContent = 'Uploading ' + file.name + '... 0%';
 var xhr = new XMLHttpRequest();
@@ -2210,6 +2319,7 @@ function updateDiagnostics(d) {
  $('#diagnosticsText').textContent=lines.join('\n');
 }
 
+var fwGames = null;
 function refreshStatus() {
 fetch('/api/info').then(function (r) { return r.json(); }).then(function (d) {
 updateDiagnostics(d);
@@ -2218,6 +2328,7 @@ if (d.hostname) { var h = $('#srHost'); if (h) h.textContent = String(d.hostname
 if (typeof d.uptime === 'number') { var u = $('#srUptime'); if (u) u.textContent = fmtUptime(d.uptime); }
 if (typeof d.rssi === 'number') { var rs = $('#srRssi'); if (rs) rs.textContent = d.rssi + ' dBm'; }
 if (typeof d.freeHeap === 'number') { var fh = $('#fwHeap'); if (fh) fh.textContent = (d.freeHeap / 1024).toFixed(1) + ' KB'; }
+if (typeof d.gameMode === 'boolean') { fwGames = d.gameMode; var fv = $('#fwVariant'); if (fv) fv.textContent = d.gameMode ? 'clock + games' : 'clock only'; }
 }).catch(function () {});
 fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
 var led = $('#srLed'), title = $('#srTitle');

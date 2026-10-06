@@ -13,7 +13,7 @@
 #include "color_slots.h"
 
 // ========== Version ==========
-#define FIRMWARE_VERSION "2.3.2"
+#define FIRMWARE_VERSION "2.4.0-beta1"
 
 // ========== Constants ==========
 #define MAX_METRICS 20
@@ -262,6 +262,13 @@ struct Settings {
   bool doomShowDate;            // Show date row (off = centred clock)
   bool doomBurningDigits;       // Digits feed the fire and throw their own flames
   bool doomSmoothFire;          // Soften the flames off the digits (ground fire untouched)
+
+  // Game mode
+  uint8_t gameIdleExitMin;      // Leave game mode after this many minutes without input (0 = never)
+  bool gameRumble;              // Pad vibration on game events
+  uint8_t blocksStartLevel;     // Falling Blocks starting level (1-10)
+  bool blocksStickDrop;         // Left stick up hard-drops too (d-pad up always does)
+  bool blocksGhost;             // Falling Blocks landing preview (default off)
 
   // Missile Command clock settings (style retired; kept inert for NVS/export stability)
   uint8_t mcMissileSpeed;       // Enemy missile speed, tenths (12 = 1.2)
