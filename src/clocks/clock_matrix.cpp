@@ -440,7 +440,7 @@ void displayClockWithMatrixRain() {
     }
     drawDate(dateX, 4, &timeinfo);
   }
-  if (!settings.use24Hour) {
+  if (showMeridiem()) {
     // AM/PM normally sits in the top-right corner, which is where the small
     // clock goes, so it drops below the digits there
     int mrx = settings.matrixSmallClock ? 112 : 110;

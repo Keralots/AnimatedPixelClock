@@ -731,6 +731,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   <select name="use24Hour" id="use24Hour">
                     <option value="1">24-hour &middot; 14:30</option>
                     <option value="0">12-hour &middot; 2:30 PM</option>
+                    <option value="2">12-hour without AM/PM &middot; 2:30</option>
                   </select>
                 </div>
               </div>

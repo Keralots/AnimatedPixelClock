@@ -1193,7 +1193,7 @@ void handlePortalValues() {
   // Controls whose value is not a plain settings field.
   form["timezoneRegion"] = tzSelected;
   // Selects with options "0"/"1": a JSON bool would set value "true"/"false" and match none.
-  form["use24Hour"] = settings.use24Hour ? 1 : 0;
+  form["use24Hour"] = settings.use24Hour ? 1 : (settings.hideAmPm ? 2 : 0);
   form["useStaticIP"] = settings.useStaticIP ? 1 : 0;
   form["vizStyle"] = settings.vizStyle;
   form["scopeTrail"] = settings.scopeTrail;
@@ -1383,7 +1383,9 @@ void handleSave() {
  }
 
  if (server.hasArg("use24Hour")) {
- settings.use24Hour = server.arg("use24Hour").toInt() == 1;
+ int fmt = server.arg("use24Hour").toInt();  // 1 = 24h, 0 = 12h, 2 = 12h without AM/PM
+ settings.use24Hour = fmt == 1;
+ settings.hideAmPm = fmt == 2;
  }
  if (server.hasArg("dateFormat")) {
  settings.dateFormat = server.arg("dateFormat").toInt();
@@ -2139,6 +2141,7 @@ void handleExportConfig() {
  json += "\"gmtOffset\":" + String(settings.gmtOffset) + ",";
  json += "\"daylightSaving\":" + String(settings.daylightSaving ? "true" : "false") + ",";
  json += "\"use24Hour\":" + String(settings.use24Hour ? "true" : "false") + ",";
+ json += "\"hideAmPm\":" + String(settings.hideAmPm ? "true" : "false") + ",";
  json += "\"dateFormat\":" + String(settings.dateFormat) + ",";
  json += "\"clockPosition\":" + String(settings.clockPosition) + ",";
  json += "\"clockOffset\":" + String(settings.clockOffset) + ",";
@@ -2469,6 +2472,7 @@ void handleImportConfig() {
  if (!doc["gmtOffset"].isNull()) settings.gmtOffset = doc["gmtOffset"];
  if (!doc["daylightSaving"].isNull()) settings.daylightSaving = doc["daylightSaving"];
  if (!doc["use24Hour"].isNull()) settings.use24Hour = doc["use24Hour"];
+ if (!doc["hideAmPm"].isNull()) settings.hideAmPm = doc["hideAmPm"];
  if (!doc["dateFormat"].isNull()) settings.dateFormat = doc["dateFormat"];
  if (!doc["clockPosition"].isNull()) settings.clockPosition = doc["clockPosition"];
  if (!doc["clockOffset"].isNull()) settings.clockOffset = doc["clockOffset"];

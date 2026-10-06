@@ -144,6 +144,7 @@ void loadSettings() {
     settings.daylightSaving = true;
     strcpy(settings.timezoneString, "CET-1CEST,M3.5.0/02:00,M10.5.0/03:00"); // Default: Central European
     settings.use24Hour = true;
+    settings.hideAmPm = false;
     settings.dateFormat = 0;
     settings.clockPosition = 0; // Center by default
     settings.clockOffset = 0;   // No offset by default
@@ -353,6 +354,7 @@ void loadSettings() {
   }
 
   settings.use24Hour = preferences.getBool("use24Hour", true); // Default: 24h
+  settings.hideAmPm = preferences.getBool("hideAmPm", false);
   settings.dateFormat =
       preferences.getInt("dateFormat", 0); // Default: DD/MM/YYYY
   settings.clockPosition = preferences.getInt("clockPos", 0); // Default: Center
@@ -801,6 +803,7 @@ void saveSettings() {
   preferences.putString("tz", settings.timezoneString); // New timezone string
   preferences.putUChar("tzIdx", settings.timezoneIndex); // Timezone region index
   preferences.putBool("use24Hour", settings.use24Hour);
+  preferences.putBool("hideAmPm", settings.hideAmPm);
   preferences.putInt("dateFormat", settings.dateFormat);
   preferences.putInt("clockPos", settings.clockPosition);
   preferences.putInt("clockOffset", settings.clockOffset);

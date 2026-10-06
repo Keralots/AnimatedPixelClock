@@ -539,7 +539,7 @@ void displayClockWithDoom() {
     formatDate(dateStr, sizeof(dateStr), &timeinfo);
     doomOutlineText((SCREEN_WIDTH - DATE_DISPLAY_WIDTH) / 2, 4, dateStr);
   }
-  if (!settings.use24Hour) {
+  if (showMeridiem()) {
     doomOutlineText(110, 4, displayed_is_pm ? "PM" : "AM");
   }
 

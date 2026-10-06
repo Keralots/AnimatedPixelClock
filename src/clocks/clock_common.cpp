@@ -160,8 +160,10 @@ void maintainTimeOverride(const struct tm* timeinfo, bool animationIdle) {
   }
 }
 
+bool showMeridiem() { return !settings.use24Hour && !settings.hideAmPm; }
+
 void drawMeridiemIndicator(int x, int y, bool isPM) {
-  if (settings.use24Hour) {
+  if (!showMeridiem()) {
     return;
   }
 

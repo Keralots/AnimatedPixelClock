@@ -130,7 +130,9 @@ choice in the web interface. ID 13 is retired; use the IDs listed above.
 
 Style colors are editable in the web interface (digits,
 characters, effects, backgrounds), so each clock can match your setup. The date and
-AM/PM color is shared by every style and sits under Clock > Time & date.
+AM/PM color is shared by every style and sits under Clock > Time & date. The
+Time format there also offers **12-hour without AM/PM**, which hides the
+indicator in every style.
 
 The style names describe what each animation is styled after. This project is
 not affiliated with or endorsed by the rights holders; see
