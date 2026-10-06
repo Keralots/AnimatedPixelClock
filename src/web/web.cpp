@@ -46,6 +46,23 @@ static void sendJsonGuarded(int code, const String& json);
 // ========== Web Server Object ==========
 WebServer server(80);
 
+// True when a browser sent this request on behalf of another site's page.
+// Scripts, Home Assistant and the companion send neither header and pass.
+static bool crossSite() {
+ String site = server.header("Sec-Fetch-Site");
+ if (site.length() && site != "same-origin" && site != "none") return true;
+ String origin = server.header("Origin");
+ if (!origin.length()) return false;
+ int p = origin.indexOf("://");
+ return origin.substring(p < 0 ? 0 : p + 3) != server.hostHeader();
+}
+
+static bool refuseCrossSite() {
+ if (!crossSite()) return false;
+ server.send(403, "text/plain", "Refused: request from another site");
+ return true;
+}
+
 // Runtime mode override flags (defined in main.cpp)
 extern bool httpForceClock;
 extern bool httpForceAmbient;
@@ -106,8 +123,9 @@ void setupWebServer() {
 #endif
 
  // OTA Firmware Update handlers
- static bool otaRefused = false;  // Bluetooth did not let go of the radio in time
+ static bool otaRefused = false;  // another site's page, or Bluetooth did not let go in time
  server.on("/update", HTTP_POST, []() {
+ if (refuseCrossSite()) return;
  if (otaRefused) {
    server.send(503, "text/plain", "Update refused: game mode's Bluetooth is still shutting down. Try again in a few seconds.");
    return;
@@ -131,6 +149,8 @@ void setupWebServer() {
  esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
+ otaRefused = crossSite();  // the final handler answers it with 403
+ if (otaRefused) return;
 #if GAMEPAD_ENABLED
  otaRefused = !gameModeStopAndWait(5000);  // the upload shares the radio with BLE
  if (otaRefused) {
@@ -157,8 +177,10 @@ void setupWebServer() {
  }
  });
 
- static const char* kCollect[] = {"If-None-Match"};   // handleRoot answers a matching one with 304
- server.collectHeaders(kCollect, 1);
+ // If-None-Match: handleRoot answers a matching one with 304. Origin and
+ // Sec-Fetch-Site: crossSite().
+ static const char* kCollect[] = {"If-None-Match", "Origin", "Sec-Fetch-Site"};
+ server.collectHeaders(kCollect, 3);
  server.begin();
 }
 
@@ -415,6 +437,7 @@ void handleGameStatus() {
 
 // GET /api/game/hiscores[?reset=all|<game id>] - list the high scores, optionally clearing some.
 void handleGameHiscores() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (server.hasArg("reset")) {
    String which = server.arg("reset");
@@ -439,6 +462,7 @@ void handleGameHiscores() {
 
 // GET /api/game/forget - drop every paired pad (a connected one is disconnected).
 void handleGameForget() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!gamepadForget()) {
    server.send(503, "application/json", "{\"error\":\"Gamepad is shutting down, try again\"}");
@@ -497,6 +521,7 @@ void handlePanelGet() {
 
 // POST /api/panel - save panel options (form or query args), then reboot
 void handlePanelSave() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  PanelOptions o = panelOptions;
  if (server.hasArg("driver")) o.driver = server.arg("driver").toInt();
@@ -517,6 +542,7 @@ void handlePanelSave() {
 // GET /api/panel/test?pattern=0-8 - show a test pattern (0 = off, not saved)
 // GET /api/wifi/txpower[?dbm=19.5|18.5|17|15|13|11|8.5] - read, or set and save
 void handleWifiTxPower() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (server.hasArg("dbm")) {
    uint8_t q = (uint8_t)constrain((int)(server.arg("dbm").toFloat() * 4 + 0.5f), 0, 255);
@@ -549,6 +575,7 @@ void handlePanelTest() {
 }
 
 void handleRename() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
 
  if (!server.hasArg("plain")) {
@@ -590,6 +617,7 @@ void handleRename() {
 // Body: {"text":"...","color":"#RRGGBB","icon":"bell","duration":5000,"position":"top"}
 // Only "text" is required.
 void handleNotify() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
 
  if (!settings.notifyEnabled) {
@@ -727,6 +755,7 @@ void handleAnimPlay() {
 
 // GET /api/anim/delete?name=<basename>
 void handleAnimDelete() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  String name = server.arg("name");
  if (!animFsUsable() || !animValidName(name.c_str()) ||
@@ -766,6 +795,7 @@ void handleAnimUploadChunk() {
  if (upload.status == UPLOAD_FILE_START) {
    animUpError = nullptr;
    animUpWritten = 0;
+   if (crossSite()) { animUpError = "request from another site"; return; }
    if (!animFsUsable()) { animUpError = "animation storage unavailable on this board"; return; }
    // Name from ?name= or the uploaded filename (minus extension).
    animUpName = server.arg("name");
@@ -813,6 +843,7 @@ void handleAnimUploadChunk() {
 }
 
 void handleAnimUploadDone() {
+ if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (animUpError) {
    lastAnimationError = animUpError;
@@ -1282,6 +1313,7 @@ static bool argIntInRange(const char* name, int lo, int hi, int &out) {
 }
 
 void handleSave() {
+ if (refuseCrossSite()) return;
  if (server.hasArg("cycleConfig")) {
    String cycle = server.arg("cycleConfig"); CycleEntry checked[CYCLE_COUNT];
    if (cycle.length() >= sizeof(settings.cycleConfig) || !parseCycleConfig(cycle.c_str(), checked)) {
@@ -1994,6 +2026,7 @@ void handleSave() {
 }
 
 void handleReset() {
+ if (refuseCrossSite()) return;
  String html = R"rawliteral(
 <!DOCTYPE html><html><head><title>Factory Reset</title><style> body{font-family:Arial;background:#1a1a2e;color:#e94560;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.msg{text-align:center}</style></head><body><div class="msg"><h1>&#128260;</h1><p>Factory reset in progress...<br>All settings erased.<br>Connect to "PixelClock-Setup" to reconfigure.</p></div></body></html>
 )rawliteral";
@@ -2270,6 +2303,7 @@ void handleNtpTest() {
 }
 
 void handleImportConfig() {
+ if (refuseCrossSite()) return;
  if (server.hasArg("plain")) {
  String body = server.arg("plain");
 

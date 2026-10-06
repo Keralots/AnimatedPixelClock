@@ -755,6 +755,12 @@ reboot; brightness and style changes update the in-memory settings and can be
 persisted by a later settings save. No authentication, so keep
 the device on a trusted LAN.
 
+Endpoints that change or erase something (settings save, import, rename, panel
+options, notifications, animation upload and delete, firmware update, factory
+reset) refuse requests that a browser sends from another site's page, so a web
+page cannot quietly reset or reflash the clock. Scripts, curl, Home Assistant
+and the companion are not browsers and work as before.
+
 | Endpoint | Description |
 |----------|-------------|
 | `/api/status` | Current display/mode state as JSON |
