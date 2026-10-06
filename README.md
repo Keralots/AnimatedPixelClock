@@ -673,8 +673,8 @@ Board choices on that page:
   same BOOT-hold trick if the port does not appear. Its 32MB flash leaves 23MB
   for custom animations.
 
-Every board also has a **Firmware** choice: **Clock only** (recommended) or
-**Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
+The list has two sections with every board in each: **Clock only** (recommended)
+and **Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
 gamepad at the cost of about 29KB of free internal memory.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.

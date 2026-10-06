@@ -53,8 +53,8 @@ SHA256SUMS.txt
 
 These files are committed under `docs/` and published by GitHub Pages from
 `main:/docs`. The filename IDs match `BOARDS` in `docs/flasher.js`, plus the
-`suffix` of the chosen entry in its `VARIANTS`. The flasher only offers a board or
-variant whose image exists for the published version.
+`suffix` of the chosen entry in its `VARIANTS`. The board list has one section per
+variant, and only offers a board whose image exists for the published version.
 
 The GitHub Release assets are prepared in `release/v<version>/`:
 

@@ -2,7 +2,8 @@
 // Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
 // install button, specs and board photo in sync. Each board in BOARDS below has a
 // clock-only image and a "-games" image with Bluetooth game mode (VARIANTS), all
-// driving the 128x64 HUB75 matrix.
+// driving the 128x64 HUB75 matrix. The picker lists every board once per variant,
+// one section each, with "<board>/<variant>" option values.
 
 const BOARDS = {
   supermini: {
@@ -92,30 +93,23 @@ function manifestBlobUrl(boardId, variantId, version) {
 function populateBoardSelect() {
   const sel = document.getElementById('board-select');
   if (!sel) return;
-  for (const [id, info] of Object.entries(BOARDS)) {
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = info.label;
-    sel.appendChild(opt);
+  for (const [variantId, variant] of Object.entries(VARIANTS)) {
+    const group = document.createElement('optgroup');
+    group.label = variant.label;
+    for (const [boardId, info] of Object.entries(BOARDS)) {
+      const opt = document.createElement('option');
+      opt.value = `${boardId}/${variantId}`;
+      opt.textContent = info.label;
+      group.appendChild(opt);
+    }
+    sel.appendChild(group);
   }
-  sel.value = DEFAULT_BOARD;
+  sel.value = `${DEFAULT_BOARD}/${DEFAULT_VARIANT}`;
 }
 
-// Offers the variants published for this board, keeping the current pick if it is.
-function populateVariantSelect(boardId) {
-  const sel = document.getElementById('variant-select');
-  if (!sel) return DEFAULT_VARIANT;
-  const prev = sel.value || DEFAULT_VARIANT;
-  sel.innerHTML = '';
-  for (const [id, info] of Object.entries(VARIANTS)) {
-    if (_imageState[`${boardId}/${id}`] === 'missing') continue;
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = info.label;
-    sel.appendChild(opt);
-  }
-  sel.value = sel.querySelector(`option[value="${prev}"]`) ? prev : (sel.options[0]?.value || DEFAULT_VARIANT);
-  return sel.value;
+function parsePick(value) {
+  const [boardId, variantId] = (value || '').split('/');
+  return BOARDS[boardId] && VARIANTS[variantId] ? [boardId, variantId] : [DEFAULT_BOARD, DEFAULT_VARIANT];
 }
 
 function renderVariant(variantId) {
@@ -228,12 +222,13 @@ async function pruneUnpublishedBoards(version) {
     showStatus(`No firmware images published for ${version} yet. The site may be mid-deploy, try again in a minute.`, 'error');
     return;
   }
-  for (const id of Object.keys(BOARDS)) {
-    if (Object.keys(VARIANTS).every((v) => _imageState[`${id}/${v}`] === 'missing')) {
-      sel.querySelector(`option[value="${id}"]`)?.remove();
-    }
+  for (const [key, state] of Object.entries(_imageState)) {
+    if (state === 'missing') sel.querySelector(`option[value="${key}"]`)?.remove();
   }
-  if (!sel.querySelector(`option[value="${sel.value}"]`)) sel.selectedIndex = 0;
+  for (const group of sel.querySelectorAll('optgroup')) {
+    if (!group.children.length) group.remove();
+  }
+  if (!sel.value) sel.selectedIndex = 0;
 }
 
 function checkBrowserSupport() {
@@ -259,20 +254,14 @@ async function init() {
   await pruneUnpublishedBoards(_version);
 
   const sel = document.getElementById('board-select');
-  const variantSel = document.getElementById('variant-select');
   const refresh = () => {
-    const boardId = sel && sel.value ? sel.value : DEFAULT_BOARD;
-    const variantId = populateVariantSelect(boardId);
+    const [boardId, variantId] = parsePick(sel && sel.value);
     renderSpecs(boardId);
     renderVariant(variantId);
     renderInstallButton(boardId, variantId, _version);
   };
   refresh();
   if (sel) sel.addEventListener('change', refresh);
-  if (variantSel) variantSel.addEventListener('change', () => {
-    renderVariant(variantSel.value);
-    renderInstallButton(sel && sel.value ? sel.value : DEFAULT_BOARD, variantSel.value, _version);
-  });
 }
 
 // ────────── 04 serial monitor ──────────
