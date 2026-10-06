@@ -95,8 +95,8 @@ static int8_t weekdayOf(const char* iso) {
 }
 
 static bool fetchWeather() {
-  char url[320];
-  snprintf(url, sizeof(url),
+  char url[400];
+  int len = snprintf(url, sizeof(url),
            "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
@@ -105,6 +105,7 @@ static bool fetchWeather() {
            "&timezone=auto&forecast_days=%d",
            settings.weatherLat, settings.weatherLon, WEATHER_FORECAST_HOURS,
            1 + WEATHER_FORECAST_DAYS);
+  if (len < 0 || len >= (int)sizeof(url)) return false;  // a cut URL loses timezone=auto
 
   WiFiClientSecure client;
   client.setInsecure();  // public, non-sensitive data; saves a cert bundle
