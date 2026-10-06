@@ -139,8 +139,10 @@ void setupWebServer() {
  static bool otaRefused = false;  // another site's page, or Bluetooth did not let go in time
  static bool otaWritten = false;  // a complete image was written; only then restart
  server.on("/update", HTTP_POST, []() {
+ bool refused = otaRefused, written = otaWritten;
+ otaRefused = otaWritten = false;  // never carry over into the next request
  if (refuseCrossSite()) return;
- if (otaRefused) {
+ if (refused) {
    server.send(503, "text/plain", "Update refused: game mode's Bluetooth is still shutting down. Try again in a few seconds.");
    return;
  }
@@ -155,7 +157,7 @@ void setupWebServer() {
    server.send(500, "text/plain", msg);
    return; // keep running the current firmware
  }
- if (!otaWritten) {
+ if (!written) {
    server.send(400, "text/plain", "Update failed: no firmware file received");
    return;
  }
@@ -168,6 +170,7 @@ void setupWebServer() {
  esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
  if (upload.status == UPLOAD_FILE_START) {
  Serial.printf("Update: %s\n", upload.filename.c_str());
+ otaWritten = false;
  otaRefused = crossSite();  // the final handler answers it with 403
  if (otaRefused) return;
 #if GAMEPAD_ENABLED
@@ -194,6 +197,8 @@ void setupWebServer() {
  } else {
  Update.printError(Serial);
  }
+ } else if (upload.status == UPLOAD_FILE_ABORTED) {
+ otaWritten = false;  // the request never reaches the final handler
  }
  });
 
