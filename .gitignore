@@ -24,3 +24,7 @@ hardware/
 # Each rebuild added ~50 MB to the history permanently.
 /PC-Companion-App-v4/win-companion/dist/
 /release/*/*.exe
+# Release images and their checksums live on the GitHub Release too; only the
+# changelog of each release is kept here.
+/release/*/*.bin
+/release/*/SHA256SUMS.txt
