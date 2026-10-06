@@ -164,8 +164,8 @@ shown at twice the panel's pixel size.
 </tr>
 </table>
 
-Standard and Large have no change animation, and the Weather clock is not shown
-here. All colors above are the defaults.
+Standard and Large have no change animation, and the Weather clock has its own
+[layout gallery](#weather-layouts). All colors above are the defaults.
 
 ## Web interface
 
@@ -241,6 +241,24 @@ Data comes from [Open-Meteo](https://open-meteo.com/) (no account or API key nee
 fetched every 10 minutes. The optional API key field is only for Open-Meteo
 commercial subscriptions. Icon, effect, temperature and details row colors are
 editable in the style's Colors card like any other clock.
+
+### Weather layouts
+
+The five **Layout** choices, each shown with different weather, at twice the
+panel's pixel size.
+
+<table>
+<tr>
+<td align="center"><img src="docs/img/weather/classic.gif" width="256" alt="Classic weather layout during a thunderstorm"><br>Classic</td>
+<td align="center"><img src="docs/img/weather/forecast-rows.gif" width="256" alt="Forecast layout with three days as rows"><br>Three days as rows</td>
+<td align="center"><img src="docs/img/weather/forecast-columns.gif" width="256" alt="Forecast layout with three days as columns, in snow"><br>Three days as columns</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/weather/forecast-hours.gif" width="256" alt="Forecast layout with the next 12 hours, in windy rain"><br>Next 12 hours</td>
+<td align="center"><img src="docs/img/weather/forecast-tomorrow.gif" width="256" alt="Forecast layout with tomorrow in focus, on a clear night"><br>Tomorrow in focus</td>
+<td></td>
+</tr>
+</table>
 
 ## Ambient screensaver
 
@@ -491,6 +509,22 @@ card, then **Save settings**:
   trail behind it. The trace is trigger-aligned on the PC so it stands still
   instead of sliding, and it takes its colors from the same three editable slots
   as Classic EQ (grid from the low color, trace from mid, peaks from the top one).
+
+<table>
+<tr>
+<td align="center"><img src="docs/img/viz/classic-eq.gif" width="256" alt="Classic EQ visualizer"><br>Classic EQ</td>
+<td align="center"><img src="docs/img/viz/neon-mirror.gif" width="256" alt="Neon Mirror visualizer"><br>Neon Mirror</td>
+<td align="center"><img src="docs/img/viz/phosphor-waterfall.gif" width="256" alt="Phosphor Waterfall visualizer"><br>Phosphor Waterfall</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/viz/purple-stage.gif" width="256" alt="Purple LED Stage visualizer"><br>Purple LED Stage</td>
+<td align="center"><img src="docs/img/viz/starfield.gif" width="256" alt="Starfield Overdrive visualizer"><br>Starfield Overdrive</td>
+<td align="center"><img src="docs/img/viz/oscilloscope.gif" width="256" alt="Oscilloscope visualizer"><br>Oscilloscope</td>
+</tr>
+</table>
+
+All six play the same short synthetic drum, bass and chord loop, run through the
+companion's own spectrum code, at twice the panel's pixel size.
 
 Classic EQ and the Oscilloscope each have their own color pickers, and the
 **Colors and options** card shows the set that belongs to the selected style; the others use fixed palettes. All of them support the small clock and the same companion audio
