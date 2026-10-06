@@ -57,6 +57,12 @@ static bool crossSite() {
  return origin.substring(p < 0 ? 0 : p + 3) != server.hostHeader();
 }
 
+// WebServer also runs an upload callback for a POST that is not multipart, with
+// nothing behind server.upload(): reading it then crashes the clock.
+static bool isMultipart() {
+ return server.header("Content-Type").startsWith("multipart/form-data");
+}
+
 static bool refuseCrossSite() {
  if (!crossSite()) return false;
  server.send(403, "text/plain", "Refused: request from another site");
@@ -124,6 +130,7 @@ void setupWebServer() {
 
  // OTA Firmware Update handlers
  static bool otaRefused = false;  // another site's page, or Bluetooth did not let go in time
+ static bool otaWritten = false;  // a complete image was written; only then restart
  server.on("/update", HTTP_POST, []() {
  if (refuseCrossSite()) return;
  if (otaRefused) {
@@ -141,10 +148,15 @@ void setupWebServer() {
    server.send(500, "text/plain", msg);
    return; // keep running the current firmware
  }
+ if (!otaWritten) {
+   server.send(400, "text/plain", "Update failed: no firmware file received");
+   return;
+ }
  server.send(200, "text/plain", "OK");
  delay(1000);
  ESP.restart();
  }, []() {
+ if (!isMultipart()) return;
  HTTPUpload& upload = server.upload();
  esp_task_wdt_reset();  // a slow OTA otherwise trips the 15s watchdog mid-flash
  if (upload.status == UPLOAD_FILE_START) {
@@ -170,6 +182,7 @@ void setupWebServer() {
  }
  } else if (upload.status == UPLOAD_FILE_END) {
  if (Update.end(true)) { // true = set size to current progress
+ otaWritten = true;
  Serial.printf("Update Success: %u bytes\nRebooting...\n", upload.totalSize);
  } else {
  Update.printError(Serial);
@@ -178,9 +191,9 @@ void setupWebServer() {
  });
 
  // If-None-Match: handleRoot answers a matching one with 304. Origin and
- // Sec-Fetch-Site: crossSite().
- static const char* kCollect[] = {"If-None-Match", "Origin", "Sec-Fetch-Site"};
- server.collectHeaders(kCollect, 3);
+ // Sec-Fetch-Site: crossSite(). Content-Type: isMultipart().
+ static const char* kCollect[] = {"If-None-Match", "Origin", "Sec-Fetch-Site", "Content-Type"};
+ server.collectHeaders(kCollect, 4);
  server.begin();
 }
 
@@ -787,6 +800,7 @@ static void animUploadAbort(const char* why) {
 }
 
 void handleAnimUploadChunk() {
+ if (!isMultipart()) { animUpError = "expected a multipart file upload"; return; }
  HTTPUpload& upload = server.upload();
  // A large upload keeps loop() inside handleClient for many seconds and
  // LittleFS writes are slow - feed the task WDT per chunk or it reboots
