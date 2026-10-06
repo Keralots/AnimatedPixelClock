@@ -1669,7 +1669,7 @@ else animStatus('Upload failed: ' + (d.error || 'unknown'));
 var animDel = $('#animDeleteBtn');
 if (animDel) animDel.addEventListener('click', function () {
 if (!animSel || !animSel.value) { animStatus('Select an animation to delete.'); return; }
-fetch('/api/anim/delete?name=' + encodeURIComponent(animSel.value)).then(function (r) { return r.json(); })
+fetch('/api/anim/delete?name=' + encodeURIComponent(animSel.value), { method: 'POST' }).then(function (r) { return r.json(); })
 .then(function () { animStatus('Deleted.'); animRefresh(); }).catch(function () {});
 });
 function vizCall(path, okMsg) {
@@ -1715,7 +1715,7 @@ gameHiEl.appendChild(row);
 });
 }
 function resetHiscore(id, msg) {
-if (confirm(msg)) fetch('/api/game/hiscores?reset=' + encodeURIComponent(id)).then(function () { gameHiKey = ''; pollGameStatus(); });
+if (confirm(msg)) fetch('/api/game/hiscores?reset=' + encodeURIComponent(id), { method: 'POST' }).then(function () { gameHiKey = ''; pollGameStatus(); });
 }
 var gameHiResetAll = $('#gameHiResetAll');
 if (gameHiResetAll) gameHiResetAll.addEventListener('click', function () { resetHiscore('all', 'Reset every high score?'); });
@@ -1723,7 +1723,7 @@ var gameStartBtn = $('#gameStart'), gameStopBtn = $('#gameStop'), gameForgetBtn 
 if (gameStartBtn) gameStartBtn.addEventListener('click', function () { fetch('/api/game/start').then(pollGameStatus); });
 if (gameStopBtn) gameStopBtn.addEventListener('click', function () { fetch('/api/game/stop').then(pollGameStatus); });
 if (gameForgetBtn) gameForgetBtn.addEventListener('click', function () {
-if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget').then(function (r) { if (r.ok) pollGameStatus(); else if (gameStatusEl) gameStatusEl.textContent = 'Bluetooth is still shutting down - try again in a moment.'; });
+if (confirm('Forget the paired pad? It will need its pair button held again.')) fetch('/api/game/forget', { method: 'POST' }).then(function (r) { if (r.ok) pollGameStatus(); else if (gameStatusEl) gameStatusEl.textContent = 'Bluetooth is still shutting down - try again in a moment.'; });
 });
 setInterval(pollGameStatus, 2000);
 fetch('/api/game/status').then(function (r) { if (r.status === 404) { var n = $('[data-nav="game"]'); if (n) n.style.display = 'none'; } }).catch(function () {});
@@ -2158,7 +2158,7 @@ setTimeout(function () { window.location.href = '/'; }, 3000);
 $('#resetBtn').addEventListener('click', function () {
 if (!confirm('Have you exported a backup of your settings?\n\nUse "Export config" first if not.\n\nOK to continue with factory reset, Cancel to go back.')) return;
 if (!confirm('ARE YOU SURE?\n\nThis permanently erases ALL settings:\n- WiFi credentials\n- Display & clock config\n- Metric labels & layout\n- Network settings\n\nThe device restarts into AP setup mode. This cannot be undone.')) return;
-window.location.href = '/reset';
+var f = document.createElement('form'); f.method = 'POST'; f.action = '/reset'; document.body.appendChild(f); f.submit();
 });
 $('#exportBtn').addEventListener('click', function () {
 fetch('/api/export').then(function (r) { return r.json(); }).then(function (data) {
@@ -2226,7 +2226,7 @@ if (wifiTxCard) {
 ['input', 'change'].forEach(function (t) { wifiTxCard.addEventListener(t, function (ev) { ev.stopPropagation(); }); });
 fetch('/api/wifi/txpower', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(wifiTxShow).catch(function () {});
 $('#wifiTxPower').addEventListener('change', function () {
-fetch('/api/wifi/txpower?dbm=' + this.value).then(function (r) { return r.json(); }).then(wifiTxShow)
+fetch('/api/wifi/txpower?dbm=' + this.value, { method: 'POST' }).then(function (r) { return r.json(); }).then(wifiTxShow)
 .catch(function (err) { alert('Could not set the transmit power: ' + err); });
 });
 }

@@ -214,7 +214,7 @@ same signal strength. If WiFi drops out or the portal is slow, try 11-13 dBm, on
 step at a time, since too little power loses range. The card also shows the signal
 received from the router, which this setting does not change.
 
-`GET /api/wifi/txpower` returns the setting; `?dbm=11` sets and saves it. It is part
+`GET /api/wifi/txpower` returns the setting; `POST /api/wifi/txpower?dbm=11` sets and saves it. It is part
 of config export/import.
 
 ## Weather (optional)
@@ -635,7 +635,7 @@ without input, or never). The same page sets rumble on or off, the Falling Block
 starting level, whether stick up hard-drops and an optional landing preview (off by
 default), and has **Forget paired pad**.
 Best scores are kept on the device, listed on the same page with a reset button
-per game and one for all of them (`GET /api/game/hiscores?reset=<game>` or
+per game and one for all of them (`POST /api/game/hiscores?reset=<game>` or
 `?reset=all`), and travel with the configuration export and import.
 
 The game list shows the pad's battery level. At 20% or less it turns red, and a
@@ -756,10 +756,13 @@ persisted by a later settings save. No authentication, so keep
 the device on a trusted LAN.
 
 Endpoints that change or erase something (settings save, import, rename, panel
-options, notifications, animation upload and delete, firmware update, factory
-reset) refuse requests that a browser sends from another site's page, so a web
-page cannot quietly reset or reflash the clock. Scripts, curl, Home Assistant
-and the companion are not browsers and work as before.
+options, notifications, animation upload, firmware update, factory reset, WiFi
+power, pad forget, score reset) take POST only and refuse requests that a
+browser sends from another site's page, so a web page cannot quietly reset or
+reflash the clock. Scripts, curl, Home Assistant and the companion send no
+`Origin` header and work as before, for example
+`curl -X POST "http://pixelclock.local/api/game/forget"`. Animation delete also
+still answers GET, which the companion uses.
 
 | Endpoint | Description |
 |----------|-------------|
@@ -771,11 +774,11 @@ and the companion are not browsers and work as before.
 | `/api/mode/viz` | Force the audio spectrum visualizer (needs the companion streaming) |
 | `/api/game/start` / `/api/game/stop` | Enter / leave game mode (see [Game mode](#game-mode-optional)) |
 | `/api/game/status` | Game mode and gamepad link as JSON |
-| `/api/game/forget` | Forget every paired gamepad |
-| `/api/game/hiscores` | High scores as JSON; `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` / `defenders` / `cycles` clears them |
+| `/api/game/forget` | Forget every paired gamepad (POST) |
+| `/api/game/hiscores` | High scores as JSON; POST with `?reset=all` or `?reset=blocks` / `snake` / `bricks` / `rocks` / `runner` / `defenders` / `cycles` clears them |
 | `/api/clock/style?id=<id>` | Switch the clock style; use an ID from the table above (13 is retired) |
 | `/api/ntptest?server=<host>` | Probe an NTP server and report whether it answers |
-| `/api/wifi/txpower?dbm=<dBm>` | Read or set the WiFi transmit power (19.5, 18.5, 17, 15, 13, 11, 8.5; saved) |
+| `/api/wifi/txpower?dbm=<dBm>` | Read the WiFi transmit power, or set it with POST (19.5, 18.5, 17, 15, 13, 11, 8.5; saved) |
 | `/api/reboot` | Soft-restart (settings kept) |
 
 ```bash

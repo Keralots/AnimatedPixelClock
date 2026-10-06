@@ -46,11 +46,11 @@ static void sendJsonGuarded(int code, const String& json);
 // ========== Web Server Object ==========
 WebServer server(80);
 
-// True when a browser sent this request on behalf of another site's page.
-// Scripts, Home Assistant and the companion send neither header and pass.
+// True when a browser sent this request on behalf of another site's page. A
+// browser always names the page in Origin on a POST, so every endpoint that
+// changes something takes POST only. Scripts, Home Assistant and the companion
+// send no Origin and pass.
 static bool crossSite() {
- String site = server.header("Sec-Fetch-Site");
- if (site.length() && site != "same-origin" && site != "none") return true;
  String origin = server.header("Origin");
  if (!origin.length()) return false;
  int p = origin.indexOf("://");
@@ -66,6 +66,13 @@ static bool isMultipart() {
 static bool refuseCrossSite() {
  if (!crossSite()) return false;
  server.send(403, "text/plain", "Refused: request from another site");
+ return true;
+}
+
+// For a change made through GET, which carries no Origin: send 405, true.
+static bool refuseGet() {
+ if (server.method() == HTTP_POST) return false;
+ server.send(405, "text/plain", "Use POST");
  return true;
 }
 
@@ -102,7 +109,7 @@ void setupWebServer() {
 
  // Custom animation storage (uploaded .pca files, see tools/gif2pca.py)
  server.on("/api/anim/list", HTTP_GET, handleAnimList);
- server.on("/api/anim/delete", HTTP_GET, handleAnimDelete);
+ server.on("/api/anim/delete", handleAnimDelete);
  server.on("/api/anim/upload", HTTP_POST, handleAnimUploadDone, handleAnimUploadChunk);
 
  // Runtime control API (display power, mode, brightness, clock style, reboot)
@@ -119,13 +126,13 @@ void setupWebServer() {
  server.on("/api/panel", HTTP_GET, handlePanelGet);
  server.on("/api/panel", HTTP_POST, handlePanelSave);
  server.on("/api/panel/test", HTTP_GET, handlePanelTest);
- server.on("/api/wifi/txpower", HTTP_GET, handleWifiTxPower);
+ server.on("/api/wifi/txpower", handleWifiTxPower);
 #if GAMEPAD_ENABLED
  server.on("/api/game/start", HTTP_GET, handleGameStart);
  server.on("/api/game/stop", HTTP_GET, handleGameStop);
  server.on("/api/game/status", HTTP_GET, handleGameStatus);
- server.on("/api/game/forget", HTTP_GET, handleGameForget);
- server.on("/api/game/hiscores", HTTP_GET, handleGameHiscores);
+ server.on("/api/game/forget", handleGameForget);
+ server.on("/api/game/hiscores", handleGameHiscores);
 #endif
 
  // OTA Firmware Update handlers
@@ -190,10 +197,10 @@ void setupWebServer() {
  }
  });
 
- // If-None-Match: handleRoot answers a matching one with 304. Origin and
- // Sec-Fetch-Site: crossSite(). Content-Type: isMultipart().
- static const char* kCollect[] = {"If-None-Match", "Origin", "Sec-Fetch-Site", "Content-Type"};
- server.collectHeaders(kCollect, 4);
+ // If-None-Match: handleRoot answers a matching one with 304. Origin:
+ // crossSite(). Content-Type: isMultipart().
+ static const char* kCollect[] = {"If-None-Match", "Origin", "Content-Type"};
+ server.collectHeaders(kCollect, 3);
  server.begin();
 }
 
@@ -453,6 +460,7 @@ void handleGameHiscores() {
  if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (server.hasArg("reset")) {
+   if (refuseGet()) return;
    String which = server.arg("reset");
    bool found = false;
    for (uint8_t i = 0; i < gameCount(); i++) {
@@ -476,6 +484,7 @@ void handleGameHiscores() {
 // GET /api/game/forget - drop every paired pad (a connected one is disconnected).
 void handleGameForget() {
  if (refuseCrossSite()) return;
+ if (refuseGet()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (!gamepadForget()) {
    server.send(503, "application/json", "{\"error\":\"Gamepad is shutting down, try again\"}");
@@ -558,6 +567,7 @@ void handleWifiTxPower() {
  if (refuseCrossSite()) return;
  server.sendHeader("Access-Control-Allow-Origin", "*");
  if (server.hasArg("dbm")) {
+   if (refuseGet()) return;
    uint8_t q = (uint8_t)constrain((int)(server.arg("dbm").toFloat() * 4 + 0.5f), 0, 255);
    if (sanitizeWifiTxPower(q) != q) {
      server.send(400, "application/json", "{\"error\":\"dbm must be 19.5, 18.5, 17, 15, 13, 11 or 8.5\"}");
@@ -766,9 +776,9 @@ void handleAnimPlay() {
  server.send(200, "application/json", "{\"success\":true}");
 }
 
-// GET /api/anim/delete?name=<basename>
+// GET or POST /api/anim/delete?name=<basename>
 void handleAnimDelete() {
- if (refuseCrossSite()) return;
+ if (refuseCrossSite()) return;  // GET stays: the companion deletes with it
  server.sendHeader("Access-Control-Allow-Origin", "*");
  String name = server.arg("name");
  if (!animFsUsable() || !animValidName(name.c_str()) ||
@@ -2041,6 +2051,7 @@ void handleSave() {
 
 void handleReset() {
  if (refuseCrossSite()) return;
+ if (refuseGet()) return;
  String html = R"rawliteral(
 <!DOCTYPE html><html><head><title>Factory Reset</title><style> body{font-family:Arial;background:#1a1a2e;color:#e94560;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}.msg{text-align:center}</style></head><body><div class="msg"><h1>&#128260;</h1><p>Factory reset in progress...<br>All settings erased.<br>Connect to "PixelClock-Setup" to reconfigure.</p></div></body></html>
 )rawliteral";
