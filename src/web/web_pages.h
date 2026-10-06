@@ -719,11 +719,6 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
                   </select>
                 </div>
               </div>
-              <div class="field" style="margin:16px 0 0">
-                <label class="field-label" for="weatherApiKey">API key (optional)</label>
-                <input type="text" name="weatherApiKey" id="weatherApiKey" maxlength="32" value="" placeholder="Leave empty for the free endpoint">
-                <p class="field-hint">Only needed with an Open-Meteo commercial subscription.</p>
-              </div>
             </div>
           </div>
 

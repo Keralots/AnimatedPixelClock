@@ -127,7 +127,6 @@ struct Settings {
   bool weatherUseFahrenheit;    // false = Celsius
   uint8_t weatherLayout;        // 0 = classic; forecast on the right: 1 = day rows,
                                 // 2 = day columns, 3 = next 12 hours, 4 = tomorrow
-  char weatherApiKey[33];       // Optional commercial API key ("" = free endpoint)
 
   // Ambient screensaver (scheduled, replaces the clock)
   bool ambientEnabled;          // Enable the scheduled ambient window

@@ -238,8 +238,7 @@ Setup (web interface, Clock page, Weather Clock style):
    - **Tomorrow in focus**: tomorrow with a large animated icon, then two more days.
 
 Data comes from [Open-Meteo](https://open-meteo.com/) (no account or API key needed),
-fetched every 10 minutes. The optional API key field is only for Open-Meteo
-commercial subscriptions. Icon, effect, temperature and details row colors are
+fetched every 10 minutes. Icon, effect, temperature and details row colors are
 editable in the style's Colors card like any other clock.
 
 ### Weather layouts

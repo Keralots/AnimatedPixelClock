@@ -1101,7 +1101,6 @@ void handlePortalValues() {
   form["weatherLon"] = String(settings.weatherLon, 4);
   form["weatherFahrenheit"] = settings.weatherUseFahrenheit;
   form["weatherLayout"] = settings.weatherLayout;
-  form["weatherApiKey"] = settings.weatherApiKey;
   form["colonBlinkRate"] = settings.colonBlinkRate;
   form["displayBrightness"] = settings.displayBrightness;
   form["enableScheduledDimming"] = settings.enableScheduledDimming;
@@ -1458,13 +1457,6 @@ void handleSave() {
  if (server.hasArg("weatherLayout")) {
  int layout = server.arg("weatherLayout").toInt();
  settings.weatherLayout = layout >= 0 && layout <= WEATHER_LAYOUT_MAX ? layout : 0;
- }
- if (server.hasArg("weatherApiKey")) {
- String key = server.arg("weatherApiKey");
- if (key.length() <= 32) {
- strncpy(settings.weatherApiKey, key.c_str(), 32);
- settings.weatherApiKey[32] = '\0';
- }
  }
  weatherSettingsChanged(); // fetch now for the new location
  }
@@ -2091,7 +2083,6 @@ void handleExportConfig() {
  json += "\"weatherLon\":" + String(settings.weatherLon, 4) + ",";
  json += "\"weatherUseFahrenheit\":" + String(settings.weatherUseFahrenheit ? "true" : "false") + ",";
  json += "\"weatherLayout\":" + String(settings.weatherLayout) + ",";
- json += "\"weatherApiKey\":\"" + String(settings.weatherApiKey) + "\",";
  json += "\"ambientEnabled\":" + String(settings.ambientEnabled ? "true" : "false") + ",";
  json += "\"ambientStyle\":" + String(settings.ambientStyle) + ",";
  json += "\"ambientStartHour\":" + String(settings.ambientStartHour) + ",";
@@ -2423,13 +2414,6 @@ void handleImportConfig() {
  if (doc["weatherLayout"].is<int>()) {
    int layout = doc["weatherLayout"].as<int>();
    settings.weatherLayout = layout >= 0 && layout <= WEATHER_LAYOUT_MAX ? layout : 0;
- }
- if (!doc["weatherApiKey"].isNull()) {
-   const char* key = doc["weatherApiKey"];
-   if (key && strlen(key) <= 32) {
-     strncpy(settings.weatherApiKey, key, 32);
-     settings.weatherApiKey[32] = '\0';
-   }
  }
  if (!doc["ambientEnabled"].isNull()) settings.ambientEnabled = doc["ambientEnabled"];
  // Read as int and normalize so the retired lava slot (2) or a bad value maps

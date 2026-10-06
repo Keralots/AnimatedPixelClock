@@ -96,19 +96,15 @@ static int8_t weekdayOf(const char* iso) {
 
 static bool fetchWeather() {
   char url[320];
-  bool hasKey = settings.weatherApiKey[0] != '\0';
-  // The commercial tier uses the same API on a customer- host with an apikey.
   snprintf(url, sizeof(url),
-           "https://%s/v1/forecast?latitude=%.4f&longitude=%.4f"
+           "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
            "precipitation_probability_max,sunrise,sunset"
            "&hourly=temperature_2m,precipitation_probability&forecast_hours=%d"
-           "&timezone=auto&forecast_days=%d%s%s",
-           hasKey ? "customer-api.open-meteo.com" : "api.open-meteo.com",
+           "&timezone=auto&forecast_days=%d",
            settings.weatherLat, settings.weatherLon, WEATHER_FORECAST_HOURS,
-           1 + WEATHER_FORECAST_DAYS,
-           hasKey ? "&apikey=" : "", hasKey ? settings.weatherApiKey : "");
+           1 + WEATHER_FORECAST_DAYS);
 
   WiFiClientSecure client;
   client.setInsecure();  // public, non-sensitive data; saves a cert bundle
