@@ -1,3 +1,6 @@
-0615fb4de555a79a1a1dc5c51a9a59154855d7b9badcd3e80c93550273b4a2c7  AnimatedPixelClock-supermini-v2.3.2-Full.bin
-bcb21186679337d098072647b284ef3c6835e4f6c5df6ce55db2f99793536728  AnimatedPixelClock-waveshare-v2.3.2-Full.bin
-2655435a6a1a797ee4b4f0b5c008e941f4e7664e890899397b499aaa2675c4da  AnimatedPixelClock-wroom-v2.3.2-Full.bin
+11c80f340152d23e36eea14091feb2b56967355ab120f372ec781faa391f3aa9  AnimatedPixelClock-supermini-games-v2.4.0-Full.bin
+e4918c6f5769ae4a1a51965898c5b68f348082b5945d3d6222156ed14ca30420  AnimatedPixelClock-supermini-v2.4.0-Full.bin
+ec85f1018c3d22f075c7885962cea8daac6f2e17786753c022b72b1d05906b3b  AnimatedPixelClock-waveshare-games-v2.4.0-Full.bin
+58f0198ab58a54e9799093019b85f2d0d9a831762dc6c9d3d00b52c2536ecd67  AnimatedPixelClock-waveshare-v2.4.0-Full.bin
+532ca52049caebd3d7f011cc8962ba13dfc3f9b2bbfcd6f339dbe2ba93630e97  AnimatedPixelClock-wroom-games-v2.4.0-Full.bin
+e2bba7cf0511ea6b4c440624a986e74558e08d1447b455c7bd9b587ff2fa6a13  AnimatedPixelClock-wroom-v2.4.0-Full.bin
