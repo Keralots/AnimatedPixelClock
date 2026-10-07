@@ -26,13 +26,16 @@ sent by a desktop companion app.
 | ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
 | Alternative: [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix) | Purpose-built HUB75 driver board (ESP32-S3-WROOM-2-N32R16V, 32MB flash, 16MB PSRAM). Carries the HUB75 header and output buffers, so no per-GPIO wiring is needed; ribbon cables and panel power still get connected, per [Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use). Uses its own pin map - see below |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
+| Alternative: [NONDK P2.5 128x64 HUB75E panel](https://www.amazon.de/dp/B0GXLJVTZC) | One piece instead of two chained panels. Needs driver 0 ([Panel options](#panel-options)) and 5V logic: a board with buffers such as the Waveshare driver board, or the level shifter from the [wiring guide](docs/HUB75_WIRING.md#6-level-shifting-only-if-needed) |
 | 5V power | Two options - see below |
 | Enclosure (optional) | 3D-printable case for the clock. Stands on its own, hangs on a wall or a Multiboard: [MakerWorld model 3363461](https://makerworld.com/en/models/3363461) |
 | Panel joiner (optional) | 3D-printable bracket that locks the two panels into one flat 128x64 frame: [MakerWorld model 3264534](https://makerworld.com/en/models/3264534) |
 
-The tested build runs directly from the ESP32's 3.3V GPIO signals. Keep signal
-wires short; the [wiring guide](docs/HUB75_WIRING.md) covers optional buffers if
-your panels show flicker or ghosting, plus bench setup and first-light checks.
+The tested build with the Waveshare panels runs directly from the ESP32's 3.3V
+GPIO signals. Keep signal wires short; the [wiring guide](docs/HUB75_WIRING.md)
+covers the level shifter (4x SN74AHCT125N, wiring diagram included) for panels
+that show flicker or ghosting or need 5V logic, plus bench setup and first-light
+checks.
 
 ### Connection diagram
 
@@ -808,8 +811,9 @@ applied at boot, so saving them reboots the clock. They are part of the settings
 export; an import stores them for the next reboot.
 
 The NONDK P2.5 128x64 panel (DP5125 chips) needs driver 0. It also needs 5V
-logic levels: driven straight from 3.3V GPIO its left half corrupts, so use a
-board with buffers (the Waveshare driver board works) or add 74AHCT245 buffers.
+logic levels: driven straight from 3.3V GPIO the image corrupts, so use a board
+with buffers (the Waveshare driver board works) or add the level shifter from the
+[wiring guide](docs/HUB75_WIRING.md#6-level-shifting-only-if-needed).
 
 The same options are available over HTTP:
 

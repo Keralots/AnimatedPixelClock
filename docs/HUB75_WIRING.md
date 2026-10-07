@@ -1,8 +1,8 @@
-# HUB75 RGB Matrix - Wiring Guide (Phase 1 bring-up)
+# HUB75 RGB Matrix - Wiring Guide
 
-Step-by-step bench wiring for the AnimatedPixelClock HUB75 port: an ESP32-S3
-driving **2x Waveshare P2.5 64x64 HUB75E** panels chained into a single
-**128x64** RGB canvas.
+Step-by-step wiring for AnimatedPixelClock on a bare ESP32-S3 board driving a
+**128x64** RGB canvas: either **2x Waveshare P2.5 64x64 HUB75E** panels chained
+together, or a single 128x64 panel such as the NONDK P2.5.
 
 ![ESP32-S3 to two HUB75E panels: signal pinout, panel chain, and separate power feeds](img/hub75_connection_diagram.svg)
 
@@ -27,6 +27,13 @@ with this exact wiring **only if that particular board breaks out GPIO 1-14 and
 GPIO 38** and does not repurpose them - clones vary, so check its pinout before
 soldering. The Zero and WROOM are hardware-verified.
 
+The [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix)
+driver board (env `matrix-waveshare`) is not covered here: it has its own pin
+map, a HUB75 header and 5V buffers on board, so there is nothing to solder.
+Connect the ribbon and panel power per
+[Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use)
+and see the main [README](../README.md#hardware).
+
 > Read the whole sheet once before connecting anything. Power-on **order** and
 > a common ground matter (Section 5). Keep brightness low for the first light.
 
@@ -36,10 +43,11 @@ soldering. The Zero and WROOM are hardware-verified.
 
 | Qty | Item | Notes |
 |----:|------|-------|
-| 2 | Waveshare P2.5 64x64 HUB75E panel | 1/32 scan, driver likely FM6126A (verify, Section 8) |
+| 2 | [Waveshare P2.5 64x64 HUB75E panel](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | 1/32 scan, FM6126A driver (default setting). Works from direct 3.3V |
+| or 1 | [NONDK P2.5 128x64 HUB75E panel](https://www.amazon.de/dp/B0GXLJVTZC) | One piece, DP5125 chips: set driver 0 (Section 8). Needs the 5V buffers from Section 6 |
 | 1 | ESP32-S3 board | S3-Zero (ESP32-S3FH4R2, 4MB, native USB), an S3 Super Mini (4MB), or an S3-WROOM-1 devkit (16MB, USB-UART) |
 | 1 | 5V power | 10A bench PSU for the panels, **or** a single 5V USB-C charger for the whole compact build (Section 5) |
-| 3 | SN74AHCT125N (quad buffer) | OPTIONAL - only if ghosting appears (Section 6) |
+| 4 | SN74AHCT125N (quad buffer) + 100nF per chip | OPTIONAL - only if ghosting appears or the panel needs 5V logic (Section 6) |
 | - | Dupont / ribbon jumpers, 16-pin HUB75 ribbon (panel-to-panel) | |
 | - | Thick 5V + GND wire for power injection | per-panel, not through the ribbon |
 
@@ -122,6 +130,9 @@ cautions:
   right blue) confirms this ordering and a clean boundary at x=64. If the
   colors are swapped sides, the chain order is reversed.
 
+A single 128x64 panel needs no chaining: the ESP ribbon goes to its JIN and the
+same firmware config drives it unchanged.
+
 ---
 
 ## 5. Power (read the ORDER carefully)
@@ -170,21 +181,37 @@ still attached.
 
 ## 6. Level shifting (only if needed)
 
-Start with **direct 3.3V** from the ESP32-S3 (no buffers). With two panels and a
-short ribbon this is often clean - if so, the SN74AHCT125N chips are not needed.
+Start with **direct 3.3V** from the ESP32-S3 (no buffers). The Waveshare 64x64
+panels run cleanly this way with short wires - if so, no buffers are needed.
 
-If you see **ghosting / flicker / dim or unstable pixels**, buffer the 12
-priority lines with the 3x SN74AHCT125N (each chip = 4 buffers):
+Some panels need 5V logic levels. The NONDK P2.5 128x64 panel (DP5125 chips)
+driven straight from 3.3V shows dim greys far too bright, a broken
+checkerboard test pattern, pixels smearing sideways and dark lines across rows.
+If you see **ghosting / flicker / dim or unstable pixels**, buffer all 14
+signals with 4x SN74AHCT125N (each chip = 4 buffers):
 
-- **Buffer (12):** CLK, R1, G1, B1, R2, G2, B2, LAT, OE, A, B, C
-- **Leave direct on 3.3V (2):** D, E (address lines change once per row - large
-  timing margin, safe unbuffered).
-- Per chip: VCC(pin 14) = 5V, GND(pin 7) = GND, tie all four `~OE` enable inputs
-  LOW (to GND) so outputs are always enabled. Feed the 3.3V signal into each
-  buffer's A input, take the 5V-level signal from its Y output to the panel.
+![Level shifter wiring: 4x SN74AHCT125N between the ESP32-S3 and the panel JIN](img/s3zero_ahct125_wiring.svg)
 
-(Full 14-line buffering later would need a 74AHCT245 / 74HCT541 - NOT a shift
-register; 595/164 are the wrong device class.)
+[Download PNG](img/s3zero_ahct125_wiring.png) ·
+[Open scalable SVG](img/s3zero_ahct125_wiring.svg).
+
+- **Buffer all 14:** R1, G1, B1, R2, G2, B2, A, B, C, D, E, CLK, LAT, OE. The
+  spare fourth channel on U4 can buffer the WS2812B strip data line.
+- Per chip: VCC (pin 14) = 5V, GND (pin 7) = GND, 100nF from pin 14 to pin 7
+  close to the chip. Tie all four `~OE` enable inputs LOW (to GND) so outputs
+  are always enabled. Feed the 3.3V signal into each buffer's A input, take the
+  5V-level signal from its Y output to the panel. Tie unused A inputs to GND.
+- Use **AHCT or HCT** parts only. Plain HC/AC chips powered from 5V do not
+  reliably accept 3.3V inputs. Never power the chips from 3.3V.
+- One common GND for the supply, the ESP, the chips and the panel. Keep wires
+  short, CLK shortest.
+
+Two 74AHCT245 (8 channels each) do the same job with a different pinout. Shift
+registers such as 595/164 are the wrong device class.
+
+The diagram is generated by `scripts/generate_ahct125_diagram.cjs`, which reads
+the pin map from `src/display/hub75_pins.h`. The Waveshare ESP32-S3-RGB-Matrix
+driver board already has buffers on all HUB75 lines and needs none of this.
 
 ---
 
@@ -212,17 +239,35 @@ fit or boot.
 After the first flash, later updates go over WiFi (OTA) from the web interface -
 no cable needed, on any board.
 
+**No toolchain:** the web flasher at
+[pixelclock.stolaris.dev](https://pixelclock.stolaris.dev) installs a prebuilt
+image from Chrome or Edge on any of these boards. It erases the whole board
+first, so use it for first installs and OTA for updates. See
+[Flashing](../README.md#flashing) in the README.
+
 ---
 
-## 8. FM6126A driver verification (KNOWN UNKNOWN)
+## 8. Panel driver and options
 
-The bring-up sketch defaults `USE_FM6126A 1` **only because Waveshare 64x64
-units commonly need it** - it is a guess until you check.
+The firmware defaults to the **FM6126A** driver, verified on the Waveshare 64x64
+panels. Other panels may use a different chip: read the **IC markings on the
+back** of the panel, then pick the driver in the web portal under
+**Maintenance > Display panel** (or `POST /api/panel?driver=<n>`). Saving
+reboots the clock; no reflash is needed.
 
-- Look at the **IC markings on the back** of the panel.
-- Empirically: if the screen stays **blank with init ON**, set `USE_FM6126A 0`
-  and reflash. If blank with init OFF, set it back to `1`.
-- **Record the actual chip** once known (and update project memory).
+| Panel | Driver | Other settings |
+|-------|--------|----------------|
+| Waveshare P2.5 64x64 (FM6126A) | 2 (default) | defaults |
+| NONDK P2.5 128x64 (DP5125) | 0 (plain shift register) | color depth 8, min refresh 60, plus 5V buffers (Section 6) |
+
+The same card sets the data clock, latch blanking, clock phase, color depth and
+minimum refresh rate, and shows test patterns (dim grey and checkerboard are the
+most telling). All options are listed under
+[Panel options](../README.md#panel-options) in the README. A wrong driver can
+leave the panel dark; `driver=2` goes back to the default.
+
+The standalone bring-up sketch (`bringup/hello_matrix.cpp`) does not read these
+settings: there the driver is the compile-time `USE_FM6126A` switch.
 
 ---
 
@@ -233,16 +278,11 @@ stays low for first light -> flash -> watch the pattern cycle.
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| Dead-black screen | FM6126A init wrong (toggle `USE_FM6126A`); OR no/!bad panel power; OR (with 2 panels) set `PANELS 1` to isolate which panel/segment is dead |
+| Dead-black screen | Wrong driver for the panel chip (Section 8; `USE_FM6126A` in the bring-up sketch); OR no/bad panel power; OR (with 2 panels, bring-up sketch) set `PANELS 1` to isolate which panel/segment is dead |
 | Wrong colors (e.g. red shows blue) | R/G/B line swap - recheck R1/G1/B1, R2/G2/B2 |
 | Only top OR bottom half lit/dim | R2/G2/B2 (lower-half) wiring issue |
 | Image halved / doubled / mirrored vertically | Wrong scan rate - panel not 1/32, or E line not wired / wrong pin. Re-confirm scan + E pin (GPIO12 -> HUB75 pin 8) |
 | Image shifted or wrapped horizontally | Address line (A-E) wiring error |
-| Flicker / ghosting | Apply the AHCT125 buffer (Section 6); or toggle `mxconfig.clkphase` |
-| Missing / smeared last column | Toggle `mxconfig.clkphase` |
+| Flicker / ghosting / too-bright dim greys / broken checkerboard | 3.3V logic too weak for the panel: add the AHCT125 buffers (Section 6); check the driver setting (Section 8) |
+| Missing / smeared last column | Toggle the clock phase option (Section 8) |
 | Right half wrong / seam colors swapped | Chain order reversed - check panel1 JOUT -> panel2 JIN |
-
----
-
-*Phase 1 is done when all six bring-up patterns render correctly on the full
-128x64 chain and the real driver chip is verified and recorded.*
