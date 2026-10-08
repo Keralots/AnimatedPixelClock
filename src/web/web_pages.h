@@ -153,7 +153,7 @@ static const char PAGE_HTML[] PROGMEM = R"PAGE(<!doctype html>
 
             <div class="subcard" id="cycleSettings" style="display:none">
               <h3>Clock rotation</h3>
-              <p class="field-hint">Enable clocks, move them into order, and set seconds per clock (5-3600). Weather is skipped until configured.</p>
+              <p class="field-hint">Enable clocks, move them into order, and set seconds per clock (5-3600). Weather is skipped until configured. Each clock keeps its own colors and options; select that clock above to change them.</p>
               <input type="hidden" id="cycleConfig" name="cycleConfig" value="">
               <div id="cycleRows"></div>
             </div>

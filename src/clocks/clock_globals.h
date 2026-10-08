@@ -17,6 +17,9 @@ extern const int DIGIT_X[5];
 // Progressive fragmentation spawn percentages
 extern const float FRAGMENT_SPAWN_PERCENT[3];
 
+// Style Custom rotation (9) is rendering right now, 255 before its first frame
+extern uint8_t cycleActiveStyle;
+
 // ========== Mario Clock Globals ==========
 extern MarioState mario_state;
 extern float mario_x;

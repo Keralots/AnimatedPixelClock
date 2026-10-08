@@ -9,11 +9,12 @@
 #include "../display/display.h"
 
 // Time-digit + colon color for the ACTIVE clock style. Each style keeps its own
-// digit color (COL_DIGITS_S0 + style). Cycle All (style 9) uses its own slot for
-// every screen it rotates through. Declared in display.h so every renderer can
-// call it in place of the old global digitColor().
+// digit color (COL_DIGITS_S0 + style). Custom rotation (style 9) shows each clock
+// in its own color. Declared in display.h so every renderer can call it in place
+// of the old global digitColor().
 uint16_t digitColor() {
   uint8_t s = settings.clockStyle;
+  if (s == 9 && cycleActiveStyle != 255) s = cycleActiveStyle;
   if (s == 17) return SPRITE_COLOR(COL_DIGITS_S17);
   if (s == 16) return SPRITE_COLOR(COL_DIGITS_S16);
   if (s == 15) return SPRITE_COLOR(COL_DIGITS_S15);

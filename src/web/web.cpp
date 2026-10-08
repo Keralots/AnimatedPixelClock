@@ -982,8 +982,9 @@ static const StyleCard STYLE_CARDS[] = {
 
 // Clock styles that appear in the style selector, each shown a per-style digit
 // color row. Order = display order. (Style 4 is a non-selectable variant of 3 and
-// has no picker; its digit slot still exists and defaults to white.)
-static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+// has no picker; its digit slot still exists and defaults to white. Style 9 has
+// none either: the rotation shows every clock in that clock's own color.)
+static const int DIGIT_STYLES[] = {0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17};
 
 // "HH:MM" for the page's time inputs, as the template's V_DIMSTART built it.
 static String hhmm(uint8_t hour, uint8_t minute) {

@@ -171,7 +171,7 @@ int getOptimalRefreshRate() {
 #include "clocks/cycle_config.h"
 // Style cycleClockScreens() rendered last, so the render loop can tell which
 // renderer is actually on screen while clockStyle is 9 (Custom rotation).
-static uint8_t cycleActiveStyle = 255;
+uint8_t cycleActiveStyle = 255;
 
 void cycleClockScreens() {
   static char previous[128] = "";
