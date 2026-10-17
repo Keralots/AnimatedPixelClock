@@ -632,6 +632,7 @@ clock runs.
 | Runner | A or up jump (hold for height), down duck |
 | Defenders | stick (analog) or d-pad move the cannon, A / RB / RT fire |
 | Light Cycles | d-pad or stick steer; beat the computer's cycle, three lives |
+| Frog Crossing | d-pad or stick hop; cross the road and river into all five home bays |
 
 Game mode also ends from **Stop** on the same page, any `/api/mode/*` call,
 `/api/display/off`, brightness 0, a panel test pattern, an OTA update, 2 minutes without a pad, 60 seconds after

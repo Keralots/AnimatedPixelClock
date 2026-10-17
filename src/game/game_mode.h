@@ -49,5 +49,7 @@ void defendersReset();
 bool defendersFrame(const GamepadState &in, bool padLost);
 void cyclesReset();
 bool cyclesFrame(const GamepadState &in, bool padLost);
+void froggerReset();
+bool froggerFrame(const GamepadState &in, bool padLost);
 
 #endif // GAME_MODE_H
