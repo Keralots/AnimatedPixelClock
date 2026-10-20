@@ -21,7 +21,6 @@
 #include "../timezones.h"
 #include "../viz/visualizer.h"
 #include "../weather/weather.h"
-#include "web_pages.h"
 #include "web_assets.h"
 #if GAMEPAD_ENABLED
 #include "../game/game_mode.h"
@@ -971,7 +970,7 @@ static const SpriteColorRow SPRITE_COLOR_ROWS[] = {
 // Maps a clock style to its settings-subcard id. The bottom "Colors" card emits
 // each style's color rows in a <div id="<panelId>Colors"> that syncClockPanels()
 // shows/hides alongside the matching subcard. panelId MUST match STYLE_PANELS[]
-// in web_pages.h - a mismatch would silently hide that style's color rows.
+// in web/portal.js - a mismatch would silently hide that style's color rows.
 struct StyleCard { int style; const char* panelId; };
 static const StyleCard STYLE_CARDS[] = {
     {0, "marioSettings"},   {3, "spaceSettings"},  {5, "pongSettings"},

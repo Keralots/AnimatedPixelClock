@@ -4,11 +4,6 @@
 SHA256SUMS.txt text eol=lf
 docs/firmware/latest/VERSION text eol=lf
 
-# tools/web_assets_gen.py writes this generated header with LF. Without this the
-# working copy would come back CRLF and every regeneration would show up as a
-# change to all 2099 lines, with identical content.
-src/web/web_assets.h text eol=lf
-
 # scripts/gen_matrix_glyphs.py writes this generated header with LF, for the
 # same reason.
 src/clocks/matrix_glyphs.h text eol=lf

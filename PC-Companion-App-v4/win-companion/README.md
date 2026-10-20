@@ -82,8 +82,8 @@ Output: `dist\pc_stats_monitor_v4.exe` (single self-contained file). The build
 bundles the `webui/` folder and the pywebview WebView2 backend.
 
 ### How the web UI is built
-`webui/portal.css` and `webui/portal.js` are extracted from the firmware's
-`src/web/web_pages.h` so the desktop UI stays 1:1 with the device portal;
+`webui/portal.css` and `webui/portal.js` are copied from the firmware's
+`web/` folder so the desktop UI stays 1:1 with the device portal;
 `portal.js` is then adapted for the PC (sensor selection, connection, autostart;
 the ESP-only OTA / factory-reset blocks removed). `webui/index.html` is the
 PC-tailored page. The Python side (`server.py`) implements the same REST endpoints

@@ -5,6 +5,9 @@
 .vscode/ipch
 
 __pycache__/
+
+# Generated from web/ by tools/web_assets_gen.py before every build.
+src/web/web_assets.h
 nul
 
 # Claude Code local files (plans, notes, settings) - not synced
