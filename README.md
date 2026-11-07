@@ -831,7 +831,7 @@ The same options are available over HTTP:
 | `latchBlanking` | 1-4 | 2 |
 | `clkPhase` | 0, 1 | 0 |
 | `colorDepth` | 4-8 bits | 8 |
-| `minRefresh` | 30-200 Hz; higher trades the lowest colour bits for less flicker | 60 |
+| `minRefresh` | 30-200 Hz, the real panel refresh; higher trades the lowest colour bits for less flicker. A saved 60, the old default, loads as 70 | 70 |
 
 ```bash
 curl -X POST "http://pixelclock.local/api/panel?driver=0&minRefresh=200"
