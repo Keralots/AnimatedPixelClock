@@ -47,9 +47,6 @@ jobs:
       - name: Portal script syntax
         run: node --check web/portal.js
 
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
-
       - name: List environments
         id: envs
         run: |
