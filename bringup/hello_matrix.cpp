@@ -28,9 +28,9 @@
 #include "display/hub75_pins.h"
 
 // ---- Panel geometry ----
-#define PANEL_W 64    // single module width
-#define PANEL_H 64    // single module height
-#define PANELS  2     // chain length: 2 = full 128x64 (set to 1 to isolate)
+#define PANEL_W HUB75_PANEL_W  // single module width
+#define PANEL_H HUB75_PANEL_H  // single module height
+#define PANELS  HUB75_CHAIN    // chain length: 2 = full 128x64 (set to 1 to isolate)
 
 // ---- Driver init ----
 // Waveshare 64x64 units commonly use FM6126A, which needs an init sequence.

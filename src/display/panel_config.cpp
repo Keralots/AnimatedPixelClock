@@ -13,13 +13,7 @@ PanelOptions panelOptions;
 uint8_t panelTestPattern = 0;
 
 static const PanelOptions PANEL_DEFAULTS = {
-    HUB75_I2S_CFG::FM6124,
-    8,
-    DEFAULT_LAT_BLANKING,
-    false,
-    8,
-    60
-};
+    HUB75_I2S_CFG::FM6126A, 8, DEFAULT_LAT_BLANKING, false, 8, 60};
 
 static PanelOptions sanitized(PanelOptions o) {
   if (o.driver > HUB75_I2S_CFG::DP3246) o.driver = PANEL_DEFAULTS.driver;
@@ -61,7 +55,7 @@ bool savePanelOptions(const PanelOptions &opts) {
 
 static HUB75_I2S_CFG panelConfig(uint8_t colorDepth) {
   HUB75_I2S_CFG cfg = makeMatrixConfig();
-  cfg.driver = HUB75_I2S_CFG::FM6124;
+  cfg.driver = (HUB75_I2S_CFG::shift_driver)panelOptions.driver;
   cfg.i2sspeed = panelOptions.clockMHz == 20   ? HUB75_I2S_CFG::HZ_20M
                  : panelOptions.clockMHz == 16 ? HUB75_I2S_CFG::HZ_16M
                                                : HUB75_I2S_CFG::HZ_8M;
