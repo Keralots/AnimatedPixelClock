@@ -1,0 +1,99 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'img/**'
+      - 'PC-Companion-App-v4/**'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'img/**'
+      - 'PC-Companion-App-v4/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIO_VERSION: '6.1.19'
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      envs: ${{ steps.envs.outputs.envs }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Portal script syntax
+        run: node --check web/portal.js
+
+      - name: List environments
+        id: envs
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, re
+          text = open("platformio.ini", encoding="utf-8").read()
+          envs = [e for e in re.findall(r"^\[env:([^\]]+)\]", text, re.M) if e != "matrix-base"]
+          print("envs=" + json.dumps(envs))
+          EOF
+
+  build:
+    name: ${{ matrix.env }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        env: ${{ fromJson(needs.checks.outputs.envs) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.platformio/packages
+            ~/.platformio/platforms
+            ~/.platformio/.cache
+          key: pio-${{ runner.os }}-${{ env.PIO_VERSION }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-${{ env.PIO_VERSION }}-
+
+      - name: Install PlatformIO
+        run: pip install "platformio==${PIO_VERSION}"
+
+      - name: Build
+        run: pio run -e "${{ matrix.env }}"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-${{ matrix.env }}
+          path: .pio/build/${{ matrix.env }}/firmware.bin
+          retention-days: 14
+          if-no-files-found: error
