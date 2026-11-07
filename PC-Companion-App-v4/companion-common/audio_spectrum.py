@@ -40,7 +40,8 @@ except Exception as e:  # missing package OR no audio backend on this system
     _IMPORT_ERROR = str(e)
 
 RATE = 48000
-FRAMES = 1920            # 40 ms blocks -> 25 packets/s
+FRAMES = 1920            # 40 ms analysis window
+HOP = 960                # a new overlapping window every 20 ms -> 50 packets/s
 FFT_N = 2048
 BANDS = 32
 F_LO, F_HI = 50.0, 16000.0
@@ -288,6 +289,13 @@ class SpectrumStreamer(threading.Thread):
             self._band_bins.append((lo, hi))
         self._agc_ref = AGC_FLOOR_DB
         self._wave_ref = WAVE_AGC_FLOOR
+        self._analysis = np.zeros(FRAMES, dtype=np.float32)
+
+    def _slide_window(self, mono):
+        """Newest FRAMES samples. Hann fades a block's edges to nothing, so only
+        overlapping windows see a hit that lands on one."""
+        self._analysis = np.concatenate((self._analysis, mono))[-FRAMES:]
+        return self._analysis
 
     def set_target(self, ip, port):
         with self._lock:
@@ -385,7 +393,7 @@ class SpectrumStreamer(threading.Thread):
         db = 20.0 * np.log10(amps + 1e-7)
 
         peak = float(db.max())
-        dt = FRAMES / float(RATE)
+        dt = HOP / float(RATE)
         self._agc_ref = max(self._agc_ref - AGC_DECAY_DB_PER_S * dt,
                             peak, AGC_FLOOR_DB)
         norm = (db - (self._agc_ref - AGC_RANGE_DB)) / AGC_RANGE_DB
@@ -406,10 +414,10 @@ class SpectrumStreamer(threading.Thread):
             head = low[:limit + 1]
             rising = np.nonzero((head[:-1] <= 0.0) & (head[1:] > 0.0))[0]
             if rising.size:
-                start = int(rising[0]) + 1
+                start = int(rising[-1]) + 1  # newest, so the trace lags least
         seg = low[start:start + WAVE_POINTS]
 
-        dt = FRAMES / float(RATE)
+        dt = HOP / float(RATE)
         peak = float(np.abs(seg).max())
         self._wave_ref = max(self._wave_ref * (WAVE_AGC_DECAY ** dt), peak,
                              WAVE_AGC_FLOOR)
@@ -549,17 +557,17 @@ class SpectrumStreamer(threading.Thread):
                 with self._lock:
                     self._default_device_id = spk.id
                 mic = sc.get_microphone(id=spk.id, include_loopback=True)
-                with mic.recorder(samplerate=RATE, blocksize=FRAMES) as rec:
+                with mic.recorder(samplerate=RATE, blocksize=HOP) as rec:
                     attempt = 0
                     silent_since = None
                     last_wall = time.time()
                     while not self._stop_event.is_set():
-                        data = rec.record(numframes=FRAMES)
+                        data = rec.record(numframes=HOP)
                         now_wall = time.time()
                         wall_gap = now_wall - last_wall
                         last_wall = now_wall
                         mono = data.mean(axis=1) if data.ndim > 1 else data
-                        mono = mono.astype(np.float32)
+                        mono = self._slide_window(mono.astype(np.float32))
                         bands = self._process_block(mono)
                         wave = self._process_wave(mono)
                         level = self._block_level_db(mono)
