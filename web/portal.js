@@ -711,7 +711,7 @@ else lines.push('<span style="color:#f85149">no response</span> ' + j.label + ' 
 run(0);
 });
 var panelCard = $('#panelCard');
-var PANEL_DEFAULTS = { driver: 2, clockMHz: 8, latchBlanking: 2, clkPhase: false, colorDepth: 8, minRefresh: 60 };
+var PANEL_DEFAULTS = { driver: 2, clockMHz: 8, latchBlanking: 2, clkPhase: false, colorDepth: 8, minRefresh: 70 };
 function panelFill(p) {
 $('#panelDriver').value = p.driver; $('#panelClock').value = p.clockMHz; $('#panelLatch').value = p.latchBlanking;
 $('#panelDepth').value = p.colorDepth; $('#panelMinRefresh').value = p.minRefresh; $('#panelClkPhase').checked = !!p.clkPhase;
