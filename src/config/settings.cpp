@@ -186,6 +186,7 @@ void loadSettings() {
     settings.ambientShowClock = true;
     settings.ambientCustomFile[0] = '\0';
     settings.vizShowClock = true;
+    settings.vizPunchy = true;
     settings.vizStyle = 0;
     applyScopeDefaults();
     settings.tronBikeStyle = 0;
@@ -437,6 +438,7 @@ void loadSettings() {
   settings.ambientCustomFile[27] = '\0';
   settings.vizShowClock =
       preferences.getBool("vizClock", true); // Default: Show time
+  settings.vizPunchy = preferences.getBool("vizPunchy", true);
   settings.vizStyle = normalizeVizStyle(preferences.getUChar("vizStyle", 0));
   settings.scopeGrid = preferences.getBool("scopeGrid", true);
   settings.scopeFill = preferences.getBool("scopeFill", false);
@@ -843,6 +845,7 @@ void saveSettings() {
   preferences.putBool("ambClock", settings.ambientShowClock);
   preferences.putString("ambCustom", settings.ambientCustomFile);
   preferences.putBool("vizClock", settings.vizShowClock);
+  preferences.putBool("vizPunchy", settings.vizPunchy);
   preferences.putUChar("vizStyle", settings.vizStyle);
   preferences.putBool("scopeGrid", settings.scopeGrid);
   preferences.putBool("scopeFill", settings.scopeFill);

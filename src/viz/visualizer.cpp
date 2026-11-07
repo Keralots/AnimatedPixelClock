@@ -20,6 +20,7 @@
 #define VIZ_BAR_W 3          // lit pixels per bar (1px gap -> 32 * 4 = 128)
 #define VIZ_MAX_H 56.0f      // px, leaves headroom for the corner clock
 #define VIZ_SMOOTH 0.35f     // per-frame pull toward the packet value
+#define VIZ_PUNCHY_FALL_S 0.11f  // punchy bars jump up, then fall this fast
 #define VIZ_PEAK_GRAVITY 60.0f  // px/s^2
 
 static uint8_t vizBands[VIZ_BANDS];
@@ -221,10 +222,12 @@ void displayVisualizer() {
   const int midZone = 45;
   // Preserve the original EQ response; new styles use time-scaled smoothing.
   float smooth = settings.vizStyle == 0 ? VIZ_SMOOTH : 1.0f - expf(-26.0f * dt);
+  if (settings.vizPunchy) smooth = 1.0f - expf(-dt / VIZ_PUNCHY_FALL_S);
 
   for (int i = 0; i < VIZ_BANDS; i++) {
     float target = stale ? 0.0f : vizBands[i] * (VIZ_MAX_H / 255.0f);
-    barH[i] += (target - barH[i]) * smooth;
+    if (settings.vizPunchy && target > barH[i]) barH[i] = target;
+    else barH[i] += (target - barH[i]) * smooth;
 
     if (barH[i] >= peakY[i]) {
       peakY[i] = barH[i];

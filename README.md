@@ -496,6 +496,11 @@ With the companion app streaming your PC's sound, the display becomes a 32-band
 spectrum analyzer: smooth bars with a green/yellow/red gradient (colors editable),
 falling peak dots, and an optional small clock in the corner.
 
+**Punchy response** in the same web UI card makes the bars jump to each hit and fall
+over about a tenth of a second, and stretches the
+[LED strip meter](#audio-vu-on-the-strip) between the music's recent average and its
+peaks. It is on by default; turn it off for the softer motion.
+
 Choose **Visualizer style** in the device web UI's **Display -> Audio visualizer**
 card, then **Save settings**:
 

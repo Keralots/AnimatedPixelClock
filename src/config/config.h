@@ -140,6 +140,7 @@ struct Settings {
 
   // Audio spectrum visualizer (forced mode fed by the companion)
   bool vizShowClock;            // Small HH:MM overlay over the bars
+  bool vizPunchy;               // Bars and strip meter jump to hits, then fall
   uint8_t vizStyle;             // 0=Classic EQ, 1=Neon Mirror, 2=Phosphor Waterfall, 3=Purple LED Stage, 5=Starfield Overdrive, 6=Oscilloscope
   bool scopeGrid;               // Oscilloscope: draw the graticule
   bool scopeFill;               // Oscilloscope: fill to the centre line

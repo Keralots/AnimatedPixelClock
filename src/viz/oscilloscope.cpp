@@ -12,6 +12,8 @@ uint8_t previousWave[VIZ_WAVE_POINTS];
 bool trailUsed[SCOPE_TRAIL_MAX] = {};
 int trailHead = 0;
 uint32_t seenSerial = 0;
+float trailAge = 0;
+const float TRAIL_STEP_S = 0.036f;  // one ghost per ~40ms, whatever the packet rate
 bool everSeen = false;
 
 uint16_t rgb(int r, int g, int b) {
@@ -55,7 +57,7 @@ void drawTrace(const uint8_t* wave, float cy, float halfHeight, float gain,
 
 void drawOscilloscope(const uint8_t* wave, uint32_t serial, bool stale,
                       float dt, bool reset) {
-  (void)dt;
+  trailAge += dt;
   if (reset || wave == nullptr || stale) {
     memset(trailUsed, 0, sizeof(trailUsed));
     trailHead = 0;
@@ -109,7 +111,8 @@ void drawOscilloscope(const uint8_t* wave, uint32_t serial, bool stale,
   const int depth = settings.scopeTrail > SCOPE_TRAIL_MAX ? SCOPE_TRAIL_DEFAULT
                                                           : settings.scopeTrail;
   if (serial != seenSerial || !everSeen) {
-    if (everSeen && depth > 0) {
+    if (everSeen && depth > 0 && trailAge >= TRAIL_STEP_S) {
+      trailAge = 0;
       trailHead = (trailHead + SCOPE_TRAIL_MAX - 1) % SCOPE_TRAIL_MAX;
       memcpy(trail[trailHead], previousWave, VIZ_WAVE_POINTS);
       trailUsed[trailHead] = true;
