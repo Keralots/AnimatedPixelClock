@@ -13,7 +13,7 @@ PanelOptions panelOptions;
 uint8_t panelTestPattern = 0;
 
 static const PanelOptions PANEL_DEFAULTS = {
-    HUB75_I2S_CFG::FM6126A, 8, DEFAULT_LAT_BLANKING, false, 8, 60};
+    HUB75_I2S_CFG::FM6126A, 8, DEFAULT_LAT_BLANKING, false, 8, 70};
 
 static PanelOptions sanitized(PanelOptions o) {
   if (o.driver > HUB75_I2S_CFG::DP3246) o.driver = PANEL_DEFAULTS.driver;
@@ -34,6 +34,9 @@ void loadPanelOptions() {
   panelOptions.clkPhase = p.getBool("clkPhase", PANEL_DEFAULTS.clkPhase);
   panelOptions.colorDepth = p.getUChar("depth", PANEL_DEFAULTS.colorDepth);
   panelOptions.minRefresh = p.getUChar("minRefresh", PANEL_DEFAULTS.minRefresh);
+  // The old default, saved while the driver overstated its refresh rate. Taken at
+  // face value it now picks a scan too slow for 60fps on a 16MHz bus.
+  if (panelOptions.minRefresh == 60) panelOptions.minRefresh = PANEL_DEFAULTS.minRefresh;
   p.end();
   panelOptions = sanitized(panelOptions);
 }

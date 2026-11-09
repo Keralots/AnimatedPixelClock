@@ -59,9 +59,10 @@ It needs two extra packages: `pip install soundcard numpy`. Without them the
 checkbox explains what to install and the rest of the app is unaffected.
 
 Packets go out from the capture thread, so the audio device sets the cadence:
-one block per 40ms, measured at 40.0ms mean and 41ms p95. Do not pace this on a
-timer instead - Windows waits round up to the ~15.6ms scheduler tick, giving
-~46ms periods that fall behind capture and drop frames (visible as stuttering
+one packet every 20ms, each analysing the newest 40ms so a hit on a block edge
+is not lost, measured at 20.0ms mean and 21ms p95. Do not pace this on a
+timer instead - Windows waits round up to the ~15.6ms scheduler tick, so periods
+come out long, fall behind capture and drop frames (visible as stuttering
 bars). A watchdog thread only fills gaps: with no packet for 120ms it repeats
 the last frame, fades it after half a second, and gives up after six, so a
 starved capture thread costs smoothness rather than blanking the display to
@@ -75,7 +76,7 @@ handles here need explicit ctypes `argtypes`/`restype`: with the defaults the
 64-bit pseudo-handles overflow and the calls silently do nothing.
 
 **Start the visualizer when music plays** (same card) removes the manual step:
-the streamer measures each 40ms block in dBFS and, once sound stays above the
+the streamer measures the newest 40ms in dBFS and, once sound stays above the
 **sound threshold** (default -45 dB) for the **start delay** (default 3s), calls
 `GET /api/mode/viz` on the device. After the **stop delay** of quiet (default
 20s) it calls `/api/mode/auto`. The start delay is what keeps notification pops

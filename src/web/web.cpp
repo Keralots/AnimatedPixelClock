@@ -1173,6 +1173,7 @@ void handlePortalValues() {
   form["ambientEnabled"] = settings.ambientEnabled;
   form["notifyEnabled"] = settings.notifyEnabled;
   form["vizShowClock"] = settings.vizShowClock;
+  form["vizPunchy"] = settings.vizPunchy;
   form["scopeGrid"] = settings.scopeGrid;
   form["scopeFill"] = settings.scopeFill;
   form["scopeFlat"] = settings.scopeFlat;
@@ -1554,6 +1555,7 @@ void handleSave() {
  }
  settings.ambientShowClock = server.hasArg("ambientShowClock");
  settings.vizShowClock = server.hasArg("vizShowClock");
+ settings.vizPunchy = server.hasArg("vizPunchy");
  if (server.hasArg("vizStyle")) {
    int style = server.arg("vizStyle").toInt();
    settings.vizStyle = normalizeVizStyle(style);
@@ -2168,6 +2170,7 @@ void handleExportConfig() {
  json += "\"ambientShowClock\":" + String(settings.ambientShowClock ? "true" : "false") + ",";
  json += "\"ambientCustomFile\":" + jsonStr(settings.ambientCustomFile) + ",";
  json += "\"vizShowClock\":" + String(settings.vizShowClock ? "true" : "false") + ",";
+ json += "\"vizPunchy\":" + String(settings.vizPunchy ? "true" : "false") + ",";
  json += "\"vizStyle\":" + String(settings.vizStyle) + ",";
  json += "\"scopeGrid\":" + String(settings.scopeGrid ? "true" : "false") + ",";
  json += "\"scopeFill\":" + String(settings.scopeFill ? "true" : "false") + ",";
@@ -2510,6 +2513,7 @@ void handleImportConfig() {
  }
  }
  if (!doc["vizShowClock"].isNull()) settings.vizShowClock = doc["vizShowClock"];
+ if (!doc["vizPunchy"].isNull()) settings.vizPunchy = doc["vizPunchy"];
  if (!doc["scopeGrid"].isNull()) settings.scopeGrid = doc["scopeGrid"].as<bool>();
  if (!doc["scopeFill"].isNull()) settings.scopeFill = doc["scopeFill"].as<bool>();
  if (!doc["scopeFlat"].isNull()) settings.scopeFlat = doc["scopeFlat"].as<bool>();

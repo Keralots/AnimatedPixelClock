@@ -43,7 +43,8 @@ void drawStarfieldOverdrive(const float* levels, const uint8_t* rawBands,
   cooldown = fmaxf(0.0f, cooldown - dt);
   boost *= expf(-dt * 12.0f); // Sharp attack, ~190ms to decay below 10%.
   packetAge += dt;
-  if (packetSerial != seenPacket) {
+  // Overlapping 20ms packets split a rise across two: compare ~40ms apart.
+  if (packetSerial != seenPacket && packetAge >= 0.036f) {
     float flux = 0, rawBass = 0, oldBass = 0;
     for (int i = 0; i < 8; i++) {
       float value = rawBands[i] / 255.0f;

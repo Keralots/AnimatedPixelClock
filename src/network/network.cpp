@@ -521,7 +521,7 @@ void handleWiFiReconnection() {
 }
 
 // ========== UDP Packet Handling ==========
-void handleUDP() {
+static bool readUdpPacket() {
   int packetSize = udp.parsePacket();
   if (packetSize) {
     netMarkInbound();
@@ -532,18 +532,18 @@ void handleUDP() {
       Serial.printf("ERROR: Packet %d bytes exceeds buffer %d bytes, discarding.\n",
                     packetSize, (int)sizeof(buffer));
       udp.flush();
-      return;  // Don't update lastReceived for bad packets
+      return true;  // Don't update lastReceived for bad packets
     }
 
     int len = udp.read(buffer, sizeof(buffer) - 1);
     if (len > 0) {
       buffer[len] = '\0';
 
-      // Binary spectrum packets ("FFT1" + 32 bands) arrive at ~25 Hz - take
+      // Binary spectrum packets ("FFT1" + 32 bands) arrive at ~50 Hz - take
       // the fast path with no JSON parse and no serial logging. They do NOT
       // touch lastReceived/online: stats freshness stays truthful.
       if (vizIngest((const uint8_t*)buffer, len)) {
-        return;
+        return true;
       }
 
       Serial.print("UDP packet: ");
@@ -555,6 +555,13 @@ void handleUDP() {
       // Only a packet that actually parsed proves the PC is alive.
       if (parseStats(buffer)) lastReceived = millis();
     }
+  }
+  return packetSize != 0;
+}
+
+// Drains the socket, so after a stall the newest audio shows, not a backlog.
+void handleUDP() {
+  for (int i = 0; i < 8 && readUdpPacket(); i++) {
   }
 }
 

@@ -181,6 +181,15 @@ class StreamTimingTests(unittest.TestCase):
         self.assertGreater(int(a.max()), 200)
         self.assertLess(int(a.min()), 55)
 
+    def test_each_hop_analyses_a_full_overlapping_window(self):
+        first = audio.np.ones(audio.HOP, dtype=audio.np.float32)
+        second = first * 2
+        self.stream._slide_window(first)
+        window = self.stream._slide_window(second)
+        self.assertEqual(len(window), audio.FRAMES)
+        self.assertEqual(float(window[-audio.HOP - 1]), 1.0)
+        self.assertEqual(float(window[-1]), 2.0)
+
     def test_silence_stays_a_flat_trace(self):
         quiet = audio.np.zeros(audio.FRAMES, dtype=audio.np.float32)
         wave = self.stream._process_wave(quiet)

@@ -69,6 +69,13 @@
 // Audio VU, per 20 ms frame.
 #define LED_VU_ATTACK 0.80f
 #define LED_VU_RELEASE 0.22f
+#define LED_VU_PUNCHY_ATTACK 0.90f
+#define LED_VU_PUNCHY_FALL_S 0.12f
+// Punchy range: from 70% of the recent average up to the recent top.
+#define LED_VU_AVERAGE_S 1.2f
+#define LED_VU_TOP_S 2.5f
+#define LED_VU_FLOOR_RATIO 0.7f
+#define LED_VU_MIN_SPAN 0.05f
 // Waveform RMS of a full-scale sine (companion WAVE_GAIN = 118).
 #define LED_VU_WAVE_RMS_FULL 83.0f
 #define LED_VU_PEAK_GRAVITY 0.9f  // bar fractions / s^2
@@ -104,6 +111,8 @@ static uint32_t effectPhase = 0;
 static float vuLevel = 0.0f;  // 0..1 of the bar
 static float vuPeak = 0.0f;
 static float vuPeakVel = 0.0f;
+static float vuAverage = 0.0f;
+static float vuTop = 0.0f;
 static bool vuGateOpen = false;
 static bool vuHeard = false;
 static uint32_t vuSoundSince = 0;
@@ -375,6 +384,17 @@ static void ledVuGate(float raw, uint32_t now) {
   }
 }
 
+// The waveform is peak-normalised, so RMS barely moves: stretch what it has.
+static float ledVuExpand(float raw, float dt) {
+  vuAverage += (raw - vuAverage) * (1.0f - expf(-dt / LED_VU_AVERAGE_S));
+  if (raw > vuTop) vuTop = raw;
+  else vuTop += (raw - vuTop) * (1.0f - expf(-dt / LED_VU_TOP_S));
+  const float floor = vuAverage * LED_VU_FLOOR_RATIO;
+  const float span = fmaxf(vuTop - floor, LED_VU_MIN_SPAN);
+  const float level = (raw - floor) / span;
+  return level < 0.0f ? 0.0f : level;
+}
+
 static void ledVuAdvance(uint32_t elapsedMs, uint32_t now) {
   float raw = 0.0f;
   if (vizRecentEnough(LED_VU_STALE_MS)) {
@@ -387,12 +407,16 @@ static void ledVuAdvance(uint32_t elapsedMs, uint32_t now) {
   if (vuMix < 0.0f) vuMix = 0.0f;
   if (vuMix > 1.0f) vuMix = 1.0f;
 
-  float target = raw * (settings.ledVuGain / 100.0f);
+  float dt = elapsedMs / 1000.0f;
+  float target = (settings.vizPunchy ? ledVuExpand(raw, dt) : raw) *
+                 (settings.ledVuGain / 100.0f);
   if (target > 1.0f) target = 1.0f;
-  vuLevel += (target - vuLevel) * (target > vuLevel ? LED_VU_ATTACK : LED_VU_RELEASE);
+  const float rise = settings.vizPunchy ? LED_VU_PUNCHY_ATTACK : LED_VU_ATTACK;
+  const float fall = settings.vizPunchy ? 1.0f - expf(-dt / LED_VU_PUNCHY_FALL_S)
+                                        : LED_VU_RELEASE;
+  vuLevel += (target - vuLevel) * (target > vuLevel ? rise : fall);
   if (vuLevel < 0.0f) vuLevel = 0.0f;
 
-  float dt = elapsedMs / 1000.0f;
   if (vuLevel >= vuPeak) {
     vuPeak = vuLevel;
     vuPeakVel = 0.0f;
