@@ -1,5 +1,5 @@
 /*
- * AnimatedPixelClock - HUB75 GPIO map
+ * AnimatedPixelClock - HUB75 GPIO map and panel geometry
  *
  * Defaults are the verified hand-wired map used by the WROOM devkit and the
  * compact 4MB boards. A board environment overrides them from build_flags by
@@ -9,6 +9,25 @@
 
 #ifndef HUB75_PINS_H
 #define HUB75_PINS_H
+
+// Module size and chain length. A board with another layout sets these from
+// build_flags. HUB75_PANEL_ROWS above 1 stacks the chain into that many rows,
+// each running left to right, so the wire is one long row but the canvas is not.
+#ifndef HUB75_PANEL_W
+#define HUB75_PANEL_W 64
+#endif
+#ifndef HUB75_PANEL_H
+#define HUB75_PANEL_H 64
+#endif
+#ifndef HUB75_CHAIN
+#define HUB75_CHAIN 2
+#endif
+#ifndef HUB75_PANEL_ROWS
+#define HUB75_PANEL_ROWS 1
+#endif
+#if HUB75_CHAIN % HUB75_PANEL_ROWS
+#error "HUB75_CHAIN must be a multiple of HUB75_PANEL_ROWS"
+#endif
 
 #ifdef HUB75_PINS_CUSTOM
 

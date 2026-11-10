@@ -25,6 +25,7 @@ sent by a desktop companion app.
 |------|-------|
 | ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
 | Alternative: [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix) | Purpose-built HUB75 driver board (ESP32-S3-WROOM-2-N32R16V, 32MB flash, 16MB PSRAM). Carries the HUB75 header and output buffers, so no per-GPIO wiring is needed; ribbon cables and panel power still get connected, per [Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use). Uses its own pin map - see below |
+| Alternative: Huidu HD-WF2 | LED sign controller with an ESP32-S3, 8MB flash and two HUB75 outputs. Drives four 64x32 panels from the 75EX1 output as one 128x64 canvas. Build from source; the web flasher does not offer it. See [Building from source](#building-from-source) |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | Alternative: [NONDK P2.5 128x64 HUB75E panel](https://www.amazon.de/dp/B0GXLJVTZC) | One piece instead of two chained panels. Needs driver 0 ([Panel options](#panel-options)) and 5V logic: a board with buffers such as the Waveshare driver board, or the level shifter from the [wiring guide](docs/HUB75_WIRING.md#6-level-shifting-only-if-needed) |
 | 5V power | Two options - see below |
@@ -100,9 +101,18 @@ Waveshare ESP32-S3-RGB-Matrix (fixed by the board, nothing to wire):
 | Row address | A / B / C / D / E | 18 / 8 / 3 / 42 / 9 |
 | Clock / Latch / Output-enable | CLK / LAT / OE | 41 / 40 / 2 |
 
+Huidu HD-WF2, 75EX1 output (fixed by the board, nothing to wire):
+
+| Function | Signals | GPIO |
+|----------|---------|------|
+| Upper half RGB | R1 / G1 / B1 | 2 / 6 / 10 |
+| Lower half RGB | R2 / G2 / B2 | 3 / 7 / 11 |
+| Row address | A / B / C / D / E | 39 / 38 / 37 / 36 / 21 |
+| Clock / Latch / Output-enable | CLK / LAT / OE | 34 / 33 / 35 |
+
 [`src/display/hub75_pins.h`](src/display/hub75_pins.h) holds the hand-wired map as
-the default and defines the override contract; the Waveshare values are supplied by
-the `matrix-waveshare` environment in [`platformio.ini`](platformio.ini). A board
+the default and defines the override contract; the Waveshare and HD-WF2 values are
+supplied by their environments in [`platformio.ini`](platformio.ini). A board
 environment overrides the map from `build_flags` by defining `HUB75_PINS_CUSTOM`
 plus all 14 pins. A partial override is a compile error, so a half-edited map cannot
 reach the panels.
@@ -709,6 +719,9 @@ pio run -e matrix-waveshare -t upload
 
 # Any of the above with game mode: add -games to the environment
 pio run -e matrix-waveshare-games -t upload
+
+# Huidu HD-WF2 LED sign controller (no game mode build)
+pio run -e matrix-wf2 -t upload
 ```
 
 Omit `-t upload` to build only. The WROOM environment currently sets upload and
@@ -726,8 +739,18 @@ octal flash, which the `matrix-waveshare` environment selects with
 header, and `large_littlefs_32MB.csv` splits the part into two 4.5MB OTA slots and
 23MB of animation storage.
 
-The `matrix-s3-bringup` / `matrix-wroom-bringup` / `matrix-waveshare-bringup`
-environments build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six
+The Huidu HD-WF2 flashes through its USB-A port: connect it to the computer with a
+USB-A to USB-C data cable, USB-A end in the board. Flashing replaces Huidu's factory
+firmware, so back it up first if you may want it back. The firmware console is USB
+CDC on the same port. `default_8MB.csv` leaves two OTA slots and 1.5MB of animation
+storage. Chain the four 64x32 panels from the 75EX1 output left to right along the
+top row, then left to right along the bottom row, with no serpentine turn. Another
+layout means changing `HUB75_PANEL_H`, `HUB75_CHAIN` and `HUB75_PANEL_ROWS` in the
+environment. The LED strip output defaults to GPIO46, an open pad on the PCB, because
+GPIO21 is the panel E line on this board.
+
+The `matrix-s3-bringup` / `matrix-wroom-bringup` / `matrix-waveshare-bringup` /
+`matrix-wf2-bringup` environments build a standalone panel self-test (`bringup/hello_matrix.cpp`) with six
 test patterns, useful for verifying wiring before flashing the full firmware.
 
 ### First-time WiFi setup

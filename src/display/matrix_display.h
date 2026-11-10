@@ -19,10 +19,6 @@
 
 #include "hub75_pins.h"
 
-#define HUB75_PANEL_W 64
-#define HUB75_PANEL_H 64
-#define HUB75_CHAIN   2   // two panels chained -> 128x64
-
 // Build the verified panel configuration. Returned by value at static-init time;
 // no hardware is touched until display.begin() (called from initDisplay()).
 inline HUB75_I2S_CFG makeMatrixConfig() {
@@ -43,7 +39,12 @@ inline HUB75_I2S_CFG makeMatrixConfig() {
 // display) on top of the GFX-derived matrix panel.
 class MatrixDisplay : public MatrixPanel_I2S_DMA {
 public:
-  explicit MatrixDisplay(const HUB75_I2S_CFG &cfg) : MatrixPanel_I2S_DMA(cfg) {}
+  explicit MatrixDisplay(const HUB75_I2S_CFG &cfg) : MatrixPanel_I2S_DMA(cfg) {
+#if HUB75_PANEL_ROWS > 1
+    _width = HUB75_PANEL_W * HUB75_CHAIN / HUB75_PANEL_ROWS;
+    _height = HUB75_PANEL_H * HUB75_PANEL_ROWS;
+#endif
+  }
 
   inline void clearDisplay() { clearScreen(); }      // clear the (back) draw buffer
   inline void display() {
@@ -71,7 +72,20 @@ public:
   // Stops output and frees what the driver's own teardown leaks.
   void releaseDma();
   bool ready() const;  // begin() succeeded
+
+#if HUB75_PANEL_ROWS > 1
+  void drawPixel(int16_t x, int16_t y, uint16_t color) override;
+  void drawPixelRGB888(int16_t x, int16_t y, uint8_t r, uint8_t g, uint8_t b);
+  void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) override;
+  void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) override;
+  void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) override;
+#endif
+
 private:
+#if HUB75_PANEL_ROWS > 1
+  bool canvasToChain(int16_t &x, int16_t &y) const;
+#endif
+
   uint32_t lastFlipUs = 0;
   bool hasFlipped = false;
 };
