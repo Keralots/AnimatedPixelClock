@@ -7,8 +7,9 @@ Runs the whole release pipeline for the browser flasher at docs/:
     2. Locates the PlatformIO CLI (PATH, then the standard penv install)
     3. Builds every board variant in a single PlatformIO invocation
        (matrix-s3-wroom = WROOM 16MB, matrix-s3 = S3-Zero / Super Mini 4MB,
-        matrix-waveshare = Waveshare ESP32-S3-RGB-Matrix), each as a clock-only
-       image and as a "-games" image with Bluetooth game mode
+        matrix-waveshare = Waveshare ESP32-S3-RGB-Matrix, matrix-wf2 = Huidu
+        HD-WF2 8MB), each as a clock-only image and, except the HD-WF2, as a
+       "-games" image with Bluetooth game mode
     4. Merges bootloader + partitions + OTA initialization + app into a "Full" image per
        variant (flashed at 0x0, what ESP Web Tools writes)
     5. Copies the Full.bin images into docs/firmware/latest/ as
@@ -40,19 +41,26 @@ import struct
 from pathlib import Path
 
 # Variants published by the web flasher.
-# (PlatformIO env, firmware id, label). The firmware id must match the
-# `firmware` field in docs/flasher.js and drives the release/ filenames.
+# (PlatformIO env, firmware id, label, flash MB, game mode image). The firmware id
+# must match the `firmware` field in docs/flasher.js and drives the release/ filenames.
 BOARDS = [
-    ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)", 16),
-    ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)", 4),
-    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix (32MB)", 32),
+    ("matrix-s3-wroom",  "wroom",     "ESP32-S3-WROOM devkit (16MB)", 16, True),
+    ("matrix-s3",        "supermini", "ESP32-S3-Zero / Super Mini (4MB)", 4, True),
+    ("matrix-waveshare", "waveshare", "Waveshare ESP32-S3-RGB-Matrix (32MB)", 32, True),
+    # No PSRAM: Bluetooth would take another ~29KB of the internal heap.
+    ("matrix-wf2",       "wf2",       "Huidu HD-WF2 (8MB)", 8, False),
 ]
-# Each board ships clock-only and with game mode (env "<env>-games", id "<id>-games").
+# A board ships clock-only and, when flagged, with game mode (env "<env>-games",
+# id "<id>-games").
+def _suffixes(games: bool):
+    return (("", ""), ("-games", " + games")) if games else (("", ""),)
+
+
 VARIANTS = [(env + sfx, fid + sfx, label + note)
-            for env, fid, label, _ in BOARDS
-            for sfx, note in (("", ""), ("-games", " + games"))]
+            for env, fid, label, _, games in BOARDS
+            for sfx, note in _suffixes(games)]
 FLASH_BYTES = {env + sfx: mb * 1024 * 1024
-               for env, _, _, mb in BOARDS for sfx in ("", "-games")}
+               for env, _, _, mb, games in BOARDS for sfx, _ in _suffixes(games)}
 
 # Flash offsets for the ESP32-S3 (bootloader starts at 0x0).
 BOOTLOADER_OFFSET = 0x0

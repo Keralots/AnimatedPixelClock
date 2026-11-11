@@ -25,7 +25,7 @@ sent by a desktop companion app.
 |------|-------|
 | ESP32-S3 board | ESP32-S3-WROOM-1 (N16R8) devkit or Waveshare ESP32-S3-Zero. Compatible Super Mini boards also work; check that the particular board exposes GPIO 1, 2, 4-14 and 38 without conflicts |
 | Alternative: [Waveshare ESP32-S3-RGB-Matrix](https://docs.waveshare.com/ESP32-S3-RGB-Matrix) | Purpose-built HUB75 driver board (ESP32-S3-WROOM-2-N32R16V, 32MB flash, 16MB PSRAM). Carries the HUB75 header and output buffers, so no per-GPIO wiring is needed; ribbon cables and panel power still get connected, per [Waveshare's connection guide](https://docs.waveshare.com/ESP32-S3-RGB-Matrix/Instructions-For-Use). Uses its own pin map - see below |
-| Alternative: Huidu HD-WF2 | LED sign controller with an ESP32-S3, 8MB flash and two HUB75 outputs. Drives four 64x32 panels from the 75EX1 output as one 128x64 canvas. Build from source; the web flasher does not offer it. See [Building from source](#building-from-source) |
+| Alternative: Huidu HD-WF2 | LED sign controller with an ESP32-S3, 8MB flash and two HUB75 outputs. Drives four 64x32 panels from the 75EX1 output as one 128x64 canvas. No PSRAM, so clock only, no game mode. See [Building from source](#building-from-source) for flashing and panel order |
 | 2x [Waveshare P2.5 64x64 HUB75E panels](https://kamami.pl/en/matrix/1183428-waveshare-23708-rgb-full-color-led-matrix-panel-2-5mm-pitch-64x64-pixels-adjustable-brightness-5906623427154.html) | Chained into one 128x64 canvas, 1/32 scan, FM6126A driver (init handled by the firmware) |
 | Alternative: [NONDK P2.5 128x64 HUB75E panel](https://www.amazon.de/dp/B0GXLJVTZC) | One piece instead of two chained panels. Needs driver 0 ([Panel options](#panel-options)) and 5V logic: a board with buffers such as the Waveshare driver board, or the level shifter from the [wiring guide](docs/HUB75_WIRING.md#6-level-shifting-only-if-needed) |
 | 5V power | Two options - see below |
@@ -692,10 +692,14 @@ Board choices on that page:
 - **Waveshare ESP32-S3-RGB-Matrix** - the purpose-built driver board. Native USB,
   same BOOT-hold trick if the port does not appear. Its 32MB flash leaves 23MB
   for custom animations.
+- **Huidu HD-WF2 (8MB)** - the LED sign controller with four 64x32 panels. Connect
+  its USB-A port with a USB-A to USB-C data cable. Flashing erases Huidu's factory
+  firmware, so back it up first if you may want it back.
 
-The list has two sections with every board in each: **Clock only** (recommended)
-and **Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
-gamepad at the cost of about 29KB of free internal memory.
+The list has two sections: **Clock only** (recommended) with every board, and
+**Clock + game mode**, which adds [Game mode](#game-mode-optional) with a Bluetooth
+gamepad at the cost of about 29KB of free internal memory. The HD-WF2 has no PSRAM
+and is offered as clock only.
 
 The same page has a serial log viewer, useful if the display stays dark after a flash.
 It also provides a direct Windows companion download after flashing. Full images,
@@ -774,8 +778,9 @@ Updating from a [GitHub release](https://github.com/Keralots/AnimatedPixelClock/
 upload `OTA_ONLY_firmware-v<version>-<board>.bin`. Do not upload the full
 `firmware-v<version>-<board>.bin` - that one carries the bootloader and partition
 table and belongs at `0x0` over USB. `wroom` is the ESP32-S3-WROOM-1 N16R8 (16MB)
-build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build, and `waveshare` the
-Waveshare ESP32-S3-RGB-Matrix build. Each has a `-games` twin with game mode
+build, `supermini` the ESP32-S3-Zero / Super Mini (4MB) build, `waveshare` the
+Waveshare ESP32-S3-RGB-Matrix build and `wf2` the Huidu HD-WF2 build. Each except
+`wf2` has a `-games` twin with game mode
 (for example `OTA_ONLY_firmware-v<version>-waveshare-games.bin`); upload the one
 that matches the variant shown on the Maintenance page, or the other one to switch.
 The portal asks before installing a file whose name does not match. Downloads can

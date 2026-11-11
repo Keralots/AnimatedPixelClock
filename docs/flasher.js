@@ -1,7 +1,8 @@
 // AnimatedPixelClock Web Flasher - client logic.
 // Builds an ESP Web Tools manifest on the fly for the chosen board and keeps the
 // install button, specs and board photo in sync. Each board in BOARDS below has a
-// clock-only image and a "-games" image with Bluetooth game mode (VARIANTS), all
+// clock-only image and, unless it sets games: false, a "-games" image with Bluetooth
+// game mode (VARIANTS), all
 // driving the 128x64 HUB75 matrix. The picker lists every board once per variant,
 // one section each, with "<board>/<variant>" option values.
 
@@ -27,6 +28,14 @@ const BOARDS = {
     board: 'Waveshare ESP32-S3-RGB-Matrix',
     note: 'The purpose-built HUB75 driver board: the panel header and output buffers are onboard, so no per-GPIO wiring is needed - you still connect the ribbon cables and panel power. Its 32MB flash leaves 23MB for custom GIF animations. Two USB-C ports, one for programming and one for power. Native USB: if the serial port does not appear, hold BOOT while plugging in. Follow Waveshare\'s own connection guide for this board.',
   },
+  wf2: {
+    label: 'Huidu HD-WF2 LED controller (8MB)',
+    chipFamily: 'ESP32-S3',
+    firmware: 'wf2',                    // AnimatedPixelClock-wf2-<ver>-Full.bin
+    board: 'Huidu HD-WF2',
+    games: false,                       // no PSRAM, Bluetooth would starve the heap
+    note: 'An LED sign controller driving four 64x32 panels from its 75EX1 output as one 128x64 canvas: top row left to right, then bottom row left to right. Connect its USB-A port to the computer with a USB-A to USB-C data cable. Flashing erases Huidu\'s factory firmware for good, so back it up first if you may want it back. Clock only: the board has no PSRAM, so there is no game mode image.',
+  },
 };
 
 // Bluetooth reserves internal memory for good once it is in the firmware, so the
@@ -35,6 +44,10 @@ const VARIANTS = {
   clock: { label: 'Clock only (recommended)', suffix: '', spec: 'clock only' },
   games: { label: 'Clock + game mode (Bluetooth Xbox pad, about 29KB less free memory)', suffix: '-games', spec: 'clock + games' },
 };
+
+function offered(boardId, variantId) {
+  return variantId !== 'games' || BOARDS[boardId].games !== false;
+}
 
 const DEFAULT_BOARD = 'supermini';
 const DEFAULT_VARIANT = 'clock';
@@ -97,6 +110,7 @@ function populateBoardSelect() {
     const group = document.createElement('optgroup');
     group.label = variant.label;
     for (const [boardId, info] of Object.entries(BOARDS)) {
+      if (!offered(boardId, variantId)) continue;
       const opt = document.createElement('option');
       opt.value = `${boardId}/${variantId}`;
       opt.textContent = info.label;
@@ -109,7 +123,8 @@ function populateBoardSelect() {
 
 function parsePick(value) {
   const [boardId, variantId] = (value || '').split('/');
-  return BOARDS[boardId] && VARIANTS[variantId] ? [boardId, variantId] : [DEFAULT_BOARD, DEFAULT_VARIANT];
+  return BOARDS[boardId] && VARIANTS[variantId] && offered(boardId, variantId)
+    ? [boardId, variantId] : [DEFAULT_BOARD, DEFAULT_VARIANT];
 }
 
 function renderVariant(variantId) {
@@ -128,8 +143,9 @@ function renderSpecs(boardId) {
     // Eager: a lazy image in a collapsed step never loads, so its onerror never
     // fires and a board without a photo would show a broken-image icon.
     img.loading = 'eager';
-    img.onerror = () => { img.hidden = true; };
-    img.hidden = false;
+    const frame = img.closest('.board-photo') || img;
+    img.onerror = () => { frame.hidden = true; };
+    frame.hidden = false;
     img.src = `img/boards/${boardId}.jpg`;
     img.alt = info.board;
   }
@@ -212,7 +228,7 @@ async function probeImage(url) {
 async function pruneUnpublishedBoards(version) {
   const sel = document.getElementById('board-select');
   if (!sel) return;
-  const keys = Object.keys(BOARDS).flatMap((b) => Object.keys(VARIANTS).map((v) => [b, v]));
+  const keys = Object.keys(BOARDS).flatMap((b) => Object.keys(VARIANTS).filter((v) => offered(b, v)).map((v) => [b, v]));
   await Promise.all(keys.map(async ([b, v]) => {
     _imageState[`${b}/${v}`] = await probeImage(imageUrl(b, v, version));
   }));

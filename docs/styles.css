@@ -404,6 +404,8 @@ select:focus { outline: none; border-color: var(--green-line); box-shadow: 0 0 0
 }
 .board-photo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
 .board-photo img[hidden] { display: none; }
+.board-photo[hidden] { display: none; }
+.board-card:has(.board-photo[hidden]) { grid-template-columns: 1fr; }
 .board-info { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .board-info .specs { margin: 0; }
 
