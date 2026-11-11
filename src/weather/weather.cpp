@@ -95,20 +95,26 @@ static int8_t weekdayOf(const char* iso) {
 }
 
 static bool fetchWeather() {
+  // TLS needs about 50KB of internal SRAM for one fetch unless tls_psram.cpp
+  // can move it to PSRAM. Without PSRAM that peak starves the web server, and
+  // the forecast is public data, so plain HTTP is used there instead.
+  const bool tls = psramFound();
   char url[400];
   int len = snprintf(url, sizeof(url),
-           "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+           "%s://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
            "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
            "precipitation_probability_max,sunrise,sunset"
            "&hourly=temperature_2m,precipitation_probability&forecast_hours=%d"
            "&timezone=auto&forecast_days=%d",
-           settings.weatherLat, settings.weatherLon, WEATHER_FORECAST_HOURS,
-           1 + WEATHER_FORECAST_DAYS);
+           tls ? "https" : "http", settings.weatherLat, settings.weatherLon,
+           WEATHER_FORECAST_HOURS, 1 + WEATHER_FORECAST_DAYS);
   if (len < 0 || len >= (int)sizeof(url)) return false;  // a cut URL loses timezone=auto
 
-  WiFiClientSecure client;
-  client.setInsecure();  // public, non-sensitive data; saves a cert bundle
+  WiFiClientSecure secureClient;
+  secureClient.setInsecure();  // public, non-sensitive data; saves a cert bundle
+  WiFiClient plainClient;
+  WiFiClient& client = tls ? secureClient : plainClient;
   HTTPClient http;
   http.setTimeout(10000);
   http.useHTTP10(true);
